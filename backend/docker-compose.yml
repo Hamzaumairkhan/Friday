@@ -1,0 +1,15 @@
+services:
+  backend:
+    build: .
+    container_name: friday_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=sqlite+aiosqlite:///./data/friday.db
+      - DATABASE_SYNC_URL=sqlite:///./data/friday.db
+      - LLM_PROVIDER=mock
+      - EMBEDDING_PROVIDER=mock
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

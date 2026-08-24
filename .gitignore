@@ -1,0 +1,50 @@
+# ==============================================================================
+# Friday — Root .gitignore (Backend only repository)
+# ==============================================================================
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!backend/package.json
+!backend/package-lock.json
+
+# Frontend (Excluded from backend repository)
+frontend/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+
+# Databases & Local State
+data/*.db
+data/chroma/*
+!data/chroma/.gitkeep
+backend/data/*.db
+backend/data/chroma/*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Build Artifacts
+dist/
+build/
+*.egg-info/

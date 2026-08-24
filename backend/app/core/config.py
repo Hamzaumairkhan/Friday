@@ -1,0 +1,81 @@
+"""Application configuration using Pydantic Settings."""
+
+from functools import lru_cache
+from pathlib import Path
+from typing import Optional, List
+from pydantic_settings import BaseSettings
+
+# Anchored paths ensuring data and .env are always inside backend/
+BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+DATA_DIR = BACKEND_DIR / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+DEFAULT_DB_FILE = (DATA_DIR / "friday.db").as_posix()
+DEFAULT_CHROMA_DIR = (DATA_DIR / "chroma").as_posix()
+ENV_FILE_PATH = (BACKEND_DIR / ".env").as_posix()
+
+
+class Settings(BaseSettings):
+    """Minimal, essential application settings for Friday."""
+
+    # APP
+    APP_NAME: str = "Friday"
+    APP_VERSION: str = "0.1.0"
+    DEBUG: bool = True
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+
+    # DATABASE (Anchored strictly to backend/data/friday.db)
+    DATABASE_URL: str = f"sqlite+aiosqlite:///{DEFAULT_DB_FILE}"
+    DATABASE_SYNC_URL: str = f"sqlite:///{DEFAULT_DB_FILE}"
+
+    # LLM - PRIMARY (Groq Cloud)
+    GROQ_API_KEY: Optional[str] = None
+    GROQ_MODEL: str = "openai/gpt-oss-20b"
+
+    # LLM - REASONING & PLANNING / FALLBACK (Google Gemini)
+    GOOGLE_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+
+    # VECTOR STORE (Persistent ChromaDB under backend/data/chroma)
+    CHROMA_PATH: str = DEFAULT_CHROMA_DIR
+    EMBEDDING_PROVIDER: str = "gemini"
+    EMBEDDING_MODEL: str = "text-embedding-004"
+    EMBEDDING_DIMENSIONS: int = 384
+
+    # WEB RESEARCH (Tavily)
+    TAVILY_API_KEY: Optional[str] = None
+
+    # WEATHER (OpenWeather)
+    OPENWEATHER_API_KEY: Optional[str] = None
+
+    # MAPS & PLACES (Google Maps / OpenStreetMap fallback)
+    GOOGLE_MAPS_API_KEY: Optional[str] = None
+
+    # EMAIL (Resend)
+    RESEND_API_KEY: Optional[str] = None
+    EMAIL_FROM: str = "onboarding@resend.dev"
+    ADMIN_EMAIL: Optional[str] = None
+
+    # WHATSAPP (Isolated local Baileys microservice)
+    WHATSAPP_SERVICE_URL: str = "http://127.0.0.1:3001"
+
+    # OBSERVABILITY (LangSmith - Optional)
+    LANGSMITH_API_KEY: Optional[str] = None
+    LANGSMITH_TRACING: bool = False
+    LANGSMITH_PROJECT: str = "friday"
+
+    # CORS
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+
+    model_config = {
+        "env_file": [ENV_FILE_PATH, ".env"],
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Get cached settings instance."""
+    return Settings()

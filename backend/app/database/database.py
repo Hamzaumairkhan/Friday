@@ -1,0 +1,83 @@
+"""Database engine and session management with SQLite schema auto-migration."""
+
+import os
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy import create_engine, inspect, text
+from app.core.config import get_settings
+from app.database.base import Base
+
+settings = get_settings()
+
+
+def _ensure_sqlite_dir(url: str):
+    """Ensure the directory for a sqlite database file exists."""
+    if "sqlite" in url and ":///" in url:
+        path = url.split(":///")[-1]
+        if path and path != ":memory:":
+            dirname = os.path.dirname(os.path.abspath(path))
+            if dirname:
+                os.makedirs(dirname, exist_ok=True)
+
+
+_ensure_sqlite_dir(settings.DATABASE_URL)
+_ensure_sqlite_dir(settings.DATABASE_SYNC_URL)
+
+# Async engine for FastAPI
+async_engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=False,
+    future=True,
+)
+
+# Sync engine for migrations, seed scripts, and testing
+sync_engine = create_engine(
+    settings.DATABASE_SYNC_URL,
+    echo=False,
+    future=True,
+)
+
+async_session_factory = async_sessionmaker(
+    async_engine, class_=AsyncSession, expire_on_commit=False
+)
+
+
+def _auto_migrate_sqlite(sync_conn):
+    """Check for missing columns on existing SQLite tables and add them dynamically."""
+    inspector = inspect(sync_conn)
+    for table in Base.metadata.tables.values():
+        if inspector.has_table(table.name):
+            existing_columns = {col["name"] for col in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name not in existing_columns:
+                    col_type = column.type.compile(sync_conn.dialect)
+                    nullable = "" if column.nullable else ""
+                    sync_conn.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {column.name} {col_type}"))
+
+
+async def get_db() -> AsyncSession:
+    """FastAPI dependency that provides a database session."""
+    async with async_session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+async def init_db() -> None:
+    """Create all tables and auto-migrate missing columns."""
+    _ensure_sqlite_dir(settings.DATABASE_URL)
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_auto_migrate_sqlite)
+
+
+def init_db_sync() -> None:
+    """Create all tables synchronously (for scripts) and auto-migrate."""
+    _ensure_sqlite_dir(settings.DATABASE_SYNC_URL)
+    Base.metadata.create_all(bind=sync_engine)
+    with sync_engine.begin() as conn:
+        _auto_migrate_sqlite(conn)
