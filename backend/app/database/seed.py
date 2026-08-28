@@ -35,6 +35,15 @@ DEMO_ORGANIZERS: List[Dict[str, Any]] = [
         "reviews_count": 128,
         "location": "Karimabad, Hunza",
         "website": "https://hunzaexplorers.pk",
+        "onboarding_completed": True,
+        "number_of_buses": 5,
+        "vehicle_capacity": 20,
+        "maximum_group_size": 25,
+        "experience_years": 15,
+        "payment_account_title": "Hunza Explorers & Treks",
+        "payment_account_number": "PK36MEZN0099120100123456",
+        "payment_bank_name": "Meezan Bank",
+        "payment_instructions": "Transfer via bank or JazzCash to the above account. Send screenshot after payment.",
     },
     {
         "id": "org-karakoram-journeys",
@@ -49,6 +58,15 @@ DEMO_ORGANIZERS: List[Dict[str, Any]] = [
         "reviews_count": 94,
         "location": "Islamabad / Skardu",
         "website": "https://karakoramjourneys.com",
+        "onboarding_completed": True,
+        "number_of_buses": 8,
+        "vehicle_capacity": 15,
+        "maximum_group_size": 20,
+        "experience_years": 10,
+        "payment_account_title": "Karakoram Journeys",
+        "payment_account_number": "PK50ALFH0943001007654321",
+        "payment_bank_name": "Bank Alfalah",
+        "payment_instructions": "Bank transfer or EasyPaisa accepted. Reference your booking ID.",
     },
     {
         "id": "org-swat-tours",
@@ -63,6 +81,15 @@ DEMO_ORGANIZERS: List[Dict[str, Any]] = [
         "reviews_count": 62,
         "location": "Mingora, Swat",
         "website": "https://swattours.pk",
+        "onboarding_completed": True,
+        "number_of_buses": 3,
+        "vehicle_capacity": 16,
+        "maximum_group_size": 16,
+        "experience_years": 8,
+        "payment_account_title": "Swat Valley Heritage Tours",
+        "payment_account_number": "PK22HBL0012345678901234",
+        "payment_bank_name": "HBL",
+        "payment_instructions": "Transfer to HBL account. WhatsApp screenshot to +92-333-5551234.",
     },
 ]
 
@@ -82,6 +109,7 @@ DEMO_PACKAGES: List[Dict[str, Any]] = [
         "transportation_type": "Private AC Vehicle / 4x4",
         "activities": ["Attabad Lake", "Baltit Fort", "Eagle's Nest", "Passu Cones", "Hussaini Bridge", "Khunjerab Pass"],
         "is_active": True,
+        "image_url": "/images/stitch/stitch_asset_1.jpg",
     },
     {
         "id": "pkg-hunza-budget-5d",
@@ -98,6 +126,7 @@ DEMO_PACKAGES: List[Dict[str, Any]] = [
         "transportation_type": "Grand Cabin / Coaster",
         "activities": ["Rakaposhi Viewpoint", "Karimabad Market", "Attabad Lake", "Passu Cones", "Altit Fort"],
         "is_active": True,
+        "image_url": "/images/stitch/stitch_asset_6.jpg",
     },
     {
         "id": "pkg-skardu-6d",
@@ -114,6 +143,7 @@ DEMO_PACKAGES: List[Dict[str, Any]] = [
         "transportation_type": "4x4 Prado/Revo & Coaster",
         "activities": ["Shangrila Lake", "Upper Kachura", "Deosai Plains", "Satpara Lake", "Cold Desert"],
         "is_active": True,
+        "image_url": "/images/stitch/stitch_asset_14.jpg",
     },
     {
         "id": "pkg-swat-3d",
@@ -130,6 +160,7 @@ DEMO_PACKAGES: List[Dict[str, Any]] = [
         "transportation_type": "AC Hiace",
         "activities": ["White Palace", "Malam Jabba", "Fizagat", "Swat Museum"],
         "is_active": True,
+        "image_url": "/images/stitch/stitch_asset_9.jpg",
     },
 ]
 

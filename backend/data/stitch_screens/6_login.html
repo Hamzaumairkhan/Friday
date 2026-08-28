@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FRIDAY® - Login</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Libre+Caslon+Text:ital,wght@0,400;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary-fixed": "#390b00",
+                    "outline-variant": "#c1c8c4",
+                    "error-container": "#ffdad6",
+                    "surface-container-low": "#f3f4f0",
+                    "on-tertiary-fixed-variant": "#76331c",
+                    "surface-container": "#edeeeb",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-fixed-dim": "#a2d0bc",
+                    "inverse-surface": "#2e312f",
+                    "surface-dim": "#d9dad7",
+                    "primary-container": "#183c32",
+                    "on-error-container": "#93000a",
+                    "tertiary-fixed-dim": "#ffb59d",
+                    "on-secondary-fixed": "#002116",
+                    "on-surface-variant": "#414845",
+                    "inverse-on-surface": "#f0f1ed",
+                    "background": "#f8faf6",
+                    "tertiary": "#420e00",
+                    "on-primary-fixed": "#002018",
+                    "surface": "#f8faf6",
+                    "surface-bright": "#f8faf6",
+                    "on-surface": "#191c1a",
+                    "on-background": "#191c1a",
+                    "secondary-fixed": "#beedd8",
+                    "tertiary-fixed": "#ffdbd0",
+                    "on-secondary-fixed-variant": "#234e3f",
+                    "tertiary-container": "#60220c",
+                    "on-tertiary": "#ffffff",
+                    "secondary-container": "#bbead5",
+                    "surface-container-highest": "#e1e3df",
+                    "primary-fixed": "#c4ebdc",
+                    "surface-container-high": "#e7e9e5",
+                    "error": "#ba1a1a",
+                    "on-tertiary-container": "#e1876a",
+                    "on-primary": "#ffffff",
+                    "primary": "#00261d",
+                    "on-secondary-container": "#406b5a",
+                    "primary-fixed-dim": "#a8cfc1",
+                    "on-primary-container": "#81a799",
+                    "surface-variant": "#e1e3df",
+                    "surface-tint": "#42655a",
+                    "outline": "#717975",
+                    "secondary": "#3c6756",
+                    "on-primary-fixed-variant": "#2a4d43",
+                    "inverse-primary": "#a8cfc1"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "container-max": "1280px",
+                    "unit": "4px",
+                    "margin-mobile": "20px",
+                    "gutter": "24px",
+                    "margin-desktop": "48px"
+            },
+            "fontFamily": {
+                    "headline-lg": [
+                            "Libre Caslon Text"
+                    ],
+                    "body-md": [
+                            "Inter"
+                    ],
+                    "label-caps": [
+                            "Inter"
+                    ],
+                    "headline-sm": [
+                            "Libre Caslon Text"
+                    ],
+                    "body-lg": [
+                            "Inter"
+                    ],
+                    "body-sm": [
+                            "Inter"
+                    ],
+                    "headline-md": [
+                            "Libre Caslon Text"
+                    ],
+                    "display-hero": [
+                            "Libre Caslon Text"
+                    ]
+            },
+            "fontSize": {
+                    "headline-lg": [
+                            "40px",
+                            {
+                                    "lineHeight": "1.2",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-md": [
+                            "16px",
+                            {
+                                    "lineHeight": "1.6",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "label-caps": [
+                            "12px",
+                            {
+                                    "lineHeight": "1",
+                                    "letterSpacing": "0.08em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "headline-sm": [
+                            "24px",
+                            {
+                                    "lineHeight": "1.4",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-lg": [
+                            "18px",
+                            {
+                                    "lineHeight": "1.6",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-sm": [
+                            "14px",
+                            {
+                                    "lineHeight": "1.5",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "headline-md": [
+                            "32px",
+                            {
+                                    "lineHeight": "1.3",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "display-hero": [
+                            "64px",
+                            {
+                                    "lineHeight": "1.1",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "400"
+                            }
+                    ]
+            }
+        },
+        },
+      }
+    </script>
+<style>
+        /* Custom input reset for minimal lines */
+        .input-line {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid theme('colors.outline-variant');
+            padding: 12px 0;
+            width: 100%;
+            transition: border-color 0.3s ease;
+        }
+        .input-line:focus {
+            outline: none;
+            border-bottom-color: theme('colors.tertiary');
+            box-shadow: none;
+        }
+        .input-line::placeholder {
+            color: theme('colors.outline');
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased min-h-screen flex flex-col md:flex-row">
+<!-- Left Side: Cinematic Photography -->
+<div class="relative hidden md:flex flex-col justify-between w-full md:w-[55%] h-screen p-margin-desktop bg-cover bg-center overflow-hidden" data-alt="A breathtaking, wide-angle cinematic photograph of a winding mountain road carved into the rugged, rocky terrain of northern Pakistan. The landscape is vast and awe-inspiring, bathed in the soft, diffused light of early morning or late afternoon, creating deep shadows and dramatic highlights. A subtle, dark, moody vignette overlays the image, enhancing the cinematic quality and providing a rich, premium aesthetic that balances the rugged spirit of adventure with refined serenity." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDbXleOyitccKuBUPjNba6gdw5rqbxhPXEAMedtAXZYgVB6ZFp7fQKzi9R-nuv5_q__DOmvq4CIg5e9odntJXLd4e57yh_0TJdkzbx1UiRUSuj-VTa4qDRnEOs9XvQcjs8flkgZcwK2X0ItKetuP4QP0k_9AhM6tqeScbmfe53JCdxp2x2zv4qio62sVUPphruVd7PI8HVONozPn4nfiQDRZRQJwSFQpywjfZDUWIeGsFu1DDee52A')">
+<!-- Dark Overlay -->
+<div class="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/60 z-0"></div>
+<!-- Top Content -->
+<div class="z-10 flex justify-between items-start text-white">
+<span class="font-label-caps text-label-caps uppercase tracking-widest text-white/90">FRIDAY® / FIELD PASS</span>
+</div>
+<!-- Center/Bottom Content -->
+<div class="z-10 flex flex-col items-start gap-8 mt-auto mb-12 max-w-2xl text-white">
+<h1 class="font-display-hero text-display-hero italic text-white/95 leading-tight">
+                Your next story starts here.
+            </h1>
+</div>
+<!-- Bottom Metadata -->
+<div class="z-10 flex justify-between items-end text-white/70">
+<span class="font-label-caps text-label-caps uppercase tracking-widest">PAKISTAN 35.9208° N 74.3083° E</span>
+</div>
+</div>
+<!-- Mobile Header (Visible only on small screens) -->
+<div class="md:hidden w-full h-64 relative bg-cover bg-center" data-alt="A breathtaking, wide-angle cinematic photograph of a winding mountain road carved into the rugged, rocky terrain of northern Pakistan, bathed in soft, moody light." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBuIkFH35lMYCSObpLRMsEJITOtPtmB9D6lwJDG-_GfbrFlWR1mP-GotrmN6nGqU9Sy70gez8UIl9_NiiKGIlpSjCvKqrrIZo0AD9T1-yKkf5wgbxnVc0YjybKw0BapY1SL0dJPMO8Jt5zY89wskHlTdfwXKn1rU7Z5ocfBQui3xWZ-1gFouCiF74jh2q1jq33WpqGDPnAIESy3PlF1PV0d46CMrLGGgfSOMfbxK__tWq2JXvVbqhs')">
+<div class="absolute inset-0 bg-black/40 z-0"></div>
+<div class="absolute inset-0 z-10 flex flex-col justify-center items-center text-center p-8">
+<h1 class="font-headline-lg text-headline-lg italic text-white leading-tight">
+                Your next story starts here.
+            </h1>
+</div>
+</div>
+<!-- Right Side: Authentication Form -->
+<div class="w-full md:w-[45%] bg-surface flex items-center justify-center p-8 md:p-margin-desktop min-h-screen md:min-h-0">
+<div class="w-full max-w-sm flex flex-col justify-center">
+<!-- Form Header -->
+<div class="mb-12">
+<h2 class="font-headline-lg text-headline-lg text-on-surface mb-2">Welcome back.</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Continue your journey with Friday.</p>
+</div>
+<!-- Form -->
+<form class="space-y-8">
+<div class="space-y-6">
+<!-- Email Field -->
+<div class="relative group">
+<label class="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-1" for="email">Email Address</label>
+<input class="input-line font-body-md text-body-md text-on-surface" id="email" name="email" placeholder="nomad@example.com" required="" type="email"/>
+</div>
+<!-- Password Field -->
+<div class="relative group">
+<div class="flex justify-between items-baseline mb-1">
+<label class="block font-label-caps text-label-caps text-on-surface-variant uppercase" for="password">Password</label>
+<a class="font-label-caps text-label-caps text-tertiary hover:text-primary transition-colors" href="#">Forgot?</a>
+</div>
+<input class="input-line font-body-md text-body-md text-on-surface" id="password" name="password" placeholder="••••••••" required="" type="password"/>
+</div>
+</div>
+<!-- Primary CTA -->
+<button class="w-full bg-primary text-on-primary py-4 px-6 rounded flex justify-between items-center group hover:bg-primary/90 transition-colors" type="submit">
+<span class="font-label-caps text-label-caps uppercase tracking-widest">Continue</span>
+<span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+</form>
+<!-- Divider -->
+<div class="flex items-center gap-4 my-8">
+<div class="h-px bg-outline-variant flex-1"></div>
+<span class="font-label-caps text-label-caps text-outline uppercase">Or</span>
+<div class="h-px bg-outline-variant flex-1"></div>
+</div>
+<!-- OAuth Option -->
+<button class="w-full border border-outline-variant bg-transparent text-on-surface py-3 px-6 rounded flex justify-center items-center gap-3 hover:bg-surface-container-low transition-colors" type="button">
+<svg height="18" viewbox="0 0 48 48" width="18" xmlns="http://www.w3.org/2000/svg">
+<path d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" fill="#FFC107"></path>
+<path d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" fill="#FF3D00"></path>
+<path d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.519-3.317-11.127-7.865l-6.602,5.045C9.62,39.734,16.294,44,24,44z" fill="#4CAF50"></path>
+<path d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" fill="#1976D2"></path>
+</svg>
+<span class="font-label-caps text-label-caps uppercase tracking-wide">Continue with Google</span>
+</button>
+<!-- Footer Link -->
+<div class="mt-12 text-center">
+<a class="inline-flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors group" href="#">
+                    New to Friday? <span class="font-semibold text-primary underline underline-offset-4 decoration-primary/30 group-hover:decoration-primary transition-colors">Create account</span>
+<span class="material-symbols-outlined text-[14px] text-primary">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</body></html>

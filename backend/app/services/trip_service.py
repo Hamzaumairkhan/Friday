@@ -122,7 +122,7 @@ class TripService:
         if not trip:
             raise NotFoundError("Trip", trip_id)
         is_member = await self.repo.is_trip_member(trip_id, user_id)
-        if not is_member:
+        if not is_member and not (hasattr(trip, 'is_public') and trip.is_public == 1):
             raise AuthorizationError("Access denied to this trip")
         return trip
 
@@ -230,3 +230,12 @@ class TripService:
             budget_breakdown=budget_summary.model_dump(),
             version=trip.version,
         )
+
+    async def delete_trip(self, trip_id: str, user_id: str) -> bool:
+        trip = await self.get_trip(trip_id=trip_id, user_id=user_id)
+        if trip.owner_id != user_id:
+            raise AuthorizationError("Only the owner can delete this trip.")
+        await self.repo.delete(trip)
+        await self.db.commit()
+        return True
+

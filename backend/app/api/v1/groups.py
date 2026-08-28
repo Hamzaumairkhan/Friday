@@ -1,43 +1,77 @@
-"""Group travel and collaboration endpoints."""
+"""Trip Group and Community Chat API endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import List
+from typing import List, Dict, Any
 
 from app.database.database import get_db
-from app.models.trip import TripMember, Trip
 from app.models.user import User
-from app.schemas.trip import TripMemberAdd
-from app.services.trip_service import TripService
-from app.core.security import get_current_user_id
+from app.models.organizer import Organizer
+from app.schemas.trip_group import (
+    TripGroupResponse,
+    TripGroupMessageCreate,
+    TripGroupMessageResponse,
+    TripGroupSummaryResponse,
+)
+from app.services.trip_group_service import TripGroupService
+from app.core.security import get_current_user, get_current_organizer
 
-router = APIRouter(prefix="/groups", tags=["Group Travel"])
+router = APIRouter(prefix="/groups", tags=["Trip Groups & Community Chat"])
 
 
-@router.get("/trips/{trip_id}/members")
-async def list_trip_members(
-    trip_id: str,
-    user_id: str = Depends(get_current_user_id),
+@router.get("/organizer/my-groups", response_model=List[TripGroupSummaryResponse])
+async def list_organizer_trip_groups(
+    current_organizer: Organizer = Depends(get_current_organizer),
     db: AsyncSession = Depends(get_db),
 ):
-    trip_service = TripService(db)
-    await trip_service.get_trip(trip_id, user_id)
+    """List all trip groups owned and operated by the authenticated organizer."""
+    service = TripGroupService(db)
+    return await service.list_organizer_groups(current_organizer)
 
-    result = await db.execute(
-        select(TripMember, User.username, User.email, User.full_name)
-        .join(User, TripMember.user_id == User.id)
-        .where(TripMember.trip_id == trip_id)
+
+@router.get("/traveler/my-groups", response_model=List[TripGroupSummaryResponse])
+async def list_traveler_trip_groups(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all trip groups for which the traveler has confirmed bookings."""
+    service = TripGroupService(db)
+    return await service.list_traveler_groups(current_user)
+
+
+@router.get("/trips/{package_id}", response_model=TripGroupResponse)
+async def get_trip_group(
+    package_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve details and member list for an organizer trip group. IDOR protected."""
+    service = TripGroupService(db)
+    return await service.get_group_details(package_id=package_id, current_user=current_user)
+
+
+@router.get("/trips/{package_id}/messages", response_model=List[TripGroupMessageResponse])
+async def list_trip_group_messages(
+    package_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve chronological messages for a trip group. IDOR protected."""
+    service = TripGroupService(db)
+    return await service.list_messages(package_id=package_id, current_user=current_user)
+
+
+@router.post("/trips/{package_id}/messages", response_model=TripGroupMessageResponse, status_code=status.HTTP_201_CREATED)
+async def post_trip_group_message(
+    package_id: str,
+    req: TripGroupMessageCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Post a message or announcement into the trip group. IDOR protected."""
+    service = TripGroupService(db)
+    return await service.post_message(
+        package_id=package_id,
+        message_text=req.message,
+        current_user=current_user,
     )
-    members = []
-    for m, username, email, full_name in result.all():
-        members.append({
-            "id": m.id,
-            "user_id": m.user_id,
-            "username": username,
-            "email": email,
-            "full_name": full_name,
-            "role": m.role.value if hasattr(m.role, 'value') else m.role,
-            "invitation_status": m.invitation_status,
-        })
-    return members

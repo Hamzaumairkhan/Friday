@@ -24,6 +24,16 @@ class RegisterRequest(BaseModel):
     location: Optional[str] = None
     destinations: Optional[List[str]] = None
     website: Optional[str] = None
+    # Extended onboarding fields
+    number_of_buses: Optional[int] = None
+    vehicle_capacity: Optional[int] = None
+    maximum_group_size: Optional[int] = None
+    experience_years: Optional[int] = None
+    experience_description: Optional[str] = None
+    payment_account_title: Optional[str] = None
+    payment_account_number: Optional[str] = None
+    payment_bank_name: Optional[str] = None
+    payment_instructions: Optional[str] = None
 
 
 class LoginRequest(BaseModel):

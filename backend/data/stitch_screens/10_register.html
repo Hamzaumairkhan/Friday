@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Register - Friday®</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Inter:wght@300;400;500;600&amp;family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary": "#ffffff",
+                        "on-primary-container": "#81a799",
+                        "surface": "#f8faf6",
+                        "on-tertiary-fixed-variant": "#76331c",
+                        "surface-variant": "#e1e3df",
+                        "on-tertiary-fixed": "#390b00",
+                        "error-container": "#ffdad6",
+                        "secondary-container": "#bbead5",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-primary-fixed-variant": "#2a4d43",
+                        "on-surface-variant": "#414845",
+                        "primary-fixed-dim": "#a8cfc1",
+                        "outline": "#717975",
+                        "surface-bright": "#f8faf6",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-container": "#183c32",
+                        "secondary-fixed": "#beedd8",
+                        "on-secondary-fixed-variant": "#234e3f",
+                        "on-error-container": "#93000a",
+                        "surface-container-highest": "#e1e3df",
+                        "on-primary-fixed": "#002018",
+                        "tertiary-fixed": "#ffdbd0",
+                        "background": "#f8faf6",
+                        "surface-container": "#edeeeb",
+                        "secondary": "#3c6756",
+                        "on-surface": "#191c1a",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed-dim": "#a2d0bc",
+                        "outline-variant": "#c1c8c4",
+                        "inverse-on-surface": "#f0f1ed",
+                        "tertiary": "#420e00",
+                        "error": "#ba1a1a",
+                        "surface-container-low": "#f3f4f0",
+                        "surface-container-high": "#e7e9e5",
+                        "inverse-primary": "#a8cfc1",
+                        "tertiary-fixed-dim": "#ffb59d",
+                        "on-secondary-fixed": "#002116",
+                        "on-tertiary-container": "#e1876a",
+                        "primary-fixed": "#c4ebdc",
+                        "surface-dim": "#d9dad7",
+                        "primary": "#00261d",
+                        "inverse-surface": "#2e312f",
+                        "surface-tint": "#42655a",
+                        "on-secondary-container": "#406b5a",
+                        "tertiary-container": "#60220c",
+                        "on-background": "#191c1a",
+                        
+                        // Overrides for specific request styling if needed outside standard tokens, though we try to map.
+                        "warm-cream": "#F4EFE5",
+                        "soft-sand": "#DED3BF",
+                        "forest-green": "#00261d", // Maps to primary closely
+                        "alpine-green": "#183c32", // Maps to primary-container closely
+                        "terracotta": "#76331c"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "margin-mobile": "20px",
+                        "container-max": "1280px",
+                        "margin-desktop": "48px",
+                        "gutter": "24px",
+                        "unit": "4px"
+                    },
+                    fontFamily: {
+                        "body-lg": ["Inter", "Arial", "sans-serif"],
+                        "body-sm": ["Inter", "Arial", "sans-serif"],
+                        "label-caps": ["Inter", "Arial", "sans-serif"],
+                        "headline-lg": ["Libre Caslon Text", "serif"],
+                        "display-hero": ["Libre Caslon Text", "serif"],
+                        "headline-md": ["Libre Caslon Text", "serif"],
+                        "body-md": ["Inter", "Arial", "sans-serif"],
+                        "headline-sm": ["Libre Caslon Text", "serif"],
+                        "instrument": ["'Instrument Serif'", "serif"],
+                        "arial": ["Arial", "Helvetica", "sans-serif"]
+                    },
+                    fontSize: {
+                        "body-lg": ["18px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "body-sm": ["14px", { lineHeight: "1.5", fontWeight: "400" }],
+                        "label-caps": ["12px", { lineHeight: "1", letterSpacing: "0.08em", fontWeight: "600" }],
+                        "headline-lg": ["40px", { lineHeight: "1.2", fontWeight: "400" }],
+                        "display-hero": ["64px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "400" }],
+                        "headline-md": ["32px", { lineHeight: "1.3", fontWeight: "400" }],
+                        "body-md": ["16px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "headline-sm": ["24px", { lineHeight: "1.4", fontWeight: "400" }]
+                    },
+                    boxShadow: {
+                        "diffuse": "0px 12px 32px rgba(24, 60, 50, 0.08)"
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #f8faf6; }
+        .input-underline {
+            border: none;
+            border-bottom: 1px solid theme('colors.outline-variant');
+            background: transparent;
+            border-radius: 0;
+            padding: 0.5rem 0;
+            transition: all 0.2s ease;
+        }
+        .input-underline:focus {
+            outline: none;
+            box-shadow: none;
+            border-bottom: 1px solid theme('colors.on-tertiary-fixed-variant'); /* Terracotta warm focus */
+        }
+        .role-card {
+            border: 1px solid theme('colors.outline-variant');
+            transition: all 0.2s ease;
+        }
+        .role-card.selected {
+            border-color: theme('colors.primary'); /* Forest Green */
+            background-color: theme('colors.secondary-container'); /* Subtle Sage equivalent */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex text-on-surface font-body-md bg-surface selection:bg-primary selection:text-on-primary">
+<!-- Screen Split Container -->
+<div class="flex w-full min-h-screen flex-col lg:flex-row">
+<!-- Left: Image Canvas (Hidden on small mobile, flex on md+) -->
+<div class="hidden lg:flex lg:w-[55%] relative flex-col justify-between p-12 overflow-hidden">
+<!-- Background Image -->
+<div class="absolute inset-0 z-0">
+<img alt="Northern Pakistan Landscape" class="w-full h-full object-cover" data-alt="A breathtaking, cinematic wide-angle photograph of the rugged mountain ranges in northern Pakistan during golden hour. The sky is clear, casting a warm, serene glow over the deep valleys and snow-capped peaks. The scene is majestic and untamed, embodying the spirit of luxury adventure travel. High-end editorial photography style, muted natural tones, sharp focus, capturing the vastness of the landscape." src="https://lh3.googleusercontent.com/aida-public/AB6AXuATsjdif7zinF73PTQi8D6L8VplPIisAOiEJXcEuB3bG3nqpwhChqsrbHeBzhb7e8PsqQl-Gkxe4q2trvl_A1xYSeWBVdzLGTwOsSEPVper5leC7UoLTJy1vIi4RJ8caJyhv7CzQ2aUh45VQNvwQ96Uc0zsSkv7aSTlwfVd7x5vofjBitENP02eedcC7rMNs-siGtrMKXnmJjUuJscC4amztoXFRs3XApnz4M6w3Kx1Y046gNOHTcs"/>
+<!-- Matte overlay for editorial film feel -->
+<div class="absolute inset-0 bg-black/10 mix-blend-multiply"></div>
+<div class="absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.3)]"></div>
+</div>
+<!-- Top Header -->
+<div class="relative z-10 flex justify-between items-start text-white w-full">
+<h1 class="font-display-hero text-headline-sm tracking-tight">FRIDAY®</h1>
+<span class="font-label-caps text-label-caps uppercase tracking-widest text-white/80">FIELD PASS / JOIN</span>
+</div>
+<!-- Bottom Text -->
+<div class="relative z-10 w-full mb-8">
+<p class="font-instrument text-[48px] italic leading-tight text-white mb-6 drop-shadow-sm max-w-lg">
+                    Start your next story here.
+                </p>
+<div class="font-label-caps text-label-caps text-white/70 uppercase tracking-[0.15em]">
+                    PAKISTAN 35.9208° N 74.3083° E
+                </div>
+</div>
+</div>
+<!-- Right: Form Canvas (Warm Cream Surface) -->
+<div class="w-full lg:w-[45%] flex flex-col justify-center px-6 py-12 md:px-16 lg:px-24 bg-[#F4EFE5] min-h-screen relative shadow-[-10px_0_30px_rgba(0,0,0,0.03)] z-10">
+<!-- Mobile Brand Header (Visible only on mobile) -->
+<div class="lg:hidden flex justify-between items-center w-full mb-12">
+<h1 class="font-display-hero text-headline-sm text-primary tracking-tight">FRIDAY®</h1>
+</div>
+<!-- Top Navigation / Login Link -->
+<div class="absolute top-8 right-8 lg:top-12 lg:right-16 text-right w-full flex justify-end">
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                    Already have an account? 
+                    <a class="text-primary font-medium hover:text-on-tertiary-fixed-variant transition-colors ml-1" href="#">Sign in →</a>
+</p>
+</div>
+<!-- Form Container -->
+<div class="w-full max-w-[420px] mx-auto mt-16 lg:mt-0">
+<div class="mb-10">
+<h2 class="font-arial text-headline-md text-primary mb-3">Start your journey.</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                        Create your Friday account and discover your next adventure.
+                    </p>
+</div>
+<form action="#" class="space-y-8" method="POST">
+<!-- Inputs -->
+<div class="space-y-6">
+<div class="relative group">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase tracking-wider" for="fullName">Full Name</label>
+<input class="w-full input-underline font-body-lg text-body-lg text-on-surface placeholder:text-outline-variant/60 focus:ring-0" id="fullName" name="fullName" placeholder="Jane Doe" required="" type="text"/>
+</div>
+<div class="relative group">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase tracking-wider" for="email">Email Address</label>
+<input class="w-full input-underline font-body-lg text-body-lg text-on-surface placeholder:text-outline-variant/60 focus:ring-0" id="email" name="email" placeholder="jane@example.com" required="" type="email"/>
+</div>
+<div class="relative group">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase tracking-wider" for="password">Password</label>
+<input class="w-full input-underline font-body-lg text-body-lg text-on-surface placeholder:text-outline-variant/60 focus:ring-0" id="password" name="password" placeholder="••••••••" required="" type="password"/>
+</div>
+</div>
+<!-- Role Selection -->
+<div class="pt-4">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-4 uppercase tracking-wider">I'm joining as</label>
+<div class="grid grid-cols-2 gap-4">
+<!-- Traveler Role -->
+<label class="role-card selected cursor-pointer rounded-xl p-4 flex flex-col items-start bg-secondary-container border-primary">
+<input checked="" class="sr-only" name="role" onchange="updateRoles(this)" type="radio" value="traveler"/>
+<div class="flex items-center justify-between w-full mb-2">
+<span class="font-label-caps text-label-caps text-primary tracking-widest uppercase">Traveler</span>
+<span class="material-symbols-outlined text-[18px] text-primary" data-icon="explore" style="font-variation-settings: 'FILL' 1;">explore</span>
+</div>
+<span class="font-body-sm text-[13px] text-on-surface-variant/80 leading-snug">Discover trips &amp; book stays.</span>
+</label>
+<!-- Organizer Role -->
+<label class="role-card cursor-pointer rounded-xl p-4 flex flex-col items-start bg-surface border-outline-variant">
+<input class="sr-only" name="role" onchange="updateRoles(this)" type="radio" value="organizer"/>
+<div class="flex items-center justify-between w-full mb-2">
+<span class="font-label-caps text-label-caps text-on-surface-variant tracking-widest uppercase">Organizer</span>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant" data-icon="event_note">event_note</span>
+</div>
+<span class="font-body-sm text-[13px] text-on-surface-variant/80 leading-snug">Create journeys &amp; guide.</span>
+</label>
+</div>
+</div>
+<!-- Actions -->
+<div class="pt-6 space-y-4">
+<button class="w-full bg-primary hover:bg-primary-fixed-variant text-on-primary font-body-md text-body-md py-4 px-6 rounded-lg transition-colors flex justify-between items-center shadow-sm" type="submit">
+<span>Create account</span>
+<span class="material-symbols-outlined text-[20px]" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<div class="flex items-center justify-center space-x-4 py-2">
+<div class="h-px bg-outline-variant/30 flex-1"></div>
+<span class="font-label-caps text-[10px] text-outline tracking-widest uppercase">Or</span>
+<div class="h-px bg-outline-variant/30 flex-1"></div>
+</div>
+<button class="w-full border border-primary/20 hover:border-primary/40 bg-surface/50 text-primary font-body-md text-body-md py-3.5 px-6 rounded-lg transition-colors flex justify-center items-center gap-3" type="button">
+<svg class="w-5 h-5" fill="none" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
+</svg>
+                            Continue with Google
+                        </button>
+</div>
+<!-- Terms -->
+<p class="text-center font-body-sm text-[12px] text-on-surface-variant/60 mt-8 leading-relaxed max-w-xs mx-auto">
+                        By creating an account, you agree to our <a class="underline hover:text-primary transition-colors" href="#">Terms of Service</a> and <a class="underline hover:text-primary transition-colors" href="#">Privacy Policy</a>.
+                    </p>
+</form>
+</div>
+</div>
+</div>
+<script>
+        function updateRoles(selectedInput) {
+            // Remove selected class and styles from all
+            document.querySelectorAll('.role-card').forEach(card => {
+                card.classList.remove('selected', 'border-primary', 'bg-secondary-container');
+                card.classList.add('bg-surface', 'border-outline-variant');
+                
+                // Dim texts and icons
+                const title = card.querySelector('.font-label-caps');
+                const icon = card.querySelector('.material-symbols-outlined');
+                
+                if(title) { title.classList.remove('text-primary'); title.classList.add('text-on-surface-variant'); }
+                if(icon) { 
+                    icon.classList.remove('text-primary'); 
+                    icon.classList.add('text-on-surface-variant');
+                    icon.style.fontVariationSettings = "'FILL' 0";
+                }
+            });
+
+            // Add selected styles to the parent label of the checked radio
+            const activeCard = selectedInput.closest('label');
+            activeCard.classList.add('selected', 'border-primary', 'bg-secondary-container');
+            activeCard.classList.remove('bg-surface', 'border-outline-variant');
+
+            // Highlight texts and icons
+            const activeTitle = activeCard.querySelector('.font-label-caps');
+            const activeIcon = activeCard.querySelector('.material-symbols-outlined');
+            
+            if(activeTitle) { activeTitle.classList.add('text-primary'); activeTitle.classList.remove('text-on-surface-variant'); }
+            if(activeIcon) { 
+                activeIcon.classList.add('text-primary'); 
+                activeIcon.classList.remove('text-on-surface-variant');
+                activeIcon.style.fontVariationSettings = "'FILL' 1";
+            }
+        }
+    </script>
+</body></html>

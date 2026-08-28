@@ -21,4 +21,18 @@ class Organizer(Base, IDMixin, TimestampMixin):
     location = Column(String, nullable=True)
     website = Column(String, nullable=True)
 
+    # Business & Capacity (onboarding fields)
+    number_of_buses = Column(Integer, nullable=True)
+    vehicle_capacity = Column(Integer, nullable=True)
+    maximum_group_size = Column(Integer, nullable=True)
+    experience_years = Column(Integer, nullable=True)
+    experience_description = Column(Text, nullable=True)
+    onboarding_completed = Column(Boolean, default=False)
+
+    # Payment Information
+    payment_account_title = Column(String, nullable=True)
+    payment_account_number = Column(String, nullable=True)
+    payment_bank_name = Column(String, nullable=True)
+    payment_instructions = Column(Text, nullable=True)
+
     packages = relationship("Package", back_populates="organizer", lazy="selectin")

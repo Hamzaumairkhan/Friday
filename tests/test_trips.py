@@ -34,8 +34,10 @@ def test_create_and_get_trip(run_async, auth_headers):
 def test_list_user_trips(run_async, auth_headers):
     async def _test():
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            await client.post("/api/v1/trips", json={"destination": "Skardu", "duration": 5}, headers=auth_headers)
-            await client.post("/api/v1/trips", json={"destination": "Swat", "duration": 3}, headers=auth_headers)
+            r1 = await client.post("/api/v1/trips", json={"destination": "Skardu", "duration": 5}, headers=auth_headers)
+            assert r1.status_code == 201
+            r2 = await client.post("/api/v1/trips", json={"destination": "Swat", "duration": 3}, headers=auth_headers)
+            assert r2.status_code == 201
 
             res = await client.get("/api/v1/trips", headers=auth_headers)
             assert res.status_code == 200

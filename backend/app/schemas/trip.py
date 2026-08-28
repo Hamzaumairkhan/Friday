@@ -1,6 +1,6 @@
 """Trip schemas."""
 
-from typing import Optional
+from typing import Optional, Any
 from pydantic import BaseModel, Field
 
 
@@ -31,6 +31,9 @@ class TripUpdate(BaseModel):
     constraints: Optional[list[str]] = None
     title: Optional[str] = None
     status: Optional[str] = None
+    is_public: Optional[bool] = None
+    image_url: Optional[str] = None
+    advisories: Optional[list] = None
 
 
 class TripResponse(BaseModel):
@@ -46,13 +49,35 @@ class TripResponse(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     status: str
-    preferences: list[str]
-    constraints: list[str]
+    preferences: Optional[Any] = None
+    constraints: Optional[Any] = None
     version: int
+    is_public: bool = False
+    copied_from_trip_id: Optional[str] = None
+    image_url: Optional[str] = None
+    advisories: list = Field(default_factory=list)
     created_at: str
     updated_at: str
 
     model_config = {"from_attributes": True}
+
+
+class GuidedPlanRequest(BaseModel):
+    destination_query: str
+    origin: Optional[str] = "Islamabad"
+    travelers: int = Field(default=2, ge=1, le=10)
+    duration: Optional[str] = "4-6_days"
+    duration_days: Optional[int] = 4
+    departure_date: Optional[str] = None
+    return_date: Optional[str] = None
+    budget: Optional[float] = 10000.0
+    budget_type: str = "total_trip"
+    budget_flexibility: str = "some_flexibility"
+    accommodation_preference: str = "comfortable"
+    travel_styles: list[str] = Field(default_factory=list)
+    additional_preferences: Optional[str] = None
+    lead_contact: Optional[dict] = None  # {"name": "...", "email": "...", "phone": "..."}
+    companions: Optional[list[dict]] = Field(default_factory=list)  # [{"name": "...", "email": "...", "phone": "..."}, ...]
 
 
 class TripMemberAdd(BaseModel):

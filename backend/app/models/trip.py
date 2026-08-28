@@ -39,6 +39,10 @@ class Trip(Base, IDMixin, TimestampMixin):
     preferences = Column(JSON, default=list)
     constraints = Column(JSON, default=list)
     version = Column(Integer, default=1, nullable=False)
+    is_public = Column(Integer, default=0, nullable=False)  # 0: private, 1: public
+    copied_from_trip_id = Column(String, nullable=True)
+    image_url = Column(String, nullable=True)
+    advisories = Column(JSON, default=list)
 
     # Relationships
     members = relationship("TripMember", back_populates="trip", cascade="all, delete-orphan")

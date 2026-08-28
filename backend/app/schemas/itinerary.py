@@ -19,6 +19,7 @@ class ActivitySchema(BaseModel):
     category: str = "OTHER"
     travel_time_minutes: Optional[int] = None
     confidence: float = 0.8
+    image_url: Optional[str] = None
     notes: Optional[str] = None
 
     model_config = {"from_attributes": True}

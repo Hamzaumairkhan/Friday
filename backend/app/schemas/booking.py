@@ -27,6 +27,8 @@ class BookingResponse(BaseModel):
     price_per_person: Optional[float] = None
     organizer_name: Optional[str] = None
     traveler_name: Optional[str] = None
+    payment_status: Optional[str] = None
+    payment_proof_url: Optional[str] = None
     created_at: str
     updated_at: str
 

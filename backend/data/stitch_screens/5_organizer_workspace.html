@@ -1,0 +1,359 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Organizer Dashboard - Friday</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=Libre+Caslon+Text:wght@100..900&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1;
+        }
+        
+        /* Subtle editorial animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        .stagger-1 { animation-delay: 0.1s; opacity: 0; }
+        .stagger-2 { animation-delay: 0.2s; opacity: 0; }
+        .stagger-3 { animation-delay: 0.3s; opacity: 0; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container-low": "#f3f4f0",
+                      "tertiary": "#420e00",
+                      "tertiary-container": "#60220c",
+                      "surface-variant": "#e1e3df",
+                      "secondary-container": "#bbead5",
+                      "on-tertiary-fixed": "#390b00",
+                      "outline": "#717975",
+                      "error": "#ba1a1a",
+                      "on-secondary-fixed-variant": "#234e3f",
+                      "surface-container-high": "#e7e9e5",
+                      "inverse-on-surface": "#f0f1ed",
+                      "surface-dim": "#d9dad7",
+                      "on-primary-fixed-variant": "#2a4d43",
+                      "primary-container": "#183c32",
+                      "on-primary-fixed": "#002018",
+                      "secondary-fixed-dim": "#a2d0bc",
+                      "on-surface-variant": "#414845",
+                      "error-container": "#ffdad6",
+                      "primary-fixed-dim": "#a8cfc1",
+                      "on-tertiary-container": "#e1876a",
+                      "secondary": "#3c6756",
+                      "on-secondary-container": "#406b5a",
+                      "surface": "#f8faf6",
+                      "tertiary-fixed-dim": "#ffb59d",
+                      "on-error": "#ffffff",
+                      "surface-tint": "#42655a",
+                      "surface-container": "#edeeeb",
+                      "outline-variant": "#c1c8c4",
+                      "on-error-container": "#93000a",
+                      "on-tertiary-fixed-variant": "#76331c",
+                      "background": "#f8faf6",
+                      "primary-fixed": "#c4ebdc",
+                      "on-background": "#191c1a",
+                      "on-secondary-fixed": "#002116",
+                      "on-primary": "#ffffff",
+                      "on-primary-container": "#81a799",
+                      "surface-bright": "#f8faf6",
+                      "inverse-primary": "#a8cfc1",
+                      "on-surface": "#191c1a",
+                      "inverse-surface": "#2e312f",
+                      "surface-container-highest": "#e1e3df",
+                      "primary": "#00261d",
+                      "on-secondary": "#ffffff",
+                      "secondary-fixed": "#beedd8",
+                      "tertiary-fixed": "#ffdbd0",
+                      "surface-container-lowest": "#ffffff",
+                      "on-tertiary": "#ffffff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "margin-mobile": "20px",
+                      "gutter": "24px",
+                      "container-max": "1280px",
+                      "margin-desktop": "48px",
+                      "unit": "4px"
+              },
+              "fontFamily": {
+                      "body-lg": ["Inter"],
+                      "display-hero": ["Libre Caslon Text"],
+                      "body-md": ["Inter"],
+                      "headline-md": ["Libre Caslon Text"],
+                      "body-sm": ["Inter"],
+                      "label-caps": ["Inter"],
+                      "headline-sm": ["Libre Caslon Text"],
+                      "headline-lg": ["Libre Caslon Text"]
+              },
+              "fontSize": {
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "display-hero": ["64px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "400"}],
+                      "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "headline-md": ["32px", {"lineHeight": "1.3", "fontWeight": "400"}],
+                      "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.08em", "fontWeight": "600"}],
+                      "headline-sm": ["24px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                      "headline-lg": ["40px", {"lineHeight": "1.2", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+</head>
+<body class="bg-surface text-on-surface font-body-md text-body-md antialiased overflow-x-hidden min-h-screen flex selection:bg-tertiary selection:text-on-tertiary">
+<!-- Desktop SideNavBar -->
+<nav class="hidden lg:flex flex-col p-4 gap-2 h-full h-screen w-64 fixed left-0 top-0 bg-surface-container-low dark:bg-surface-container-high border-r border-outline/10 dark:border-outline-variant/10 z-40">
+<div class="mb-12 mt-4 px-4">
+<h1 class="font-display-hero text-headline-sm text-primary dark:text-inverse-primary">Friday®</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant mt-1">AI Travel Copilot</p>
+</div>
+<div class="flex-1 flex flex-col gap-2">
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-highest dark:hover:bg-inverse-surface rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+<span class="font-label-caps text-label-caps">Explore</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-highest dark:hover:bg-inverse-surface rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="map">map</span>
+<span class="font-label-caps text-label-caps">Plan Trip</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-highest dark:hover:bg-inverse-surface rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="travel_explore">travel_explore</span>
+<span class="font-label-caps text-label-caps">My Trips</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-highest dark:hover:bg-inverse-surface rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-label-caps text-label-caps">Groups</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-highest dark:hover:bg-inverse-surface rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="bookmark">bookmark</span>
+<span class="font-label-caps text-label-caps">Saved</span>
+</a>
+<!-- Active State: Profile (for Organizer Dashboard context) -->
+<a class="flex items-center gap-4 px-4 py-3 text-primary dark:text-inverse-primary font-bold bg-surface-container-highest dark:bg-inverse-surface rounded-lg scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined filled" data-icon="person" data-weight="fill">person</span>
+<span class="font-label-caps text-label-caps">Profile</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-highest dark:hover:bg-inverse-surface rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-caps text-label-caps">Settings</span>
+</a>
+</div>
+<button class="mt-4 mb-6 w-full py-3 bg-primary text-on-primary rounded-lg font-label-caps text-label-caps flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+<span class="material-symbols-outlined text-[18px]">add</span>
+            New Trip
+        </button>
+<div class="mt-auto border-t border-outline/10 pt-4 flex flex-col gap-2">
+<a class="flex items-center gap-4 px-4 py-2 text-on-surface-variant hover:bg-surface-container-highest rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="help">help</span>
+<span class="font-label-caps text-label-caps">Help</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-2 text-on-surface-variant hover:bg-surface-container-highest rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="policy">policy</span>
+<span class="font-label-caps text-label-caps">Privacy</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area (Authenticated Desktop layout: pl-64) -->
+<main class="flex-1 lg:ml-64 w-full flex flex-col md:flex-row pb-24 lg:pb-0">
+<!-- Center Feed (Primary Dashboard Content) -->
+<div class="flex-1 px-margin-mobile md:px-gutter lg:px-margin-desktop py-8 md:py-12 max-w-[900px] mx-auto w-full">
+<!-- Header Section -->
+<header class="mb-12 animate-fade-in flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-primary italic mb-2">Good to see you,</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Here’s what’s happening with your upcoming departures.</p>
+</div>
+<div class="flex gap-3">
+<button class="px-6 py-3 border border-secondary text-primary rounded-full font-label-caps text-label-caps hover:bg-surface-container-high transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+                        View bookings
+                    </button>
+<button class="px-6 py-3 bg-primary text-on-primary rounded-full font-label-caps text-label-caps hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-[0_4px_12px_rgba(24,60,50,0.15)]">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+                        Create package
+                    </button>
+</div>
+</header>
+<!-- Metrics Bento Grid -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-gutter mb-16 animate-fade-in stagger-1">
+<!-- Revenue Card -->
+<div class="bg-surface-container-low border border-outline/10 rounded-xl p-6 relative overflow-hidden group hover:border-outline/30 transition-colors shadow-sm">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl">payments</span>
+</div>
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-2">Total Revenue</p>
+<h3 class="font-headline-md text-headline-md text-primary">PKR 1.24M</h3>
+<div class="mt-4 flex items-center gap-1 text-secondary text-sm">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+<span>+12% this month</span>
+</div>
+</div>
+<!-- Active Packages Card -->
+<div class="bg-surface-container-low border border-outline/10 rounded-xl p-6 relative overflow-hidden group hover:border-outline/30 transition-colors shadow-sm">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl">inventory_2</span>
+</div>
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-2">Active Packages</p>
+<h3 class="font-headline-md text-headline-md text-primary">8</h3>
+<div class="mt-4 flex items-center gap-1 text-on-surface-variant text-sm">
+<span>2 needing attention</span>
+</div>
+</div>
+<!-- Confirmed Travelers Card -->
+<div class="bg-surface-container-low border border-outline/10 rounded-xl p-6 relative overflow-hidden group hover:border-outline/30 transition-colors shadow-sm">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl">group</span>
+</div>
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-2">Confirmed Travelers</p>
+<h3 class="font-headline-md text-headline-md text-primary">126</h3>
+<div class="mt-4 flex items-center gap-1 text-secondary text-sm">
+<span>Across 4 upcoming trips</span>
+</div>
+</div>
+</section>
+<!-- Main Content Area: Split Layout for Feed and Departures -->
+<div class="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 animate-fade-in stagger-2">
+<!-- Recent Bookings Feed (Takes up 3 cols) -->
+<div class="lg:col-span-3">
+<div class="flex items-center justify-between mb-6 border-b border-outline/10 pb-4">
+<h3 class="font-headline-sm text-headline-sm text-primary">Recent Bookings</h3>
+<button class="text-secondary font-label-caps text-label-caps hover:underline">See All</button>
+</div>
+<div class="flex flex-col gap-4">
+<!-- Booking Item 1 -->
+<div class="flex gap-4 p-4 rounded-xl hover:bg-surface-container-low transition-colors border border-transparent hover:border-outline/5 cursor-pointer">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex-shrink-0 overflow-hidden border border-outline/10">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a traveler, warm lighting, natural setting, highly detailed portrait photography suitable for a luxury travel app profile." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPL5CBhqxXGje28dJr-yf7-2twuAEtoL2MrUbWppMTKSmM9PLrxdolOS2Uy4Dbe2SrMO6VGtX7L_Eo4cBgIy7eRORtmARXr_1SpAKMpbSqxbwKTW42UGuXysWwIJDuW02VKfSdAU1fOth2wr6eeTrlAbVAQkQQNW8FOTuKzBkhHrYvKDMngKdd8yJZzLtIDc-X8UzUijkWV1ugWrNEG3br56_hEbg1jlLMUvnPkq21XIvrShZxPBs">
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-1">
+<p class="font-body-md text-body-md font-medium text-primary">Aisha Khan</p>
+<span class="font-label-caps text-[10px] text-secondary bg-secondary-container px-2 py-1 rounded-full">Confirmed</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-2">Booked 2 spots for <span class="italic text-primary">Hunza Valley Autumn Retreat</span></p>
+<p class="font-label-caps text-[10px] text-outline">2 hours ago • PKR 150,000</p>
+</div>
+</div>
+<!-- Booking Item 2 -->
+<div class="flex gap-4 p-4 rounded-xl hover:bg-surface-container-low transition-colors border border-transparent hover:border-outline/5 cursor-pointer">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex-shrink-0 overflow-hidden border border-outline/10">
+<div class="w-full h-full flex items-center justify-center text-primary font-headline-sm bg-primary-fixed-dim">
+                                    SF
+                                </div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-1">
+<p class="font-body-md text-body-md font-medium text-primary">Salman Farooq</p>
+<span class="font-label-caps text-[10px] text-tertiary bg-tertiary-container text-on-tertiary px-2 py-1 rounded-full">Pending Payment</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-2">Booked 1 spot for <span class="italic text-primary">Fairy Meadows Basecamp</span></p>
+<p class="font-label-caps text-[10px] text-outline">5 hours ago • PKR 45,000</p>
+</div>
+</div>
+<!-- Booking Item 3 -->
+<div class="flex gap-4 p-4 rounded-xl hover:bg-surface-container-low transition-colors border border-transparent hover:border-outline/5 cursor-pointer">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex-shrink-0 overflow-hidden border border-outline/10">
+<img class="w-full h-full object-cover" data-alt="A candid lifestyle shot of a smiling tourist outdoors, soft sunlight, high resolution, perfect for a premium travel application user avatar." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBn9ALoJYZC8ihFN1l47UDECOVc6Of9v6epAkqkhn3edqKlWniR04cmFkkqosjswoUkFRg2Xr5MV11Y9zm0Rm96AEijSc8gviQRoczeBELNRwiLXSICa5eFwGaa4Skj86zUgkUKhLVdNeki9XDck6uFpkkQwdcnBBwqa1deUftRB1MEuzNq1W0HZ2ZxKQc3PZLPplDpOdurSSp_3-VtCnXoMxTBJATFZ6uA2tvgiSaH8suSsjUmX8w">
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-1">
+<p class="font-body-md text-body-md font-medium text-primary">Zainab Ali</p>
+<span class="font-label-caps text-[10px] text-secondary bg-secondary-container px-2 py-1 rounded-full">Confirmed</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-2">Booked 4 spots for <span class="italic text-primary">Skardu Corporate Retreat</span></p>
+<p class="font-label-caps text-[10px] text-outline">Yesterday • PKR 320,000</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Panel (Takes up 2 cols) - Upcoming Departures -->
+<div class="lg:col-span-2">
+<div class="bg-surface-container-low rounded-2xl p-6 border border-outline/10 shadow-[0_12px_32px_rgba(24,60,50,0.04)] h-full">
+<h3 class="font-headline-sm text-headline-sm text-primary mb-6">Upcoming Departures</h3>
+<div class="flex flex-col gap-6">
+<!-- Departure Card 1 -->
+<div class="group cursor-pointer">
+<div class="relative w-full h-32 rounded-xl overflow-hidden mb-3">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="A breathtaking view of the Hunza Valley in autumn, golden leaves against towering snow-capped peaks, cinematic lighting, highly detailed travel photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1wSZxe5QN0ALq_LvYpU8aTCjSN0GSo3HppnK7vU2YmefBxBhBUCtEXhF1X8MVJy7rtF1ny6KgYdTJ0AiDKanT5boi7_WtpKTmOFu9GXpqn-ZfAbcLZKgo4bCUESFzRpNkydicQPYhGdT2RwF3guUB3-FJkPg81mSJUIosfoIJBoOsa2F33JH3670ZAdhpxpHURW3tkwS8VRpyMiY8edIcPFoPl4wJkMBENmv92zW9nKRvVFHE0GQ">
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+<div class="absolute bottom-3 left-3 text-white">
+<p class="font-label-caps text-label-caps opacity-90">Oct 12 - Oct 18</p>
+</div>
+</div>
+<h4 class="font-headline-sm text-headline-sm text-primary text-[20px] mb-1 group-hover:text-tertiary transition-colors">Hunza Autumn Retreat</h4>
+<div class="flex items-center justify-between mt-2">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full border border-surface bg-surface-container-high overflow-hidden"><img class="w-full h-full object-cover" data-alt="Small avatar portrait 1" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDv6-ulCcBNkKHWEzpi7a_zTdHNpzJTXG_yHfksCz9vRyjDHwuz67JCb6D4i5US13F80uC5JM9-AFX07skPCmi-fgauGPMMl3YcfKXMdS7mQBBkdJbqikS1Qrw6U8wR6Ijmj1yy3tJdQg4YFuSj0YMA5OMMG5E3DgqsI-r36fbPwd7mjp9KJRnZVcTQ3kCUbf3zKQ5hh2rNIKVyTcN3ckPldP1Y5_rYccZ0KfEeHGjSVg6qq7WXDPE"></div>
+<div class="w-6 h-6 rounded-full border border-surface bg-surface-container-high overflow-hidden"><img class="w-full h-full object-cover" data-alt="Small avatar portrait 2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFBh0mikN7ynaSV8uY-Yi46Pj1hH-AprzKPV7xatejKIj05gAvDmthuycQ0Y2uWSiyJeHDeJ98iUrRm-bSR8hZNnsJHhy2imIsoBYS2fg_mtZmFfsbzQR2x-GRTcgIZkVzBPRofenlsQllme8ZtyD0qn8LxpkNBYdcT1OUh3rYAS1EoQfLAp-0SR8Or17LhHDTt_5AZgqr9hNTrwHTpo8vDYS-EzF5w2oLAv_RfI8FV4fdF1JJUR4"></div>
+<div class="w-6 h-6 rounded-full border border-surface bg-surface-container-high overflow-hidden"><img class="w-full h-full object-cover" data-alt="Small avatar portrait 3" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzg6imTH1ktl7kdxjQlto3R7MnbqMoQdB3yuJbDW6nkAe0OQs6xpZS1Q_OdolqzXMLq5dp_EImPmSOgqrwl3ppfnddckIJdD9R7JfLKFuwHcDl0x2IZV38acNK6kmcVQmbjKW0buuXI3p5eUzpp2c9icOS5rnDt8Pe9eM1eO4BgbxjlFY43fapyHlZLkEUjhYbDgqsTv4VCA9hForQ-uNoF9IYbwcpNFK6sNAUj6B9uCadGz1TK3M"></div>
+<div class="w-6 h-6 rounded-full border border-surface bg-primary-container text-on-primary-container flex items-center justify-center font-label-caps text-[8px]">+21</div>
+</div>
+<span class="font-label-caps text-[10px] text-primary">24/30 Filled</span>
+</div>
+<!-- Progress bar -->
+<div class="w-full bg-outline/20 h-1 rounded-full mt-3 overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 80%"></div>
+</div>
+</div>
+<!-- Departure Card 2 -->
+<div class="group cursor-pointer pt-4 border-t border-outline/10">
+<h4 class="font-headline-sm text-headline-sm text-primary text-[20px] mb-1 group-hover:text-tertiary transition-colors">Fairy Meadows Basecamp</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-3">Oct 20 - Oct 25</p>
+<div class="flex items-center justify-between">
+<span class="font-label-caps text-[10px] text-tertiary bg-tertiary/10 px-2 py-1 rounded">Needs Attention</span>
+<span class="font-label-caps text-[10px] text-primary">12/15 Filled</span>
+</div>
+<div class="w-full bg-outline/20 h-1 rounded-full mt-3 overflow-hidden">
+<div class="bg-tertiary h-full rounded-full" style="width: 80%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Mobile BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 lg:hidden bg-surface/90 backdrop-blur-lg dark:bg-inverse-surface/90 shadow-[0_-4px_12px_rgba(24,60,50,0.08)] rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant hover:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+<span class="font-label-caps text-[10px] mt-1">Explore</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant hover:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+<span class="font-label-caps text-[10px] mt-1">Plan</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant hover:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="event_note">event_note</span>
+<span class="font-label-caps text-[10px] mt-1">Trips</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant hover:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="bookmark">bookmark</span>
+<span class="font-label-caps text-[10px] mt-1">Saved</span>
+</a>
+<!-- Active State: Profile -->
+<a class="flex flex-col items-center justify-center text-tertiary dark:text-tertiary-fixed-dim scale-90 transition-all relative" href="#">
+<span class="material-symbols-outlined filled" data-icon="person" data-weight="fill">person</span>
+<span class="font-label-caps text-[10px] mt-1">Profile</span>
+<div class="absolute -bottom-2 w-1 h-1 bg-tertiary rounded-full"></div>
+</a>
+</nav>
+</body></html>

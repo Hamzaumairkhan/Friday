@@ -32,6 +32,8 @@ async def list_packages(
             "accommodation_type": p.accommodation_type,
             "transportation_type": p.transportation_type,
             "activities": p.activities or [],
+            "image_url": p.image_url,
+            "gallery_urls": p.gallery_urls or [],
         }
         for p in pkgs
     ]
@@ -60,4 +62,6 @@ async def get_package(
         "accommodation_type": p.accommodation_type,
         "transportation_type": p.transportation_type,
         "activities": p.activities or [],
+        "image_url": p.image_url,
+        "gallery_urls": p.gallery_urls or [],
     }

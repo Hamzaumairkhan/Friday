@@ -10,6 +10,7 @@ from app.api.v1.groups import router as groups_router
 from app.api.v1.organizers import router as organizers_router
 from app.api.v1.packages import router as packages_router
 from app.api.v1.bookings import router as bookings_router
+from app.api.v1.notifications import router as notifications_router
 
 v1_router = APIRouter(prefix="/api/v1")
 
@@ -22,3 +23,4 @@ v1_router.include_router(groups_router)
 v1_router.include_router(organizers_router)
 v1_router.include_router(packages_router)
 v1_router.include_router(bookings_router)
+v1_router.include_router(notifications_router)

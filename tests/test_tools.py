@@ -83,7 +83,7 @@ def test_organizers_tool(run_async, test_db_session):
     async def _test():
         async with test_db_session() as session:
             await seed_initial_data_async(session=session)
-        tool = OrganizersTool()
+        tool = OrganizersTool(session_factory=test_db_session)
         res = await tool.search_organizers("Hunza")
         assert res["success"] is True
         assert res["source_type"] == "curated_seed"

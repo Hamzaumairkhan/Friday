@@ -1,50 +1,67 @@
 # ==============================================================================
-# Friday — Root .gitignore (Backend only repository)
+# Friday — Complete Project .gitignore
 # ==============================================================================
 
 # Environment & Secrets
 .env
-.env.local
-.env.*.local
-*.json
-!package.json
-!package-lock.json
-!tsconfig.json
-!backend/package.json
-!backend/package-lock.json
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+proven-dryad-*.json
+service-account*.json
 
-# Frontend (Excluded from backend repository)
-frontend/
+# Dependencies
+node_modules/
+backend/whatsapp_service/node_modules/
+frontend/node_modules/
 
-# Python
+# Python & Caches
 __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
 .coverage
 htmlcov/
+.venv/
+venv/
+ENV/
+env/
 
-# Node
-node_modules/
-
-# Databases & Local State
+# Databases & Vector Stores
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
 data/*.db
 data/chroma/*
 !data/chroma/.gitkeep
 backend/data/*.db
 backend/data/chroma/*
+!backend/data/chroma/.gitkeep
 
-# IDE
+# WhatsApp Baileys Auth Session & Temp files
+backend/whatsapp_service/auth_info_baileys/
+backend/whatsapp_service/auth_info/
+backend/whatsapp_service/*.log
+*.log
+
+# Build & Dist Artifacts
+dist/
+build/
+frontend/dist/
+*.egg-info/
+
+# IDE & OS Files
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
-Thumbs.db
 .DS_Store
+Thumbs.db
+desktop.ini
 
-# Build Artifacts
-dist/
-build/
-*.egg-info/
+# Agent IDE metadata
+.agents/
+.gemini/

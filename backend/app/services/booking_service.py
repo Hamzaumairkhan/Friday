@@ -70,13 +70,26 @@ class BookingService:
         if not organizer:
             raise NotFoundError("Tour organizer for this package not found")
 
-        # 4. Fetch traveler profile
+        # 4. Capacity & Availability Verification
+        from sqlalchemy import func, and_
+        confirmed_res = await self.db.execute(
+            select(func.sum(Booking.travelers)).where(
+                and_(Booking.package_id == package.id, Booking.status == BookingStatus.CONFIRMED)
+            )
+        )
+        current_confirmed = confirmed_res.scalar() or 0
+        if package.max_travelers and (current_confirmed + travelers > package.max_travelers):
+            raise ValidationError(
+                f"Trip capacity reached: Only {max(0, package.max_travelers - current_confirmed)} seat(s) remaining for this organizer trip."
+            )
+
+        # 5. Fetch traveler profile
         user_res = await self.db.execute(select(User).where(User.id == user_id))
         traveler_user = user_res.scalar_one_or_none()
         traveler_name = traveler_user.name if traveler_user and traveler_user.name else "Friday Traveler"
         traveler_email = traveler_user.email if traveler_user else "traveler@friday.pk"
 
-        # 5. Authoritative Price Calculation & Immutable Snapshot Derivation
+        # 6. Authoritative Price Calculation & Immutable Snapshot Derivation
         unit_price = package.price_per_person or 0.0
         total_price = unit_price * travelers
 
@@ -131,10 +144,23 @@ class BookingService:
             f"Friday AI Travel Marketplace Team"
         )
 
+        from app.services.email_template_service import render_new_booking_alert_for_organizer
+        html_body = render_new_booking_alert_for_organizer(
+            booking_id=created_booking.id,
+            organizer_name=created_booking.organizer_name or "Organizer",
+            traveler_name=created_booking.traveler_name or "Traveler",
+            package_title=created_booking.package_title or "Tour Package",
+            destination=created_booking.destination or "Pakistan",
+            total_price=created_booking.total_price or 0.0,
+            travelers=created_booking.travelers or 1,
+            notes=notes,
+        )
+
         email_result = await self.email_tool.send_email(
             to=organizer_email,
             subject=subject,
             body=email_body,
+            html=html_body,
         )
         logger.info(f"Booking notification email dispatched. Result: {email_result}")
 

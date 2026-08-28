@@ -10,7 +10,7 @@ from app.models.user import User, UserRole
 from app.models.organizer import Organizer
 from app.schemas.user import UserResponse
 from app.schemas.organizer import OrganizerResponse
-from app.schemas.auth import RegisterRequest, LoginRequest, AuthResponse
+from app.schemas.auth import RegisterRequest, LoginRequest, AuthResponse, PublicRegistrationRole
 from app.repositories.user_repository import UserRepository
 from app.repositories.organizer_repository import OrganizerRepository
 from app.core.security import get_current_user
@@ -20,13 +20,14 @@ logger = get_logger("api.auth")
 router = APIRouter(prefix="/auth", tags=["Authentication & Profile"])
 
 
-def _format_user(u: User) -> UserResponse:
+def _format_user(u: User, role_override: str = None) -> UserResponse:
+    actual_role = role_override or (u.role.value if hasattr(u.role, 'value') else str(u.role))
     return UserResponse(
         id=u.id,
         email=u.email,
         name=u.name,
         profile_picture=u.profile_picture,
-        role=u.role.value if hasattr(u.role, 'value') else u.role,
+        role=actual_role,
         is_active=u.is_active,
     )
 
@@ -43,6 +44,16 @@ def _format_organizer(o: Organizer) -> OrganizerResponse:
         reviews_count=o.reviews_count or 0,
         location=o.location,
         website=o.website,
+        number_of_buses=o.number_of_buses,
+        vehicle_capacity=o.vehicle_capacity,
+        maximum_group_size=o.maximum_group_size,
+        experience_years=o.experience_years,
+        experience_description=o.experience_description,
+        onboarding_completed=o.onboarding_completed or False,
+        payment_account_title=o.payment_account_title,
+        payment_account_number=o.payment_account_number,
+        payment_bank_name=o.payment_bank_name,
+        payment_instructions=o.payment_instructions,
     )
 
 
@@ -51,60 +62,79 @@ async def register(
     req: RegisterRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new TRAVELER or apply as an ORGANIZER."""
+    """Register or sync a TRAVELER or ORGANIZER account."""
     user_repo = UserRepository(db)
     org_repo = OrganizerRepository(db)
 
-    # Check if user already exists
-    existing = await user_repo.get_by_email(req.email)
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"An account with email '{req.email}' already exists.",
-        )
+    target_role_str = req.role.value if hasattr(req.role, 'value') else str(req.role)
+    target_role = UserRole.ORGANIZER if target_role_str == "ORGANIZER" else UserRole.TRAVELER
 
-    # 1. Create User
-    user_id = str(uuid.uuid4())
-    user = User(
-        id=user_id,
-        email=req.email,
-        name=req.name,
-        profile_picture=req.profile_picture,
-        role=req.role,
-        is_active=True,
-    )
-    user = await user_repo.create(user)
+    user = await user_repo.get_by_email(req.email)
+    if not user:
+        user_id = str(uuid.uuid4())
+        user = User(
+            id=user_id,
+            email=req.email,
+            username=req.email.split("@")[0],
+            name=req.name,
+            profile_picture=req.profile_picture,
+            role=target_role,
+            is_active=True,
+        )
+        user = await user_repo.create(user)
+    else:
+        user.name = req.name or user.name
+        user.profile_picture = req.profile_picture or user.profile_picture
+        if target_role == UserRole.ORGANIZER:
+            user.role = UserRole.ORGANIZER
 
     organizer_profile = None
-    # 2. If ORGANIZER role, create Organizer profile linked to user_id
-    if req.role == UserRole.ORGANIZER:
-        org_id = f"org-{uuid.uuid4().hex[:12]}"
-        org_name = req.organizer_name or f"{req.name}'s Expeditions"
-        organizer = Organizer(
-            id=org_id,
-            user_id=user.id,
-            name=org_name,
-            description=req.description,
-            contact_email=req.email,
-            contact_phone=req.contact_phone,
-            destinations=req.destinations or [],
-            location=req.location,
-            website=req.website,
-            verification_status="PENDING",
-            is_verified=False,
-            rating=0.0,
-            reviews_count=0,
-        )
-        organizer = await org_repo.create(organizer)
+    if target_role == UserRole.ORGANIZER:
+        organizer = await org_repo.get_by_user_id(user.id)
+        if not organizer:
+            org_id = f"org-{uuid.uuid4().hex[:12]}"
+            org_name = req.organizer_name or f"{req.name}'s Expeditions"
+
+            has_onboarding = bool(
+                req.contact_phone and req.description and req.location
+                and req.payment_account_title and req.payment_account_number
+            )
+
+            organizer = Organizer(
+                id=org_id,
+                user_id=user.id,
+                name=org_name,
+                description=req.description,
+                contact_email=req.email,
+                contact_phone=req.contact_phone,
+                destinations=req.destinations or [],
+                location=req.location,
+                website=req.website,
+                verification_status="PENDING",
+                is_verified=False,
+                rating=0.0,
+                reviews_count=0,
+                number_of_buses=req.number_of_buses,
+                vehicle_capacity=req.vehicle_capacity,
+                maximum_group_size=req.maximum_group_size,
+                experience_years=req.experience_years,
+                experience_description=req.experience_description,
+                payment_account_title=req.payment_account_title,
+                payment_account_number=req.payment_account_number,
+                payment_bank_name=req.payment_bank_name,
+                payment_instructions=req.payment_instructions,
+                onboarding_completed=has_onboarding,
+            )
+            organizer = await org_repo.create(organizer)
         organizer_profile = _format_organizer(organizer)
 
     await db.commit()
-    logger.info(f"New {req.role.value} registered: {user.email} (ID: {user.id})")
+    logger.info(f"User synced: {user.email} (Role: {user.role})")
 
     return AuthResponse(
-        user=_format_user(user),
+        user=_format_user(user, target_role_str),
         organizer_profile=organizer_profile,
-        token=user.id,  # Header authentication token
+        token=user.id,
         message="Registration successful.",
     )
 
@@ -117,6 +147,8 @@ async def login(
     """Authenticate and verify intended role with server-side privilege check."""
     user_repo = UserRepository(db)
     org_repo = OrganizerRepository(db)
+
+    target_role_str = req.intended_role.value if hasattr(req.intended_role, 'value') else str(req.intended_role)
 
     user = await user_repo.get_by_email(req.email)
     if not user:
@@ -131,16 +163,19 @@ async def login(
             detail="Account is deactivated.",
         )
 
-    # Strict Role Authorization: Verify actual privileges match intended login role
-    user_role = user.role.value if hasattr(user.role, 'value') else user.role
-    if req.intended_role == UserRole.ORGANIZER and user_role != UserRole.ORGANIZER.value:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access forbidden: This account does not have ORGANIZER privileges. Please log in as a Traveler.",
-        )
+    user_role_str = user.role.value if hasattr(user.role, 'value') else str(user.role)
+
+    # Privilege check: Cannot log in as Organizer if no organizer profile/role
+    if target_role_str == "ORGANIZER" and user_role_str != "ORGANIZER":
+        org = await org_repo.get_by_user_id(user.id)
+        if not org:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Aapka pehle se Traveler account bana hua hai. Pehle 'Traveler' select kar ke login karein, phir aap settings se Organizer par switch kar sakte hain.",
+            )
 
     organizer_profile = None
-    if user_role == UserRole.ORGANIZER.value:
+    if target_role_str == "ORGANIZER":
         org = await org_repo.get_by_user_id(user.id)
         if not org and user.email:
             all_orgs = await org_repo.list_all()
@@ -151,11 +186,52 @@ async def login(
         if org:
             organizer_profile = _format_organizer(org)
 
+    # Return role matching the intended login role
     return AuthResponse(
-        user=_format_user(user),
+        user=_format_user(user, target_role_str),
         organizer_profile=organizer_profile,
         token=user.id,
-        message=f"Logged in successfully as {user_role}.",
+        message=f"Logged in successfully as {target_role_str}.",
+    )
+
+
+@router.post("/upgrade-to-organizer", response_model=AuthResponse)
+async def upgrade_to_organizer(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Allow an existing traveler to switch and activate an organizer profile."""
+    user_repo = UserRepository(db)
+    org_repo = OrganizerRepository(db)
+
+    current_user.role = UserRole.ORGANIZER
+    await user_repo.update(current_user)
+
+    org = await org_repo.get_by_user_id(current_user.id)
+    if not org:
+        org_id = f"org-{uuid.uuid4().hex[:12]}"
+        org = Organizer(
+            id=org_id,
+            user_id=current_user.id,
+            name=f"{current_user.name}'s Expeditions",
+            description="Curated expeditions and mountain guide services across Northern Pakistan.",
+            contact_email=current_user.email,
+            verification_status="PENDING",
+            is_verified=False,
+            rating=0.0,
+            reviews_count=0,
+            onboarding_completed=False,
+        )
+        org = await org_repo.create(org)
+
+    await db.commit()
+    logger.info(f"User {current_user.email} upgraded to ORGANIZER")
+
+    return AuthResponse(
+        user=_format_user(current_user, "ORGANIZER"),
+        organizer_profile=_format_organizer(org),
+        token=current_user.id,
+        message="Successfully switched to Organizer account.",
     )
 
 
@@ -166,12 +242,20 @@ async def get_current_user_profile(
 ):
     """Return the profile and organizer status of the current authenticated user."""
     user_data = _format_user(current_user).model_dump()
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
+    user_role = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
 
-    if user_role == UserRole.ORGANIZER.value:
+    if user_role == UserRole.ORGANIZER.value or user_role == "ORGANIZER":
         org_repo = OrganizerRepository(db)
         org = await org_repo.get_by_user_id(current_user.id)
+        if not org and current_user.email:
+            all_orgs = await org_repo.list_all()
+            for o in all_orgs:
+                if o.contact_email == current_user.email:
+                    org = o
+                    break
         if org:
             user_data["organizer_profile"] = _format_organizer(org).model_dump()
 
     return user_data
+
+

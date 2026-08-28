@@ -16,21 +16,31 @@ logger = get_logger("tools.organizers")
 class OrganizersTool:
     """Organizers discovery tool querying the Friday marketplace SQLite database."""
 
+    def __init__(self, session_factory=None):
+        self.session_factory = session_factory or async_session_factory
+
     async def search_organizers(
         self,
         destination: Optional[str] = None,
-        budget_per_person: Optional[float] = None
+        budget_per_person: Optional[float] = None,
+        session: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """Search organizers and their packages from SQLite database with explicit source transparency."""
         organizers_list = []
 
-        try:
-            async with async_session_factory() as session:
-                query = select(Organizer).options(selectinload(Organizer.packages)).where(Organizer.is_verified == True)
-                result = await session.execute(query)
-                orgs = result.scalars().all()
+        async def _query(s):
+            query = select(Organizer).options(selectinload(Organizer.packages)).where(Organizer.is_verified == True)
+            result = await s.execute(query)
+            return result.scalars().all()
 
-                for org in orgs:
+        try:
+            if session is not None:
+                orgs = await _query(session)
+            else:
+                async with self.session_factory() as s:
+                    orgs = await _query(s)
+
+            for org in orgs:
                     # Filter destination if specified
                     if destination and destination.strip():
                         dest_lower = destination.strip().lower()

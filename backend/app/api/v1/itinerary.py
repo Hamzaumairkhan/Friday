@@ -52,6 +52,7 @@ async def get_trip_itinerary(
                 category=a.category.value if hasattr(a.category, 'value') else a.category,
                 travel_time_minutes=a.travel_time_minutes,
                 confidence=a.confidence or 0.8,
+                image_url=a.image_url,
                 notes=a.notes,
             )
             for a in d.activities

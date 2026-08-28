@@ -1,6 +1,7 @@
 """Organizers API endpoints — Public catalog & Organizer Dashboard."""
 
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
@@ -9,11 +10,13 @@ from pydantic import BaseModel, Field
 from app.database.database import get_db
 from app.models.organizer import Organizer
 from app.models.package import Package
-from app.models.booking import Booking, BookingStatus
+from app.models.booking import Booking, BookingStatus, PaymentStatus
 from app.schemas.organizer import OrganizerResponse
 from app.schemas.package import PackageCreate, PackageResponse
 from app.schemas.booking import BookingResponse
+from app.schemas.payment import PaymentVerifyRequest
 from app.services.marketplace_service import MarketplaceService
+from app.services.notification_service import NotificationService
 from app.repositories.organizer_repository import OrganizerRepository
 from app.repositories.package_repository import PackageRepository
 from app.repositories.booking_repository import BookingRepository
@@ -34,6 +37,16 @@ def _format_org(o: Organizer) -> OrganizerResponse:
         reviews_count=o.reviews_count or 0,
         location=o.location,
         website=o.website,
+        number_of_buses=o.number_of_buses,
+        vehicle_capacity=o.vehicle_capacity,
+        maximum_group_size=o.maximum_group_size,
+        experience_years=o.experience_years,
+        experience_description=o.experience_description,
+        onboarding_completed=o.onboarding_completed or False,
+        payment_account_title=o.payment_account_title,
+        payment_account_number=o.payment_account_number,
+        payment_bank_name=o.payment_bank_name,
+        payment_instructions=o.payment_instructions,
     )
 
 
@@ -53,6 +66,8 @@ def _format_pkg(p: Package) -> Dict[str, Any]:
         "transportation_type": p.transportation_type,
         "activities": p.activities or [],
         "is_active": p.is_active,
+        "image_url": p.image_url,
+        "gallery_urls": p.gallery_urls or [],
     }
 
 
@@ -67,6 +82,14 @@ def _format_booking(b: Booking) -> BookingResponse:
         total_price=b.total_price,
         status=b.status.value if hasattr(b.status, 'value') else b.status,
         notes=b.notes,
+        package_title=b.package_title,
+        destination=b.destination,
+        duration_days=b.duration_days,
+        price_per_person=b.price_per_person,
+        organizer_name=b.organizer_name,
+        traveler_name=b.traveler_name,
+        payment_status=b.payment_status.value if hasattr(b.payment_status, 'value') else (b.payment_status or "PENDING"),
+        payment_proof_url=b.payment_proof_url,
         created_at=b.created_at.isoformat() if b.created_at else "",
         updated_at=b.updated_at.isoformat() if b.updated_at else "",
     )
@@ -80,6 +103,17 @@ class OrganizerProfileUpdate(BaseModel):
     location: Optional[str] = None
     website: Optional[str] = None
     destinations: Optional[List[str]] = None
+    # Extended fields
+    number_of_buses: Optional[int] = None
+    vehicle_capacity: Optional[int] = None
+    maximum_group_size: Optional[int] = None
+    experience_years: Optional[int] = None
+    experience_description: Optional[str] = None
+    payment_account_title: Optional[str] = None
+    payment_account_number: Optional[str] = None
+    payment_bank_name: Optional[str] = None
+    payment_instructions: Optional[str] = None
+    onboarding_completed: Optional[bool] = None
 
 
 class PackageCreateRequest(BaseModel):
@@ -94,6 +128,8 @@ class PackageCreateRequest(BaseModel):
     accommodation_type: Optional[str] = None
     transportation_type: Optional[str] = None
     activities: Optional[List[str]] = None
+    image_url: Optional[str] = None
+    gallery_urls: Optional[List[str]] = None
 
 
 class PackageUpdateRequest(BaseModel):
@@ -109,6 +145,8 @@ class PackageUpdateRequest(BaseModel):
     transportation_type: Optional[str] = None
     activities: Optional[List[str]] = None
     is_active: Optional[bool] = None
+    image_url: Optional[str] = None
+    gallery_urls: Optional[List[str]] = None
 
 
 class BookingStatusUpdateRequest(BaseModel):
@@ -184,6 +222,8 @@ async def create_package_for_organizer(
         transportation_type=req.transportation_type,
         activities=req.activities or [],
         is_active=True,
+        image_url=req.image_url,
+        gallery_urls=req.gallery_urls or [],
     )
     saved_pkg = await pkg_repo.create(new_pkg)
     await db.commit()
@@ -273,6 +313,88 @@ async def update_booking_status_by_organizer(
         )
 
     booking.status = req.status
+    await booking_repo.update(booking)
+
+    # Create notifications based on status change
+    notif_service = NotificationService(db)
+    if req.status == BookingStatus.CONFIRMED:
+        await notif_service.notify_booking_confirmed(
+            traveler_user_id=booking.user_id,
+            booking_id=booking.id,
+            package_title=booking.package_title or "",
+        )
+    elif req.status == BookingStatus.REJECTED:
+        await notif_service.notify_booking_rejected(
+            traveler_user_id=booking.user_id,
+            booking_id=booking.id,
+            package_title=booking.package_title or "",
+        )
+
+    await db.commit()
+    return _format_booking(booking)
+
+
+@router.patch("/me/bookings/{booking_id}/payment", response_model=BookingResponse)
+async def verify_or_reject_payment(
+    booking_id: str,
+    req: PaymentVerifyRequest,
+    current_organizer: Organizer = Depends(get_current_organizer),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify or reject a traveler's payment proof. IDOR protected."""
+    booking_repo = BookingRepository(db)
+    booking = await booking_repo.get_by_id(booking_id)
+    if not booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found.")
+
+    if booking.organizer_id != current_organizer.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: You can only verify payments for your own packages.",
+        )
+
+    if not booking.payment_proof_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No payment proof has been uploaded for this booking.",
+        )
+
+    notif_service = NotificationService(db)
+
+    if req.action == "VERIFY":
+        booking.payment_status = PaymentStatus.VERIFIED
+        booking.payment_verified_at = datetime.now(timezone.utc)
+        booking.payment_verified_by = current_organizer.id
+        booking.status = BookingStatus.CONFIRMED
+
+        await notif_service.notify_payment_verified(
+            traveler_user_id=booking.user_id,
+            booking_id=booking.id,
+            package_title=booking.package_title or "",
+        )
+
+        # Auto-enroll confirmed traveler into private trip group
+        try:
+            from app.services.trip_group_service import TripGroupService
+            group_service = TripGroupService(db)
+            await group_service.enroll_confirmed_traveler(
+                package_id=booking.package_id,
+                traveler_user_id=booking.user_id,
+            )
+        except Exception as e:
+            # Group enrollment logging
+            pass
+    elif req.action == "REJECT":
+        booking.payment_status = PaymentStatus.REJECTED
+        booking.payment_rejection_reason = req.rejection_reason or "Payment proof was not acceptable."
+
+        await notif_service.notify_payment_rejected(
+            traveler_user_id=booking.user_id,
+            booking_id=booking.id,
+            package_title=booking.package_title or "",
+            reason=req.rejection_reason or "",
+        )
+
     await booking_repo.update(booking)
     await db.commit()
     return _format_booking(booking)

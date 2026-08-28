@@ -1,13 +1,22 @@
 """Bookings API endpoints with authoritative package and organizer snapshot serialization."""
 
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import List
 
 from app.database.database import get_db
 from app.schemas.booking import BookingCreate, BookingResponse
+from app.schemas.payment import PaymentProofSubmit
+from app.models.booking import PaymentStatus
+from app.models.organizer import Organizer
 from app.services.booking_service import BookingService
-from app.core.security import get_current_user_id
+from app.services.notification_service import NotificationService
+from app.repositories.booking_repository import BookingRepository
+from app.repositories.organizer_repository import OrganizerRepository
+from app.core.security import get_current_user_id, get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
@@ -29,6 +38,8 @@ def _format_booking(b) -> BookingResponse:
         price_per_person=b.price_per_person,
         organizer_name=b.organizer_name,
         traveler_name=b.traveler_name,
+        payment_status=b.payment_status.value if hasattr(b.payment_status, 'value') else (b.payment_status or "PENDING"),
+        payment_proof_url=b.payment_proof_url,
         created_at=b.created_at.isoformat() if b.created_at else "",
         updated_at=b.updated_at.isoformat() if b.updated_at else "",
     )
@@ -37,11 +48,24 @@ def _format_booking(b) -> BookingResponse:
 @router.post("", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
 async def create_booking(
     req: BookingCreate,
-    user_id: str = Depends(get_current_user_id),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     service = BookingService(db)
-    booking = await service.create_booking_request(user_id=user_id, data=req)
+    booking = await service.create_booking_request(user_id=current_user.id, data=req)
+
+    # Create notification for organizer
+    org_repo = OrganizerRepository(db)
+    organizer = await org_repo.get_by_id(booking.organizer_id)
+    if organizer and organizer.user_id:
+        notif_service = NotificationService(db)
+        await notif_service.notify_new_booking(
+            organizer_user_id=organizer.user_id,
+            booking_id=booking.id,
+            traveler_name=booking.traveler_name or "A traveler",
+            package_title=booking.package_title or "a package",
+        )
+
     return _format_booking(booking)
 
 
@@ -64,3 +88,73 @@ async def get_booking(
     service = BookingService(db)
     booking = await service.get_booking(booking_id=booking_id, user_id=user_id)
     return _format_booking(booking)
+
+
+@router.post("/{booking_id}/payment-proof", response_model=BookingResponse)
+async def submit_payment_proof(
+    booking_id: str,
+    req: PaymentProofSubmit,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit Cloudinary URL as payment proof. Only booking owner can submit."""
+    booking_repo = BookingRepository(db)
+    booking = await booking_repo.get_by_id(booking_id)
+    if not booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found.")
+    if booking.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only submit payment for your own booking.")
+
+    booking.payment_proof_url = req.payment_proof_url
+    booking.payment_status = PaymentStatus.PROOF_UPLOADED
+    booking.payment_uploaded_at = datetime.now(timezone.utc)
+    await booking_repo.update(booking)
+
+    # Notify organizer
+    org_repo = OrganizerRepository(db)
+    organizer = await org_repo.get_by_id(booking.organizer_id)
+    if organizer and organizer.user_id:
+        notif_service = NotificationService(db)
+        await notif_service.notify_payment_uploaded(
+            organizer_user_id=organizer.user_id,
+            booking_id=booking.id,
+            traveler_name=booking.traveler_name or "A traveler",
+        )
+
+    await db.commit()
+    return _format_booking(booking)
+
+
+@router.get("/{booking_id}/payment-proof")
+async def get_payment_proof(
+    booking_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get payment proof details for a booking. Only booking owner can view."""
+    booking_repo = BookingRepository(db)
+    booking = await booking_repo.get_by_id(booking_id)
+    if not booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found.")
+    if booking.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+
+    # Also return organizer payment info
+    org_repo = OrganizerRepository(db)
+    organizer = await org_repo.get_by_id(booking.organizer_id)
+
+    return {
+        "booking_id": booking.id,
+        "payment_status": booking.payment_status.value if hasattr(booking.payment_status, 'value') else (booking.payment_status or "PENDING"),
+        "payment_proof_url": booking.payment_proof_url,
+        "payment_uploaded_at": booking.payment_uploaded_at.isoformat() if booking.payment_uploaded_at else None,
+        "payment_verified_at": booking.payment_verified_at.isoformat() if booking.payment_verified_at else None,
+        "payment_rejection_reason": booking.payment_rejection_reason,
+        "total_price": booking.total_price,
+        "organizer_payment_info": {
+            "account_title": organizer.payment_account_title if organizer else None,
+            "account_number": organizer.payment_account_number if organizer else None,
+            "bank_name": organizer.payment_bank_name if organizer else None,
+            "instructions": organizer.payment_instructions if organizer else None,
+        } if organizer else None,
+    }

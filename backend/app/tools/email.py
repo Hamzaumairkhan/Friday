@@ -3,6 +3,7 @@
 from typing import Dict, Any, Optional, List
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.services.email_template_service import _get_base_layout
 
 logger = get_logger("tools.email")
 settings = get_settings()
@@ -11,7 +12,7 @@ settings = get_settings()
 class BaseEmailProvider:
     """Base interface for sending emails."""
 
-    async def send(self, to: str, subject: str, body: str) -> Dict[str, Any]:
+    async def send(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
         raise NotImplementedError
 
 
@@ -23,7 +24,7 @@ class ResendEmailProvider(BaseEmailProvider):
         self.from_email = from_email
         self.admin_email = admin_email or settings.ADMIN_EMAIL
 
-    async def send(self, to: str, subject: str, body: str) -> Dict[str, Any]:
+    async def send(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
         if not to or not to.strip():
             return {
                 "success": False,
@@ -42,14 +43,31 @@ class ResendEmailProvider(BaseEmailProvider):
             if self.admin_email and ("example.com" in to or "friday.pk" in to):
                 target_to = self.admin_email
 
+            rendered_html = html or _get_base_layout(
+                title=subject,
+                preheader=subject,
+                content_html=f"<div style='font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;'>{body}</div>",
+            )
+
             params = {
                 "from": self.from_email,
                 "to": [target_to],
                 "subject": subject,
-                "html": f"<div style='font-family: sans-serif; font-size: 14px; line-height: 1.6; color: #1e293b;'><pre style='font-family: inherit; white-space: pre-wrap;'>{body}</pre></div>",
+                "html": rendered_html,
                 "text": body,
             }
-            response = resend.Emails.send(params)
+            try:
+                response = resend.Emails.send(params)
+            except Exception as resend_err:
+                # If Resend free tier restricts to verified admin email
+                if self.admin_email and target_to != self.admin_email:
+                    logger.warning(f"Retrying Resend email delivery to verified admin email {self.admin_email} due to: {resend_err}")
+                    params["to"] = [self.admin_email]
+                    response = resend.Emails.send(params)
+                    target_to = self.admin_email
+                else:
+                    raise resend_err
+
             email_id = response.get("id") if isinstance(response, dict) else getattr(response, "id", "email-resend-id")
 
             logger.info(f"Resend live email sent successfully to {target_to}. ID: {email_id}")
@@ -78,7 +96,7 @@ class ResendEmailProvider(BaseEmailProvider):
 class UnconfiguredEmailProvider(BaseEmailProvider):
     """Honest unconfigured email provider returning unavailable status."""
 
-    async def send(self, to: str, subject: str, body: str) -> Dict[str, Any]:
+    async def send(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
         logger.warning(f"Email dispatch attempted to {to} but RESEND_API_KEY is not configured.")
         return {
             "success": False,
@@ -92,7 +110,7 @@ class UnconfiguredEmailProvider(BaseEmailProvider):
 class MockEmailProvider(BaseEmailProvider):
     """Mock email provider strictly for automated test suites."""
 
-    async def send(self, to: str, subject: str, body: str) -> Dict[str, Any]:
+    async def send(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
         import uuid
         logger.info(f"[TEST EMAIL DISPATCH] To: {to} | Subject: {subject}")
         return {
@@ -121,12 +139,12 @@ class EmailTool:
         else:
             self.provider = UnconfiguredEmailProvider()
 
-    async def send_email(self, to: str, subject: str, body: str) -> Dict[str, Any]:
-        """Send an email to organizer or traveler."""
-        return await self.provider.send(to=to, subject=subject, body=body)
+    async def send_email(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
+        """Send an email to organizer or traveler with optional custom HTML formatting."""
+        return await self.provider.send(to=to, subject=subject, body=body, html=html)
 
 
-async def send_email(to: str, subject: str, body: str) -> Dict[str, Any]:
+async def send_email(to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
     """Convenience functional wrapper for email tool."""
     tool = EmailTool()
-    return await tool.send_email(to=to, subject=subject, body=body)
+    return await tool.send_email(to=to, subject=subject, body=body, html=html)

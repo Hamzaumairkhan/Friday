@@ -16,6 +16,20 @@ class OrganizerResponse(BaseModel):
     location: Optional[str] = None
     website: Optional[str] = None
 
+    # Business & Capacity
+    number_of_buses: Optional[int] = None
+    vehicle_capacity: Optional[int] = None
+    maximum_group_size: Optional[int] = None
+    experience_years: Optional[int] = None
+    experience_description: Optional[str] = None
+    onboarding_completed: bool = False
+
+    # Payment Information
+    payment_account_title: Optional[str] = None
+    payment_account_number: Optional[str] = None
+    payment_bank_name: Optional[str] = None
+    payment_instructions: Optional[str] = None
+
     model_config = {"from_attributes": True}
 
 

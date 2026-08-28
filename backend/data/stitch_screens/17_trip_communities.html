@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Organizer Trip Communities</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&amp;family=Inter:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed": "#c4ebdc",
+                        "on-secondary-fixed": "#002116",
+                        "outline": "#717975",
+                        "on-primary-fixed": "#002018",
+                        "surface-bright": "#f8faf6",
+                        "secondary": "#3c6756",
+                        "tertiary-fixed-dim": "#ffb59d",
+                        "on-primary": "#ffffff",
+                        "on-background": "#191c1a",
+                        "tertiary-fixed": "#ffdbd0",
+                        "primary-container": "#183c32",
+                        "tertiary-container": "#60220c",
+                        "on-secondary-fixed-variant": "#234e3f",
+                        "primary-fixed-dim": "#a8cfc1",
+                        "outline-variant": "#c1c8c4",
+                        "inverse-surface": "#2e312f",
+                        "on-tertiary-fixed": "#390b00",
+                        "surface-container-high": "#e7e9e5",
+                        "on-primary-fixed-variant": "#2a4d43",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#f8faf6",
+                        "background": "#f8faf6",
+                        "inverse-primary": "#a8cfc1",
+                        "on-secondary-container": "#406b5a",
+                        "surface-dim": "#d9dad7",
+                        "tertiary": "#420e00",
+                        "secondary-fixed-dim": "#a2d0bc",
+                        "inverse-on-surface": "#f0f1ed",
+                        "error": "#ba1a1a",
+                        "primary": "#00261d",
+                        "on-error": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-surface-variant": "#414845",
+                        "on-secondary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-surface": "#191c1a",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#76331c",
+                        "surface-variant": "#e1e3df",
+                        "on-primary-container": "#81a799",
+                        "surface-container-low": "#f3f4f0",
+                        "secondary-container": "#bbead5",
+                        "surface-tint": "#42655a",
+                        "on-tertiary-container": "#e1876a",
+                        "surface-container-highest": "#e1e3df",
+                        "secondary-fixed": "#beedd8",
+                        "surface-container": "#edeeeb"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-desktop": "48px",
+                        "gutter": "24px",
+                        "margin-mobile": "20px",
+                        "unit": "4px",
+                        "container-max": "1280px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-sm": ["Libre Caslon Text"],
+                        "display-hero": ["Libre Caslon Text"],
+                        "body-sm": ["Inter"],
+                        "headline-lg": ["Libre Caslon Text"],
+                        "headline-md": ["Libre Caslon Text"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["12px", { "lineHeight": "1", "letterSpacing": "0.08em", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-sm": ["24px", { "lineHeight": "1.4", "fontWeight": "400" }],
+                        "display-hero": ["64px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "headline-lg": ["40px", { "lineHeight": "1.2", "fontWeight": "400" }],
+                        "headline-md": ["32px", { "lineHeight": "1.3", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: theme('colors.outline-variant');
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md h-screen flex overflow-hidden">
+<!-- Left Sidebar: Navigation -->
+<aside class="fixed left-0 top-0 h-screen flex flex-col justify-between py-margin-desktop z-40 bg-surface dark:bg-surface-container-low border-r border-outline-variant/10 w-64">
+<div>
+<div class="px-margin-desktop mb-8">
+<h1 class="font-headline-md text-headline-md text-primary dark:text-primary-fixed italic">Friday®</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Premium Travel</p>
+</div>
+<nav class="flex flex-col gap-2">
+<a class="text-on-surface-variant dark:text-on-surface-variant/70 pl-5 py-2 hover:bg-secondary-container/20 dark:hover:bg-primary-container/20 transition-colors flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+<span class="font-label-caps text-label-caps">Explore</span>
+</a>
+<a class="text-on-surface-variant dark:text-on-surface-variant/70 pl-5 py-2 hover:bg-secondary-container/20 dark:hover:bg-primary-container/20 transition-colors flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" data-icon="travel_explore">travel_explore</span>
+<span class="font-label-caps text-label-caps">Plan Trip</span>
+</a>
+<a class="text-on-surface-variant dark:text-on-surface-variant/70 pl-5 py-2 hover:bg-secondary-container/20 dark:hover:bg-primary-container/20 transition-colors flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" data-icon="map">map</span>
+<span class="font-label-caps text-label-caps">My Trips</span>
+</a>
+<a class="text-primary dark:text-primary-fixed font-bold border-l-4 border-tertiary-fixed-dim pl-4 py-2 hover:bg-secondary-container/20 dark:hover:bg-primary-container/20 transition-colors flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" data-icon="group" data-weight="fill" style="font-variation-settings: 'FILL' 1;">group</span>
+<span class="font-label-caps text-label-caps">Groups</span>
+</a>
+<a class="text-on-surface-variant dark:text-on-surface-variant/70 pl-5 py-2 hover:bg-secondary-container/20 dark:hover:bg-primary-container/20 transition-colors flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" data-icon="bookmark">bookmark</span>
+<span class="font-label-caps text-label-caps">Saved</span>
+</a>
+</nav>
+</div>
+<div class="px-5 mt-auto">
+<button class="w-full bg-primary text-on-primary py-3 rounded-lg font-label-caps text-label-caps flex items-center justify-center gap-2 mb-6">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+                 AI Copilot
+             </button>
+<nav class="flex flex-col gap-2 border-t border-outline-variant/10 pt-4">
+<a class="text-on-surface-variant dark:text-on-surface-variant/70 pl-2 py-2 hover:bg-secondary-container/20 dark:hover:bg-primary-container/20 transition-colors flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-label-caps text-label-caps">Help</span>
+</a>
+<a class="text-on-surface-variant dark:text-on-surface-variant/70 pl-2 py-2 hover:bg-secondary-container/20 dark:hover:bg-primary-container/20 transition-colors flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" data-icon="contact_support">contact_support</span>
+<span class="font-label-caps text-label-caps">Support</span>
+</a>
+</nav>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 flex-1 flex h-screen bg-surface-bright">
+<!-- Communities List Panel -->
+<div class="w-80 border-r border-outline-variant/10 bg-surface flex flex-col h-full flex-shrink-0">
+<div class="p-6 border-b border-outline-variant/10">
+<h2 class="font-headline-sm text-headline-sm text-primary mb-2">Communities</h2>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-surface-container-low border-b border-outline-variant/30 focus:border-tertiary-container outline-none font-body-sm text-body-sm text-on-surface" placeholder="Search groups..." type="text"/>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+<!-- Group Card: Active -->
+<div class="group relative rounded-xl overflow-hidden cursor-pointer shadow-[0px_12px_32px_rgba(24,60,50,0.08)]">
+<div class="bg-cover bg-center h-32 w-full relative" data-alt="A cinematic, high-quality photograph of the Hunza Valley during autumn. Majestic snow-capped peaks tower in the background, while vibrant golden and orange terraced fields cascade down the valley. The lighting is soft and warm, typical of golden hour, casting long shadows and creating a peaceful, luxurious travel aesthetic. The scene feels premium and adventurous." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAsdN9PmzNf8e2xWL6khYyCjmVN5tSP7MQWEHZwtLNQpcmGX734MUY3GJ7togdNKI8ul1-LlTbDlEKt9RLJN_En6xcHRBWPpkXOLkBXaCZRz0KoolkpKwjpsPFQKfuPeLe05Qs4G9-XoYwVgND-vo13bh2j1IyMHQGHvou5dxq-BRNc47BUK5RmELGecmAusTYY5MC9iH6TtPi8ikhwkmeW_YSCpXasxs1d3UszkkoQzI4bbSjTnYM')">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent"></div>
+<div class="absolute bottom-3 left-4 text-on-primary">
+<h3 class="font-headline-sm text-headline-sm">Hunza Autumn</h3>
+<p class="font-body-sm text-body-sm opacity-90 flex items-center gap-1"><span class="material-symbols-outlined text-[16px]" data-icon="group">group</span> 18 Members</p>
+</div>
+<div class="absolute top-3 right-3 bg-tertiary-container text-on-tertiary-container text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Active</div>
+</div>
+</div>
+<!-- Group Card: Inactive -->
+<div class="group relative rounded-xl overflow-hidden cursor-pointer border border-outline-variant/10 hover:shadow-[0px_4px_12px_rgba(24,60,50,0.05)] transition-shadow">
+<div class="bg-cover bg-center h-32 w-full relative opacity-70 group-hover:opacity-100 transition-opacity" data-alt="A breathtaking, cinematic photograph of the Skardu Valley landscape. Cold, crystal-clear blue waters of a serene mountain lake reflect the towering, rugged, barren mountains surrounding it. The sky is a deep, clear blue with a few wispy clouds. The lighting is crisp and cool, evoking a sense of tranquil isolation and high-end exploration." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCWDusSkqzLmrwn1isWSWX6r34qRiWK9cskTnqcXtHQR8NNCl5Mkz9cGyU_hCZ-gQ9lijaWM4mm1Zd1nI9IJyR29bzN1Me7rpStgEsJyWBjQ1vkN48LQTxp2pEPm2S9LNyDWcp4uaxSw67pA21KYPksEUULcV6C7OaDIZne8U3_42XxpGiv8Z1z6F7sAhL-U4471KnwAwYdPSqaCT0TuytGzDnbLRRsSMKnBDOf1Jhnw7I9HDxlG8o')">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/90 to-transparent"></div>
+<div class="absolute bottom-3 left-4 text-on-primary">
+<h3 class="font-headline-sm text-headline-sm">Skardu Expedition</h3>
+<p class="font-body-sm text-body-sm opacity-80 flex items-center gap-1"><span class="material-symbols-outlined text-[16px]" data-icon="group">group</span> 12 Members</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Center: Chat / Group Room -->
+<div class="flex-1 flex flex-col h-full bg-surface-bright relative">
+<!-- Header -->
+<header class="h-20 border-b border-outline-variant/10 bg-surface/80 backdrop-blur-md flex items-center justify-between px-8 z-10 shrink-0">
+<div>
+<h2 class="font-headline-md text-headline-md text-primary">Hunza Autumn</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-2">
+<span class="inline-block w-2 h-2 rounded-full bg-secondary"></span> Official Group Chat
+                    </p>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</header>
+<!-- Pinned Announcement -->
+<div class="bg-surface-container-low border-b border-outline-variant/20 px-8 py-3 flex items-start gap-3 shrink-0">
+<span class="material-symbols-outlined text-tertiary-container mt-0.5" data-icon="push_pin" data-weight="fill" style="font-variation-settings: 'FILL' 1;">push_pin</span>
+<div>
+<span class="font-label-caps text-label-caps text-tertiary-container block mb-0.5">Editorial Announcement</span>
+<p class="font-body-sm text-body-sm text-on-surface font-medium">Departure point has been moved to Serena Chowk.</p>
+</div>
+</div>
+<!-- Chat Area -->
+<div class="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-6 bg-surface-bright flex flex-col">
+<!-- System/Date Divider -->
+<div class="flex items-center justify-center my-4">
+<span class="bg-surface-container text-on-surface-variant font-label-caps text-[10px] px-3 py-1 rounded-full uppercase tracking-widest">Today</span>
+</div>
+<!-- Message: Other User -->
+<div class="flex items-start gap-4 max-w-3xl">
+<img class="w-10 h-10 rounded-full object-cover border border-outline-variant/20" data-alt="A professional headshot of a young woman with a warm smile, wearing travel-appropriate attire in earthy tones. The background is a softly blurred outdoor setting, suggesting an adventurous spirit. The lighting is natural and flattering, adhering to a high-end editorial style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBT1UNyfbpy3qwc_jYR9TyWhEY7FVc6ke5G-su4koX0PdJIKhgQH-jHKpnW6RhEkusS6dqGSLp5DsJ2OtBU45NLBt4hCW3Hvx7tjRknYVeqqrd3o-FsIKeTTtiZZ7DoHbnfK7Y3k0Ra8sFOk4WLSRyMdjPDSSsbtu773iduHNg18GnDTvIcm2ECcRl71DOdmsAJZf-RxApUuWzL6M8u01xB8vaa_ABxoqtRItJEqpnoy_ACgY7zPFs"/>
+<div>
+<div class="flex items-baseline gap-2 mb-1">
+<span class="font-body-sm text-body-sm font-semibold text-primary">Aisha Khan</span>
+<span class="font-label-caps text-[10px] text-on-surface-variant">09:12 AM</span>
+</div>
+<div class="bg-surface border border-outline-variant/10 rounded-2xl rounded-tl-sm p-4 text-on-surface shadow-sm inline-block">
+<p>Good morning everyone! Just confirming, do we need to bring our own sleeping bags for the Fairy Meadows leg, or are those provided at the cabins?</p>
+</div>
+</div>
+</div>
+<!-- Message: Organizer (User) -->
+<div class="flex items-start gap-4 max-w-3xl ml-auto flex-row-reverse">
+<img class="w-10 h-10 rounded-full object-cover border border-outline-variant/20" data-alt="A sophisticated headshot of a male travel organizer in his 30s. He wears a tailored, utilitarian jacket in forest green. The background is a clean, neutral studio setting with soft, ambient lighting. The mood is confident, trustworthy, and premium." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCuNfQXt0-5Rm_imiZfIrljTt8StKr5LJ1qeQLX9DIoa7N-WBekLa9LkJNEqfgnBywfYZKDJyNmzLRWwjYkNnoOBqOx7ejucnP5D0aS8Ndh8-vOLkNcgx_bKjD4mDcrgSfUhb4ag_AfErF_EUG0vfUZjivVyu54_7EXg49NefxtKtqfXJGU4eOawU6zklxljzyAoWZ_RDkfzunhbaw_2zbNsb5nq_lVbwEuwo4dilPOB3tm0YWq3Yg"/>
+<div class="flex flex-col items-end">
+<div class="flex items-baseline gap-2 mb-1 flex-row-reverse">
+<span class="font-body-sm text-body-sm font-semibold text-primary">You (Organizer)</span>
+<span class="font-label-caps text-[10px] text-on-surface-variant">09:15 AM</span>
+</div>
+<div class="bg-primary-container text-on-primary-container rounded-2xl rounded-tr-sm p-4 shadow-sm inline-block max-w-xl text-right border-l-2 border-tertiary-fixed-dim">
+<p>Hi Aisha. Premium bedding and sleeping bags are fully provided at the Fairy Meadows luxury cabins. You only need to bring personal layered clothing for the evening drop in temperature.</p>
+</div>
+</div>
+</div>
+<!-- Message: AI Assistant -->
+<div class="flex items-start gap-4 max-w-3xl">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center border border-outline-variant/20">
+<span class="material-symbols-outlined text-on-secondary-container" data-icon="smart_toy">smart_toy</span>
+</div>
+<div>
+<div class="flex items-baseline gap-2 mb-1">
+<span class="font-body-sm text-body-sm font-semibold text-secondary">Friday AI Assistant</span>
+<span class="font-label-caps text-[10px] text-on-surface-variant">09:16 AM</span>
+</div>
+<div class="bg-surface border-l-2 border-secondary rounded-2xl rounded-tl-sm p-4 text-on-surface shadow-sm inline-block">
+<p class="mb-2">Based on current forecasts, evening temperatures at Fairy Meadows next week will average 4°C (39°F).</p>
+<a class="text-secondary font-medium hover:underline text-sm flex items-center gap-1" href="#">View detailed packing list <span class="material-symbols-outlined text-[14px]" data-icon="arrow_forward">arrow_forward</span></a>
+</div>
+</div>
+</div>
+</div>
+<!-- Input Area -->
+<div class="p-6 bg-surface border-t border-outline-variant/10 shrink-0">
+<div class="relative flex items-end gap-3 bg-surface-container-low rounded-xl border border-outline-variant/30 p-2 focus-within:border-tertiary-container focus-within:ring-1 focus-within:ring-tertiary-container transition-all">
+<button class="p-2 text-on-surface-variant hover:text-primary shrink-0">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+</button>
+<textarea class="w-full bg-transparent border-none focus:ring-0 resize-none font-body-sm text-body-sm py-2 max-h-32 min-h-[44px]" placeholder="Write a message to the group..." rows="1"></textarea>
+<button class="p-2 bg-primary text-on-primary rounded-lg shrink-0 hover:bg-primary/90 transition-colors">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Right Panel: Group Details -->
+<aside class="w-80 border-l border-outline-variant/10 bg-surface flex flex-col h-full overflow-y-auto custom-scrollbar flex-shrink-0">
+<div class="p-6 border-b border-outline-variant/10">
+<h3 class="font-headline-sm text-headline-sm text-primary mb-1">Group Details</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Hunza Autumn Trip</p>
+</div>
+<!-- Logistics Card -->
+<div class="p-6 border-b border-outline-variant/10 space-y-4">
+<h4 class="font-label-caps text-label-caps text-on-surface-variant mb-2">Departure Logistics</h4>
+<div class="bg-surface-container-low rounded-lg p-4 space-y-3 border border-outline-variant/20">
+<div class="flex gap-3">
+<span class="material-symbols-outlined text-secondary mt-0.5" data-icon="location_on">location_on</span>
+<div>
+<span class="block font-body-sm text-body-sm font-semibold text-on-surface">Serena Chowk</span>
+<span class="block font-body-sm text-body-sm text-on-surface-variant text-xs">Islamabad, Capital Territory</span>
+</div>
+</div>
+<div class="flex gap-3">
+<span class="material-symbols-outlined text-secondary mt-0.5" data-icon="schedule">schedule</span>
+<div>
+<span class="block font-body-sm text-body-sm font-semibold text-on-surface">05:30 AM</span>
+<span class="block font-body-sm text-body-sm text-on-surface-variant text-xs">Oct 14, 2024 (Sharp)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Members -->
+<div class="p-6 border-b border-outline-variant/10">
+<div class="flex items-center justify-between mb-4">
+<h4 class="font-label-caps text-label-caps text-on-surface-variant">Confirmed Members (18)</h4>
+<button class="text-secondary text-xs hover:underline">View All</button>
+</div>
+<div class="flex -space-x-2 overflow-hidden mb-4">
+<img class="inline-block h-8 w-8 rounded-full ring-2 ring-surface object-cover" data-alt="Close up portrait of a traveler." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTfmHfN-mc_D1J0Zb0rZNK_Vs4pcIJzuGn_YyohxCSWqGFxCOhCqrj7dlp_aPva7waH1boyhhrdE09mnK-sClqOX54eweo6suivixu4BMvsKIM-fYRBuhujwC9Lv6_g9U2-GBpTsXu3rlX4ou5X3gkjwO4Y2pw0faAVYCDjW16__n4TOgbh6bOlkc_TRmIqyIaZ8bW5sunqNTSyc9uxdNhyid2DKGEbrM9kMWWpWQ_JlHUQM5TW6I"/>
+<img class="inline-block h-8 w-8 rounded-full ring-2 ring-surface object-cover" data-alt="Close up portrait of a second traveler." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDH0N_uRp5CyTCq4U1DujNgN2e0o5xqebWDw4pdzMb0XECjmD1DY7M9nplhVvdFZ7SLMj5IeDPoqxEJMWmmelEgsAh3IMs37a3iWKXY73AjwyDPBpGYYNYN5vOr4fT_HffoeyXVff6DuP20rK9kcciUdNvOEFR-gN1JH1Iw28pvp5LwpeJhPw2E9oghYBvLL02Mt-9a1PN4lRRs2OfhWvU6kLv1knntt-v4Z9a4FPkEl0F5HOgzOOk"/>
+<img class="inline-block h-8 w-8 rounded-full ring-2 ring-surface object-cover" data-alt="Close up portrait of a third traveler." src="https://lh3.googleusercontent.com/aida-public/AB6AXuABeQlDkt7m5hZToDid8GiII0YKAmTCmr73MWuB95oVb88jUNv1X-IHU7kAetK0riQO-T6Ixba6KBWikcJ4l9rsKJWRoeXP7s4Z9JrYqZ79UAmAwdwDDd9rdYKTGDLeW2uYSHUn-vqC_7O1wBfhnQFQlV-0E0fDR4q00FjtWwsms9dW3VQbQgDOYO98uj2XJOPgHwBDtVhX_6RMEkLO0mcxvlz0ejBMGvpTpVhOO3iNjNR7PYrykME"/>
+<img class="inline-block h-8 w-8 rounded-full ring-2 ring-surface object-cover" data-alt="Close up portrait of a fourth traveler." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7gDhKzbG5oGB6XvdgLvy4XEK9ZnD24AluPGGx7PM7wi3E_pjIIKyzu5SnE5PWkvKNEeCh2RF_4SHVcxkFxiExeofEk6io4fWYcKY1E0DgQj9L8B5OCi_h9ePhKI2hHb1Rp_XAdscEKt603JCURBP6yY81ZACxEDYBSE7ZDFrDJ6BX53xiJ_ntbLJjnI_0_t2jyELRQLvlGax4sW3Cl4DTYPolg1vDEaWXqnPPvtd6bIfjQwnMErU"/>
+<div class="inline-flex h-8 w-8 items-center justify-center rounded-full ring-2 ring-surface bg-surface-variant text-on-surface-variant text-xs font-semibold">+14</div>
+</div>
+<button class="w-full py-2 border border-outline-variant/30 rounded-lg text-sm font-medium hover:bg-surface-container-low transition-colors">Manage Roster</button>
+</div>
+<!-- Emergency Contacts -->
+<div class="p-6">
+<h4 class="font-label-caps text-label-caps text-error mb-4">Emergency Contacts</h4>
+<div class="space-y-3">
+<div class="flex items-center justify-between p-3 bg-error-container/20 rounded-lg border border-error-container">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-error" data-icon="local_hospital">local_hospital</span>
+<div>
+<span class="block font-body-sm text-body-sm font-medium text-on-surface">Ali (Lead Guide)</span>
+<span class="block font-label-caps text-[10px] text-on-surface-variant">On-ground</span>
+</div>
+</div>
+<button class="text-error"><span class="material-symbols-outlined" data-icon="call">call</span></button>
+</div>
+</div>
+</div>
+</aside>
+</main>
+</body></html>

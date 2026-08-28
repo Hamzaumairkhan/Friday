@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Trip Details - Friday®</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Libre+Caslon+Text:wght@100..900&display=swap" rel="stylesheet"/>
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Design System Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed": "#390b00",
+                        "outline-variant": "#c1c8c4",
+                        "error-container": "#ffdad6",
+                        "surface-container-low": "#f3f4f0",
+                        "on-tertiary-fixed-variant": "#76331c",
+                        "surface-container": "#edeeeb",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed-dim": "#a2d0bc",
+                        "inverse-surface": "#2e312f",
+                        "surface-dim": "#d9dad7",
+                        "primary-container": "#183c32",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed-dim": "#ffb59d",
+                        "on-secondary-fixed": "#002116",
+                        "on-surface-variant": "#414845",
+                        "inverse-on-surface": "#f0f1ed",
+                        "background": "#f8faf6",
+                        "tertiary": "#420e00",
+                        "on-primary-fixed": "#002018",
+                        "surface": "#f8faf6",
+                        "surface-bright": "#f8faf6",
+                        "on-surface": "#191c1a",
+                        "on-background": "#191c1a",
+                        "secondary-fixed": "#beedd8",
+                        "tertiary-fixed": "#ffdbd0",
+                        "on-secondary-fixed-variant": "#234e3f",
+                        "tertiary-container": "#60220c",
+                        "on-tertiary": "#ffffff",
+                        "secondary-container": "#bbead5",
+                        "surface-container-highest": "#e1e3df",
+                        "primary-fixed": "#c4ebdc",
+                        "surface-container-high": "#e7e9e5",
+                        "error": "#ba1a1a",
+                        "on-tertiary-container": "#e1876a",
+                        "on-primary": "#ffffff",
+                        "primary": "#00261d",
+                        "on-secondary-container": "#406b5a",
+                        "primary-fixed-dim": "#a8cfc1",
+                        "on-primary-container": "#81a799",
+                        "surface-variant": "#e1e3df",
+                        "surface-tint": "#42655a",
+                        "outline": "#717975",
+                        "secondary": "#3c6756",
+                        "on-primary-fixed-variant": "#2a4d43",
+                        "inverse-primary": "#a8cfc1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-max": "1280px",
+                        "unit": "4px",
+                        "margin-mobile": "20px",
+                        "gutter": "24px",
+                        "margin-desktop": "48px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Libre Caslon Text"],
+                        "body-md": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "headline-sm": ["Libre Caslon Text"],
+                        "body-lg": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "headline-md": ["Libre Caslon Text"],
+                        "display-hero": ["Libre Caslon Text"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["40px", { "lineHeight": "1.2", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "label-caps": ["12px", { "lineHeight": "1", "letterSpacing": "0.08em", "fontWeight": "600" }],
+                        "headline-sm": ["24px", { "lineHeight": "1.4", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "headline-md": ["32px", { "lineHeight": "1.3", "fontWeight": "400" }],
+                        "display-hero": ["64px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Ambient depth effects */
+        .ambient-shadow {
+            box-shadow: 0px 12px 32px rgba(24, 60, 50, 0.08);
+        }
+        .vignette-image {
+            box-shadow: inset 0 0 100px rgba(0,38,29,0.3);
+        }
+        
+        /* Timeline styling */
+        .timeline-line {
+            position: absolute;
+            left: 20px;
+            top: 40px;
+            bottom: -40px;
+            width: 1px;
+            background-color: theme('colors.outline-variant');
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased selection:bg-secondary-container selection:text-on-secondary-container min-h-screen">
+<!-- DESKTOP TOP APP BAR (Hidden on Mobile) -->
+<nav class="hidden md:flex justify-between items-center w-full px-margin-desktop h-16 sticky top-0 z-50 bg-surface/80 backdrop-blur-md shadow-sm dark:shadow-none">
+<div class="flex items-center gap-8">
+<span class="font-display-hero text-[32px] text-primary dark:text-inverse-primary leading-none tracking-tight">Friday®</span>
+<div class="flex gap-6 mt-1">
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors font-label-caps text-label-caps" href="#">Explore</a>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors font-label-caps text-label-caps" href="#">Plan Trip</a>
+</div>
+</div>
+<!-- Search (Left aligned within right group) -->
+<div class="flex items-center gap-4">
+<button class="bg-primary text-on-primary font-label-caps text-label-caps px-4 py-2 rounded-full hover:opacity-90 transition-opacity">Start Booking</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-container overflow-hidden border border-outline/20">
+<img alt="User profile photo" class="w-full h-full object-cover" data-alt="A subtle, minimalist avatar portrait of a modern traveler. The lighting is soft and natural, emphasizing a cinematic, premium editorial aesthetic. The subject is partially in shadow, creating a calm, mysterious mood suitable for a luxury travel brand. High contrast serifs and utilitarian sans-serifs influence the surrounding UI, demanding a refined, uncluttered image." src="https://lh3.googleusercontent.com/aida-public/AB6AXuABPpYOdVkvsVsaKhVKIuhMiFOl5On0lFbtYl8wxApwEiJv4f7gu5bAAypqjNnmeiGDHXsL7kegF4s73f_ElMEkm_rPeCiQS0S_fwD6ITTQEmwnc4HUibhVVYypN1WBv1vS_5njTyQmn3Vuf7RVxLNv7n8iBtPT-VVuUg9ue6eWI4QUvQAzEyRhkkhK_jpHBLWyOEIRqq7TZXvLxneHoi9HML7vBj2zmnr-rQRcyIViAvBeTrkmqUw"/>
+</div>
+</div>
+</nav>
+<!-- MOBILE TOP APP BAR -->
+<nav class="md:hidden flex justify-between items-center w-full px-4 h-16 sticky top-0 z-50 bg-surface/90 backdrop-blur-lg border-b border-outline/10">
+<span class="font-display-hero text-[24px] text-primary leading-none tracking-tight">Friday®</span>
+<div class="w-8 h-8 rounded-full bg-surface-container overflow-hidden border border-outline/20">
+<img alt="User profile photo" class="w-full h-full object-cover" data-alt="A subtle, minimalist avatar portrait of a modern traveler. The lighting is soft and natural, emphasizing a cinematic, premium editorial aesthetic. The subject is partially in shadow, creating a calm, mysterious mood suitable for a luxury travel brand. High contrast serifs and utilitarian sans-serifs influence the surrounding UI, demanding a refined, uncluttered image." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyf1i2wwSYNnVpDgKOnJgxYKE73iye1eyyzHk-2f5M5pD5bYGOg_t4IV6fvygOBk8Ee7xn10WCJL1m3vD4C0I55vwuDL7H-SXcSRVDgix3AHtJjIRRmdMpAGWQDUOG36aGDsHzmKAkqM8mfaFnYamSu0Bakz_ElMD5Qeywa4E4Jdz6m7GLH8NLLpUsfX0c_BGhW8lfUQdDGQt8Yl3-ms9u8DBlQ2COj4vnSsXzVmdIxnrujdOd_ZE"/>
+</div>
+</nav>
+<!-- MAIN LAYOUT (3-Column Desktop / 1-Column Mobile) -->
+<div class="flex flex-col lg:flex-row max-w-container-max mx-auto px-4 lg:px-margin-desktop py-gutter gap-gutter min-h-[calc(100vh-64px)] pb-24 md:pb-gutter">
+<!-- LEFT SIDEBAR (Desktop Only) -->
+<aside class="hidden lg:flex flex-col w-64 flex-shrink-0 sticky top-[88px] h-[calc(100vh-120px)] border-r border-outline/10 pr-6 gap-2">
+<!-- Active Tab: My Trips -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-highest dark:hover:bg-inverse-surface transition-colors font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">explore</span>
+<span>Explore</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-highest dark:hover:bg-inverse-surface transition-colors font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">map</span>
+<span>Plan Trip</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-primary dark:text-inverse-primary font-bold bg-surface-container-low dark:bg-surface-container-high transition-transform font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined fill" style="font-variation-settings: 'FILL' 1;">travel_explore</span>
+<span>My Trips</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-highest dark:hover:bg-inverse-surface transition-colors font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Groups</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-highest dark:hover:bg-inverse-surface transition-colors font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">bookmark</span>
+<span>Saved</span>
+</a>
+<div class="mt-auto flex flex-col gap-2">
+<button class="w-full py-3 bg-primary text-on-primary rounded-lg font-label-caps text-label-caps hover:opacity-90 transition-opacity">New Trip</button>
+</div>
+<div class="mt-8 border-t border-outline/10 pt-4 flex flex-col gap-2">
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant opacity-70 hover:opacity-100 font-label-caps text-[10px]" href="#">
+<span class="material-symbols-outlined text-[18px]">person</span>
+<span>Profile</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant opacity-70 hover:opacity-100 font-label-caps text-[10px]" href="#">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+<span>Settings</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant opacity-70 hover:opacity-100 font-label-caps text-[10px]" href="#">
+<span class="material-symbols-outlined text-[18px]">help</span>
+<span>Help</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant opacity-70 hover:opacity-100 font-label-caps text-[10px]" href="#">
+<span class="material-symbols-outlined text-[18px]">policy</span>
+<span>Privacy</span>
+</a>
+</div>
+</aside>
+<!-- CENTER FEED (Primary Content - Digital Travel Journal) -->
+<main class="flex-1 w-full flex flex-col gap-12">
+<!-- Hero Header -->
+<header class="flex flex-col items-center text-center pt-8 pb-4">
+<span class="font-label-caps text-label-caps text-on-surface-variant tracking-[0.2em] mb-4">5 DAYS · 4 NIGHTS</span>
+<h1 class="font-headline-lg text-headline-lg md:text-display-hero text-primary italic mb-8">HUNZA ADVENTURE</h1>
+<div class="w-full aspect-[21/9] md:aspect-[3/1] rounded-2xl overflow-hidden relative ambient-shadow border border-primary/10">
+<div class="bg-cover bg-center w-full h-full absolute inset-0 vignette-image" data-alt="A breathtaking, cinematic landscape photograph of the Hunza Valley in Pakistan. The rugged, snow-capped peaks are bathed in soft, early morning golden light, contrasting with deep, moody shadows in the valley. The style is premium editorial, resembling a high-end travel monograph shot on film, with a subtle matte finish and a calm, majestic mood." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCZ8cC1CkDWivcmshEC7oCme2dPNghWIsb059vhmBq7u8GFqPBg35dBwfqHQDgVqRkPwJwPxy7GAFQe6YOCflnmmsPpMsfAiEGyuE4cKHnLh4A_4I2FPH2zbzRalBd6wqpNvP-bECOvke28Kcy0UO3eX0GIte4G0mYxU9Jhaq11nsnWNSGguCf2gl3wkAm_ta0dcF5uL3bcapGuclW8NL_v8ah1rKAMqeEwWmbPlZW380hoRHHbJHQ')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent flex items-end p-6">
+<p class="font-headline-sm text-headline-sm text-surface-lowest">Autumn 2024 Expedition</p>
+</div>
+</div>
+</header>
+<!-- Map Section -->
+<section class="bg-surface-container-lowest border border-outline/10 rounded-2xl p-6 ambient-shadow">
+<div class="flex items-center justify-between mb-4">
+<h2 class="font-headline-sm text-headline-sm text-primary">Route Map</h2>
+<button class="font-label-caps text-label-caps text-on-surface-variant flex items-center gap-1 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">fullscreen</span>
+                        EXPAND
+                    </button>
+</div>
+<div class="w-full h-[300px] rounded-xl overflow-hidden relative border border-outline/10 bg-surface-container-low">
+<img alt="Route Map" class="w-full h-full object-cover opacity-80 mix-blend-multiply" data-alt="A highly stylized, minimalist topographical map illustration showing a route winding from Islamabad through mountainous terrain towards Khunjerab Pass. The map uses a sophisticated color palette of warm creams, soft sands, and deep forest greens, with a subtle elevation profile line graph underneath. The aesthetic is clean, modern, and editorial, resembling a high-end infographic in a travel magazine." data-location="Hunza Valley" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC7vA5d4D5ijjBLjWIF_lS1e20jYOmbmW9hu8Mpd4-sCGc3RY16LjE0hbgrcjhTCKWOe2ST8aHMidHenEuuU-3PpIEMEJK5qsM-qr3spb47XUm2SWoD-aHfAfS44_bmJGF-HHv6HPTVnCRD9l2oKbRKYsBXKXZHtJzZ0-h-DT1llsOf-DsKxc2dtbBRSuu9YI0HF2jxSEsJrvZeSV7EUi077xLK-pOE9hTrdDoHtVc1YJEimbIN2fw"/>
+</div>
+<div class="flex justify-between items-center mt-4 text-sm text-on-surface-variant">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-tertiary">place</span>
+<span>Islamabad</span>
+</div>
+<div class="flex-1 border-t border-dashed border-outline-variant mx-4 mt-1"></div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary">flag</span>
+<span>Khunjerab</span>
+</div>
+</div>
+</section>
+<!-- Vertical Timeline Journal -->
+<section class="relative">
+<h2 class="font-headline-md text-headline-md text-primary mb-8 pb-4 border-b border-outline/10">Itinerary</h2>
+<div class="relative pl-12 flex flex-col gap-12">
+<!-- Global Timeline Line -->
+<div class="absolute left-[23px] top-4 bottom-0 w-px bg-outline-variant/40"></div>
+<!-- Day 1 -->
+<div class="relative">
+<!-- Node -->
+<div class="absolute left-[-48px] top-1 w-[46px] flex justify-end">
+<div class="w-3 h-3 rounded-full bg-surface-container-lowest border-2 border-primary z-10 mt-[6px]"></div>
+</div>
+<div class="flex flex-col gap-4">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary">Day 1: The Departure</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Islamabad to Naran</p>
+</div>
+<!-- Timeline Events -->
+<div class="flex flex-col gap-3">
+<div class="bg-surface-container-lowest border border-outline/10 rounded-xl p-4 flex items-start gap-4 hover:border-primary/30 transition-colors">
+<div class="font-label-caps text-label-caps text-on-surface-variant w-16 pt-1">05:30 AM</div>
+<div class="flex-1">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-[18px]">directions_car</span>
+<span class="font-bold">Departure from Islamabad</span>
+</div>
+<p class="text-sm text-on-surface-variant mt-1">Meet at the F-8 Markaz assembly point. Ensure all gear is loaded.</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline/10 rounded-xl p-4 flex items-start gap-4 hover:border-primary/30 transition-colors">
+<div class="font-label-caps text-label-caps text-on-surface-variant w-16 pt-1">01:00 PM</div>
+<div class="flex-1">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-[18px]">restaurant</span>
+<span class="font-bold">Lunch at Balakot</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline/10 rounded-xl p-4 flex items-start gap-4 hover:border-primary/30 transition-colors">
+<div class="font-label-caps text-label-caps text-on-surface-variant w-16 pt-1">07:30 PM</div>
+<div class="flex-1">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-[18px]">hotel</span>
+<span class="font-bold">Check-in Naran Hotel</span>
+</div>
+<p class="text-sm text-on-surface-variant mt-1">Rest and acclimatize. Dinner served at 8:30 PM.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Day 2 -->
+<div class="relative">
+<!-- Node -->
+<div class="absolute left-[-48px] top-1 w-[46px] flex justify-end">
+<div class="w-3 h-3 rounded-full bg-surface-container-lowest border-2 border-outline-variant z-10 mt-[6px]"></div>
+</div>
+<div class="flex flex-col gap-4">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary">Day 2: Into the Valley</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Naran to Karimabad + Altit</p>
+</div>
+<!-- Field Note (Bento/Glassmorphism style) -->
+<div class="bg-[#DED3BF] rounded-2xl p-6 relative overflow-hidden ambient-shadow border border-primary/10">
+<div class="absolute top-0 right-0 p-4 opacity-10 text-primary">
+<span class="material-symbols-outlined text-6xl">format_quote</span>
+</div>
+<div class="relative z-10">
+<span class="font-label-caps text-label-caps text-tertiary-container mb-2 block">FIELD NOTE</span>
+<p class="font-headline-sm text-headline-sm text-on-primary-container italic leading-relaxed">
+                                        "Leave early. The mountains look different before sunrise."
+                                    </p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 mt-2">
+<div class="aspect-square rounded-xl overflow-hidden border border-outline/10">
+<img alt="Altit Fort" class="w-full h-full object-cover" data-alt="A close-up, premium editorial style photograph of ancient stonework at Altit Fort in Hunza. The warm morning light casts soft shadows across the textured stones, creating a sense of history and permanence. The color palette features deep earthy tones and warm creams, aligning with a safe, luxurious travel aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0Z6pDFSeMiOgJtOUcn92zp4NwbNebKkZmVMUkhksQNcUbg7ZtFyBJJDniZLr_YY33TULkHfkdIIBDCFn7Q9KwSsvMCeMeV04qkBFeZsG27GLrDJsZZArGPHG3UQX4FowVlp-4bGk69GVTOcNJau2FvyAbPKHbZmn2fUTldl7-ilReZPK2xVv2Q95L1zqAE_JJy3MKmavybFg8W1cho1sGqqUrInvS9Q8_B7hJ9M-wLD-J1dMhGck"/>
+</div>
+<div class="aspect-square rounded-xl overflow-hidden border border-outline/10">
+<img alt="Karimabad view" class="w-full h-full object-cover" data-alt="A breathtaking view of the Karakoram mountains from Karimabad, Hunza, shot in a cinematic, editorial style. The towering peaks are majestic and calm, surrounded by wispy clouds. The foreground shows a hint of golden autumn foliage, adding warmth to the serene, high-end travel vibe." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5qdCcnIzrSuY_YoDVKKIxd4LNwvvhGXWzoS54fiamv1ivDnXqiGnxs1vF8IO-LRaduyzDhVSiLRFO8tsWFUxWaWrPCWMBOMDkyPd1CIN4G4ADNhZ1nLhRk3HU91cGQzsqhIiX7rjV6yodAM6iJwZ17HZYjKaacPGVxbBmuqFJvza3VXRkQCfuEq9oY9TgbQ52bV_ijxMWr3gMyGE53kaRI8JZ0qKNMrCYkbOeOnvSkwAuYB0QO3s"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Days 3-5 (Condensed) -->
+<div class="relative opacity-50 hover:opacity-100 transition-opacity">
+<div class="absolute left-[-48px] top-1 w-[46px] flex justify-end">
+<div class="w-3 h-3 rounded-full bg-surface-container border-2 border-outline-variant z-10 mt-[6px]"></div>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface-variant">Day 3-5: Khunjerab & Return</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 cursor-pointer hover:underline">Tap to expand remaining days...</p>
+</div>
+</div>
+</section>
+</main>
+<!-- RIGHT PANEL (Contextual Tools) -->
+<aside class="w-full lg:w-80 flex-shrink-0 flex flex-col gap-6 sticky top-[88px] h-fit">
+<!-- Next Up Card -->
+<div class="bg-surface-container-lowest rounded-2xl border border-outline/10 p-5 ambient-shadow">
+<div class="flex items-center gap-2 mb-4">
+<span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">NEXT UP</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-primary mb-1">Karimabad</h3>
+<p class="text-sm text-on-surface-variant mb-4">ETA: Tomorrow, 14:00</p>
+<div class="flex items-center justify-between bg-surface-container-low rounded-lg p-3 border border-outline/5">
+<div class="flex items-center gap-3 text-primary">
+<span class="material-symbols-outlined text-[24px]">partly_cloudy_day</span>
+<span class="font-headline-sm text-headline-sm">18°C</span>
+</div>
+<span class="text-sm text-on-surface-variant">Crisp morning</span>
+</div>
+</div>
+<!-- Packing Context -->
+<div class="bg-surface-container-lowest rounded-2xl border border-outline/10 p-5 ambient-shadow">
+<h4 class="font-label-caps text-label-caps text-on-surface-variant mb-4">REQUIRED PACKING</h4>
+<div class="flex flex-wrap gap-2">
+<span class="bg-[#DED3BF] text-on-surface px-4 py-1.5 rounded-full text-sm font-medium border border-primary/10">Jacket</span>
+<span class="bg-[#DED3BF] text-on-surface px-4 py-1.5 rounded-full text-sm font-medium border border-primary/10">Trekking Shoes</span>
+<span class="bg-[#DED3BF] text-on-surface px-4 py-1.5 rounded-full text-sm font-medium border border-primary/10">Power Bank</span>
+</div>
+</div>
+<!-- Quick Actions -->
+<div class="flex flex-col gap-3">
+<button class="w-full py-3 bg-surface-container-lowest border border-primary/20 text-primary rounded-lg font-label-caps text-label-caps flex items-center justify-center gap-2 hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[18px]">chat</span>
+                    Open Group Chat
+                </button>
+<button class="w-full py-3 bg-transparent border border-outline-variant text-on-surface-variant rounded-lg font-label-caps text-label-caps flex items-center justify-center gap-2 hover:border-primary hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[18px]">support_agent</span>
+                    Contact Organizer
+                </button>
+</div>
+<!-- AI Assistant Teaser -->
+<div class="mt-4 p-4 rounded-xl border border-tertiary/20 bg-surface text-on-surface relative overflow-hidden group cursor-pointer">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-tertiary/60"></div>
+<div class="flex items-start gap-3 pl-2">
+<span class="material-symbols-outlined text-tertiary">psychology</span>
+<div>
+<p class="font-body-sm text-body-sm font-medium">Ask Friday</p>
+<p class="text-xs text-on-surface-variant mt-1">"What's the altitude sickness risk for Khunjerab?"</p>
+</div>
+</div>
+</div>
+</aside>
+</div>
+<!-- MOBILE BOTTOM NAV BAR (Hidden on Desktop) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 lg:hidden bg-surface/90 backdrop-blur-lg dark:bg-inverse-surface/90 shadow-[0_-4px_12px_rgba(24,60,50,0.08)] rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant hover:opacity-80" href="#">
+<span class="material-symbols-outlined font-light text-[24px]">explore</span>
+<span class="font-label-caps text-[10px] mt-1">Explore</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant hover:opacity-80" href="#">
+<span class="material-symbols-outlined font-light text-[24px]">add_circle</span>
+<span class="font-label-caps text-[10px] mt-1">Plan</span>
+</a>
+<a class="flex flex-col items-center justify-center text-tertiary dark:text-tertiary-fixed-dim hover:opacity-80 relative" href="#">
+<span class="material-symbols-outlined fill text-[24px]" style="font-variation-settings: 'FILL' 1;">event_note</span>
+<span class="font-label-caps text-[10px] mt-1">Trips</span>
+<div class="w-1 h-1 rounded-full bg-tertiary absolute -bottom-2"></div>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant hover:opacity-80" href="#">
+<span class="material-symbols-outlined font-light text-[24px]">bookmark</span>
+<span class="font-label-caps text-[10px] mt-1">Saved</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant hover:opacity-80" href="#">
+<span class="material-symbols-outlined font-light text-[24px]">person</span>
+<span class="font-label-caps text-[10px] mt-1">Profile</span>
+</a>
+</nav>
+</body></html>

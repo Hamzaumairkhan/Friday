@@ -110,3 +110,8 @@ class TripRepository:
         for b in result.scalars().all():
             await self.db.delete(b)
         await self.db.flush()
+
+    async def delete(self, trip: Trip) -> None:
+        await self.db.delete(trip)
+        await self.db.flush()
+

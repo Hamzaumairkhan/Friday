@@ -22,4 +22,8 @@ class Package(Base, IDMixin, TimestampMixin):
     activities = Column(JSON, default=list)  # list of activity names
     is_active = Column(Boolean, default=True)
 
+    # Cloudinary image support
+    image_url = Column(String, nullable=True)
+    gallery_urls = Column(JSON, default=list)
+
     organizer = relationship("Organizer", back_populates="packages")

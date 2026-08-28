@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Friday® - Organizer Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Inter:wght@400;500;600&amp;family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-surface": "#191c1a",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#3c6756",
+                        "primary-fixed-dim": "#a8cfc1",
+                        "tertiary": "#420e00",
+                        "tertiary-fixed-dim": "#ffb59d",
+                        "surface-variant": "#e1e3df",
+                        "on-secondary-fixed-variant": "#234e3f",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#81a799",
+                        "surface-bright": "#f8faf6",
+                        "on-secondary-fixed": "#002116",
+                        "on-tertiary-container": "#e1876a",
+                        "on-background": "#191c1a",
+                        "primary": "#00261d",
+                        "tertiary-fixed": "#ffdbd0",
+                        "secondary-fixed-dim": "#a2d0bc",
+                        "secondary-container": "#bbead5",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#f0f1ed",
+                        "outline-variant": "#c1c8c4",
+                        "on-secondary": "#ffffff",
+                        "surface-container": "#edeeeb",
+                        "error-container": "#ffdad6",
+                        "error": "#ba1a1a",
+                        "surface-dim": "#d9dad7",
+                        "surface": "#f8faf6",
+                        "background": "#f8faf6",
+                        "on-primary": "#ffffff",
+                        "outline": "#717975",
+                        "primary-fixed": "#c4ebdc",
+                        "surface-container-highest": "#e1e3df",
+                        "on-secondary-container": "#406b5a",
+                        "on-primary-fixed-variant": "#2a4d43",
+                        "on-tertiary-fixed": "#390b00",
+                        "surface-container-low": "#f3f4f0",
+                        "on-surface-variant": "#414845",
+                        "surface-tint": "#42655a",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#76331c",
+                        "secondary-fixed": "#beedd8",
+                        "inverse-primary": "#a8cfc1",
+                        "inverse-surface": "#2e312f",
+                        "on-primary-fixed": "#002018",
+                        "tertiary-container": "#60220c",
+                        "surface-container-high": "#e7e9e5",
+                        "primary-container": "#183c32"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        full: "9999px"
+                    },
+                    spacing: {
+                        unit: "4px",
+                        gutter: "24px",
+                        "margin-desktop": "48px",
+                        "margin-mobile": "20px",
+                        "container-max": "1280px"
+                    },
+                    fontFamily: {
+                        "display-hero": ["Libre Caslon Text", "serif"],
+                        "headline-sm": ["Libre Caslon Text", "serif"],
+                        "label-caps": ["Inter", "sans-serif"],
+                        "headline-lg": ["Libre Caslon Text", "serif"],
+                        "headline-md": ["Libre Caslon Text", "serif"],
+                        "body-lg": ["Inter", "sans-serif"],
+                        "body-md": ["Inter", "sans-serif"],
+                        "body-sm": ["Inter", "sans-serif"],
+                        "instrument-italic": ["Instrument Serif", "serif"]
+                    },
+                    fontSize: {
+                        "display-hero": ["64px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "400" }],
+                        "headline-sm": ["24px", { lineHeight: "1.4", fontWeight: "400" }],
+                        "label-caps": ["12px", { lineHeight: "1", letterSpacing: "0.08em", fontWeight: "600" }],
+                        "headline-lg": ["40px", { lineHeight: "1.2", fontWeight: "400" }],
+                        "headline-md": ["32px", { lineHeight: "1.3", fontWeight: "400" }],
+                        "body-lg": ["18px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "body-md": ["16px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "body-sm": ["14px", { lineHeight: "1.5", fontWeight: "400" }]
+                    }
+                }
+            }
+        };
+    </script>
+<style>
+        body { background-color: #F4EFE5; color: #191c1a; }
+        .input-editorial { border-bottom: 1px solid #c1c8c4; background: transparent; }
+        .input-editorial:focus { border-bottom: 1px solid #420e00; outline: none; box-shadow: none; }
+        .ambient-shadow { box-shadow: 0px 12px 32px rgba(24, 60, 50, 0.08); }
+        .thin-border { border: 0.5px solid rgba(0, 38, 29, 0.1); }
+        .chip-active { background-color: #DED3BF; color: #191c1a; border: 1px solid transparent; }
+        .chip-inactive { background-color: transparent; color: #414845; border: 1px solid rgba(0, 38, 29, 0.1); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row antialiased font-body-md text-body-md bg-[#F4EFE5]">
+<!-- Sidebar Navigation (Suppressed on Transactional/Onboarding screen as per mandate, 
+         but keeping minimal context or back action if it were a sub-page. 
+         However, Onboarding implies a focused linear journey, so we suppress the global shell.
+         We will just provide a minimal back button / branding on the left for the 3-column layout requested).
+         Wait, user explicitly requested "Use the authenticated three-column shell". 
+         So we must include it but keep it minimal to fit the prompt. -->
+<nav class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-surface-bright border-r border-outline-variant py-8 z-10 thin-border shadow-none">
+<div class="px-6 mb-12">
+<h1 class="font-display-hero text-headline-md text-primary tracking-tight">Friday®</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant mt-1">AI Copilot</p>
+</div>
+<!-- Onboarding state: disabled/inactive tabs to focus user, or just minimal layout -->
+<div class="flex-1 overflow-y-auto">
+<ul class="space-y-1">
+<li><a class="block text-on-surface-variant pl-4 py-3 opacity-50 cursor-not-allowed" href="#"><span class="material-symbols-outlined align-middle mr-3">explore</span>Explore</a></li>
+<li><a class="block text-on-surface-variant pl-4 py-3 opacity-50 cursor-not-allowed" href="#"><span class="material-symbols-outlined align-middle mr-3">map</span>Plan Trip</a></li>
+<li><a class="block text-primary font-bold border-l-4 border-tertiary-container pl-4 py-3 bg-surface-container-low" href="#"><span class="material-symbols-outlined align-middle mr-3" style="font-variation-settings: 'FILL' 1;">business_center</span>Road Crew</a></li>
+<li><a class="block text-on-surface-variant pl-4 py-3 opacity-50 cursor-not-allowed" href="#"><span class="material-symbols-outlined align-middle mr-3">person</span>Profile</a></li>
+</ul>
+</div>
+<div class="px-4 mt-auto">
+<button class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-full bg-primary text-on-primary font-label-caps text-label-caps hover:bg-primary-container transition-colors opacity-50 cursor-not-allowed">
+<span>New Adventure</span>
+</button>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 flex flex-col md:flex-row min-h-screen relative">
+<!-- Center Column (Form) -->
+<section class="flex-1 px-6 md:px-margin-desktop py-12 md:py-24 max-w-4xl mx-auto w-full">
+<header class="mb-16">
+<p class="font-label-caps text-label-caps text-secondary tracking-widest mb-4">FRIDAY® / ROAD CREW</p>
+<h2 class="font-instrument-italic text-display-hero text-primary leading-tight">Tell us about your journeys.</h2>
+</header>
+<!-- Progress Indicator -->
+<div class="mb-16">
+<div class="flex items-center gap-4 md:gap-8 overflow-x-auto pb-4 no-scrollbar">
+<div class="flex flex-col gap-2 min-w-max">
+<span class="font-label-caps text-[10px] text-tertiary-container font-bold border-b border-tertiary-container pb-1">01 BUSINESS</span>
+</div>
+<div class="flex flex-col gap-2 min-w-max opacity-40">
+<span class="font-label-caps text-[10px] text-on-surface-variant font-bold border-b border-transparent pb-1">02 FLEET</span>
+</div>
+<div class="flex flex-col gap-2 min-w-max opacity-40">
+<span class="font-label-caps text-[10px] text-on-surface-variant font-bold border-b border-transparent pb-1">03 EXPERIENCE</span>
+</div>
+<div class="flex flex-col gap-2 min-w-max opacity-40">
+<span class="font-label-caps text-[10px] text-on-surface-variant font-bold border-b border-transparent pb-1">04 PAYMENTS</span>
+</div>
+<div class="flex flex-col gap-2 min-w-max opacity-40">
+<span class="font-label-caps text-[10px] text-on-surface-variant font-bold border-b border-transparent pb-1">05 REVIEW</span>
+</div>
+</div>
+</div>
+<!-- Form -->
+<form class="space-y-12 max-w-2xl">
+<div class="space-y-8">
+<div class="relative">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-2" for="businessName">Business Name</label>
+<input class="w-full input-editorial py-2 font-body-lg text-primary placeholder:text-outline-variant border-0 border-b border-outline-variant focus:ring-0 px-0 transition-colors bg-transparent" id="businessName" name="businessName" placeholder="Enter official business name" type="text"/>
+</div>
+<div class="relative">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-2" for="businessDesc">Business Description</label>
+<textarea class="w-full input-editorial py-2 font-body-lg text-primary placeholder:text-outline-variant border-0 border-b border-outline-variant focus:ring-0 px-0 transition-colors bg-transparent resize-none" id="businessDesc" name="businessDesc" placeholder="Briefly describe your services..." rows="3"></textarea>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="relative">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-2" for="contactNumber">Contact Number</label>
+<input class="w-full input-editorial py-2 font-body-lg text-primary placeholder:text-outline-variant border-0 border-b border-outline-variant focus:ring-0 px-0 transition-colors bg-transparent" id="contactNumber" name="contactNumber" placeholder="+92 300 0000000" type="tel"/>
+</div>
+<div class="relative">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-2" for="emailAddress">Email Address</label>
+<input class="w-full input-editorial py-2 font-body-lg text-primary placeholder:text-outline-variant border-0 border-b border-outline-variant focus:ring-0 px-0 transition-colors bg-transparent" id="emailAddress" name="emailAddress" placeholder="hello@yourbusiness.com" type="email"/>
+</div>
+</div>
+<div class="pt-6">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-4">Operational Destinations</label>
+<div class="flex flex-wrap gap-3">
+<button class="px-5 py-2 rounded-full chip-active font-body-sm transition-all hover:opacity-80" type="button">Hunza</button>
+<button class="px-5 py-2 rounded-full chip-inactive font-body-sm transition-all hover:bg-surface-container-low" type="button">Skardu</button>
+<button class="px-5 py-2 rounded-full chip-inactive font-body-sm transition-all hover:bg-surface-container-low" type="button">Swat</button>
+<button class="px-5 py-2 rounded-full chip-inactive font-body-sm transition-all hover:bg-surface-container-low" type="button">Naran</button>
+<button class="px-5 py-2 rounded-full chip-inactive font-body-sm transition-all hover:bg-surface-container-low" type="button">Fairy Meadows</button>
+<button class="px-5 py-2 rounded-full chip-inactive font-body-sm transition-all hover:bg-surface-container-low" type="button"><span class="material-symbols-outlined text-[16px] align-text-bottom mr-1">add</span>Add more</button>
+</div>
+</div>
+<div class="pt-12 border-t border-outline-variant/30 flex justify-end gap-4">
+<button class="px-6 py-3 rounded-full text-primary font-label-caps text-label-caps hover:bg-surface-container transition-colors" type="button">Save Draft</button>
+<button class="px-8 py-3 rounded-full bg-primary text-on-primary font-label-caps text-label-caps flex items-center gap-2 hover:bg-primary-container transition-colors ambient-shadow" type="button">
+                        Continue to Fleet
+                        <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</form>
+</section>
+<!-- Right Panel (Contextual) -->
+<aside class="w-full md:w-80 bg-surface-container-lowest/50 backdrop-blur-sm border-l border-outline-variant/50 p-6 md:p-8 flex flex-col pt-24 md:pt-32">
+<div class="sticky top-12 space-y-6">
+<div class="bg-surface-container-lowest rounded-xl p-6 thin-border ambient-shadow relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-[64px]">business_center</span>
+</div>
+<p class="font-label-caps text-[10px] text-tertiary tracking-widest mb-2">ROAD CREW</p>
+<h3 class="font-headline-sm text-headline-sm text-primary mb-6">Onboarding</h3>
+<div class="mb-4">
+<div class="flex justify-between items-end mb-2">
+<span class="font-body-sm text-on-surface-variant">Profile completion</span>
+<span class="font-headline-sm text-[18px] text-primary">20%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-container rounded-full" style="width: 20%;"></div>
+</div>
+</div>
+<div class="bg-[#F4EFE5] rounded-lg p-4 mt-6">
+<p class="font-label-caps text-[10px] text-on-surface-variant mb-1">UP NEXT</p>
+<p class="font-body-sm text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">directions_car</span>
+                            Complete fleet details
+                        </p>
+</div>
+</div>
+<div class="p-4 rounded-xl border border-outline-variant/30 flex items-start gap-4">
+<span class="material-symbols-outlined text-secondary mt-1">support_agent</span>
+<div>
+<h4 class="font-body-md font-medium text-primary mb-1">Need assistance?</h4>
+<p class="font-body-sm text-on-surface-variant mb-3">Our partnership team is here to help you get set up.</p>
+<a class="font-label-caps text-label-caps text-secondary underline hover:text-primary transition-colors" href="#">Contact Support</a>
+</div>
+</div>
+</div>
+</aside>
+</main>
+</body></html>
