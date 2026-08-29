@@ -109,23 +109,26 @@ export default function OrganizerProfilePage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 space-y-10">
-      {/* ─── Header (Stitch 18_company_profile.html) ─────────────────── */}
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+      {/* ─── Header ─────────────────────────────────────────────────── */}
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b border-black/10 pb-8">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] font-semibold text-[#420E00] mb-2" style={{ fontFamily: 'Inter, sans-serif' }}>
-            ROAD CREW / COMPANY PROFILE & SETTINGS
+            ORGANIZER WORKSPACE / PROFILE & SETTINGS
           </p>
           <h1
-            className="text-5xl sm:text-6xl font-normal text-black leading-tight italic"
+            className="text-4xl sm:text-6xl font-normal text-[#00261D] leading-tight italic"
             style={{ fontFamily: "'Instrument Serif', serif" }}
           >
             Company Identity.
           </h1>
+          <p className="text-xs sm:text-sm text-[#717975] mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+            Update your operational profile, banking coordinates, and regional coverage.
+          </p>
         </div>
 
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold uppercase tracking-wider">
-          <ShieldCheck className="w-4 h-4 text-emerald-700" />
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold uppercase tracking-wider shadow-2xs">
+          <ShieldCheck className="w-4 h-4 text-emerald-800" />
           <span>Verified Partner</span>
         </div>
       </header>
@@ -133,89 +136,89 @@ export default function OrganizerProfilePage() {
       {/* ─── Form Container ──────────────────────────────────────────── */}
       <form onSubmit={handleSave} className="space-y-8">
         {/* Section 1: Business Identity */}
-        <div className="bg-white rounded-3xl border border-black/10 p-8 sm:p-10 shadow-sm space-y-6">
-          <h2 className="text-2xl font-normal text-black border-b border-black/10 pb-4" style={{ fontFamily: "'Instrument Serif', serif" }}>
+        <div className="bg-white rounded-3xl border border-black/10 p-6 sm:p-10 shadow-2xs space-y-6">
+          <h2 className="text-2xl font-normal text-[#00261D] border-b border-black/5 pb-4" style={{ fontFamily: "'Instrument Serif', serif" }}>
             Agency & Contact Details
           </h2>
 
           <div className="space-y-5">
             <div>
-              <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Company / Organizer Name</label>
+              <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Company / Organizer Name</label>
               <input
                 value={formData.name}
                 onChange={(e) => updateField('name', e.target.value)}
                 placeholder="e.g. Karakoram Nomads"
-                className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black"
+                className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] font-semibold focus:outline-none focus:border-[#00261D]"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Official WhatsApp Contact</label>
+                <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Official WhatsApp Contact</label>
                 <input
                   value={formData.contact_phone}
                   onChange={(e) => updateField('contact_phone', e.target.value)}
                   placeholder="+92 300 1234567"
-                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black"
+                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] focus:outline-none focus:border-[#00261D]"
                 />
               </div>
               <div>
-                <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Base Headquarters City</label>
+                <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Base Headquarters City</label>
                 <input
                   value={formData.location}
                   onChange={(e) => updateField('location', e.target.value)}
                   placeholder="e.g. Islamabad, Pakistan"
-                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black"
+                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] focus:outline-none focus:border-[#00261D]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">About the Agency</label>
+              <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">About the Agency</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => updateField('description', e.target.value)}
                 rows={3}
                 placeholder="Describe your tour organizing background..."
-                className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black resize-none"
+                className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl p-4 text-sm text-[#00261D] focus:outline-none focus:border-[#00261D] resize-none"
               />
             </div>
           </div>
         </div>
 
         {/* Section 2: Direct Payment Account (IBAN) */}
-        <div className="bg-white rounded-3xl border border-black/10 p-8 sm:p-10 shadow-sm space-y-6">
-          <h2 className="text-2xl font-normal text-black border-b border-black/10 pb-4" style={{ fontFamily: "'Instrument Serif', serif" }}>
-            Receiving Bank Account (IBAN)
+        <div className="bg-white rounded-3xl border border-black/10 p-6 sm:p-10 shadow-2xs space-y-6">
+          <h2 className="text-2xl font-normal text-[#00261D] border-b border-black/5 pb-4" style={{ fontFamily: "'Instrument Serif', serif" }}>
+            Receiving Account & Payout Setup
           </h2>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Bank Name</label>
+              <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Bank / Provider Name</label>
               <input
                 value={formData.payment_bank_name}
                 onChange={(e) => updateField('payment_bank_name', e.target.value)}
-                placeholder="e.g. Habib Bank Limited / Meezan Bank"
-                className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black"
+                placeholder="e.g. Meezan Bank / JazzCash / SadaPay"
+                className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] font-semibold focus:outline-none focus:border-[#00261D]"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Account Title</label>
+                <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Account Title</label>
                 <input
                   value={formData.payment_account_title}
                   onChange={(e) => updateField('payment_account_title', e.target.value)}
                   placeholder="e.g. Friday Expeditions"
-                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black"
+                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] font-semibold focus:outline-none focus:border-[#00261D]"
                 />
               </div>
               <div>
-                <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Account Number / IBAN</label>
+                <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Account Number / IBAN</label>
                 <input
                   value={formData.payment_account_number}
                   onChange={(e) => updateField('payment_account_number', e.target.value)}
                   placeholder="PK34 HABB 0000 1234 5678 9012"
-                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black font-mono focus:outline-none focus:border-black"
+                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] font-mono focus:outline-none focus:border-[#00261D]"
                 />
               </div>
             </div>
@@ -223,36 +226,36 @@ export default function OrganizerProfilePage() {
         </div>
 
         {/* Section 3: Operational Destinations */}
-        <div className="bg-white rounded-3xl border border-black/10 p-8 sm:p-10 shadow-sm space-y-6">
-          <h2 className="text-2xl font-normal text-black border-b border-black/10 pb-4" style={{ fontFamily: "'Instrument Serif', serif" }}>
+        <div className="bg-white rounded-3xl border border-black/10 p-6 sm:p-10 shadow-2xs space-y-6">
+          <h2 className="text-2xl font-normal text-[#00261D] border-b border-black/5 pb-4" style={{ fontFamily: "'Instrument Serif', serif" }}>
             Operational Destinations
           </h2>
 
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap gap-2">
             {formData.destinations.map((dest) => (
-              <span key={dest} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-black text-white">
+              <span key={dest} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-[#00261D] text-white shadow-2xs">
                 {dest}
-                <button type="button" onClick={() => removeDestination(dest)} className="hover:text-red-300">
+                <button type="button" onClick={() => removeDestination(dest)} className="hover:text-red-300 cursor-pointer ml-1">
                   ×
                 </button>
               </span>
             ))}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-col sm:flex-row pt-1">
             <input
               value={formData.destinationInput}
               onChange={(e) => updateField('destinationInput', e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addDestination())}
               placeholder="Add destination..."
-              className="flex-1 bg-[#F8FAF6] border border-black/10 rounded-full px-5 py-2.5 text-xs text-black focus:outline-none focus:border-black"
+              className="flex-1 bg-[#F8FAF6] border border-black/10 rounded-2xl sm:rounded-full px-5 py-2.5 text-xs text-[#00261D] focus:outline-none focus:border-[#00261D]"
             />
             <button
               type="button"
               onClick={addDestination}
-              className="px-6 py-2.5 rounded-full bg-black text-white text-xs font-semibold"
+              className="px-6 py-2.5 rounded-2xl sm:rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold cursor-pointer transition-all shadow-2xs"
             >
-              Add
+              + Add
             </button>
           </div>
         </div>
@@ -262,10 +265,10 @@ export default function OrganizerProfilePage() {
           <button
             type="submit"
             disabled={isSaving}
-            className="px-10 py-4 rounded-full bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all hover:scale-105 shadow-xl flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full sm:w-auto px-10 py-4 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider transition-all hover:scale-101 shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save Profile Settings
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-[#BBEAD5]" />}
+            <span>Save Profile Settings</span>
           </button>
         </div>
       </form>

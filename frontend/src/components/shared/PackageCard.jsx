@@ -6,7 +6,7 @@ const STITCH_FALLBACKS = [
   '/images/stitch/stitch_asset_6.jpg',
   '/images/stitch/stitch_asset_9.jpg',
   '/images/stitch/stitch_asset_14.jpg',
-  '/images/stitch/stitch_asset_11.jpg',
+  '/images/stitch/hero_mountains.jpg',
   '/images/stitch/stitch_asset_4.jpg',
 ];
 

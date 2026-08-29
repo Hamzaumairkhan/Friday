@@ -9,15 +9,42 @@ if (rawBase.endsWith('/')) rawBase = rawBase.slice(0, -1);
 const API_BASE = rawBase.endsWith('/api/v1') ? rawBase : `${rawBase}/api/v1`;
 
 async function getAuthHeaders() {
-  const user = auth.currentUser;
+  const user = auth?.currentUser;
   if (user) {
     try {
       const token = await user.getIdToken();
-      return { Authorization: `Bearer ${token}` };
+      if (token) return { Authorization: `Bearer ${token}` };
     } catch {
-      return {};
+      // fallback to cached session
     }
   }
+
+  try {
+    const cached = localStorage.getItem('friday_session');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed?.token) {
+        return { Authorization: `Bearer ${parsed.token}` };
+      }
+      if (parsed?.user?.id) {
+        return { 'X-User-Id': parsed.user.id };
+      }
+    }
+
+    const directToken = localStorage.getItem('token');
+    if (directToken) {
+      return { Authorization: `Bearer ${directToken}` };
+    }
+
+    const authUser = localStorage.getItem('auth_user');
+    if (authUser) {
+      const parsed = JSON.parse(authUser);
+      if (parsed?.id) {
+        return { 'X-User-Id': parsed.id };
+      }
+    }
+  } catch {}
+
   return {};
 }
 

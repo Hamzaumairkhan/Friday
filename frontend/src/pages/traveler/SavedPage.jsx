@@ -10,6 +10,7 @@ import {
   Compass,
   Star,
   Users,
+  Clock,
   Trash2,
 } from 'lucide-react';
 import { packagesService } from '../../services/packages';
@@ -158,8 +159,14 @@ export default function SavedPage() {
                       </p>
 
                       <div className="flex items-center gap-4 text-xs font-semibold text-[#414845] pt-2 border-t border-black/5">
-                        <span>⏱️ {pkg.duration_days || 5} Days</span>
-                        <span>👥 Up to {pkg.max_group_size || 20} travelers</span>
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-[#717975]" />
+                          <span>{pkg.duration_days || 5} Days</span>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-[#717975]" />
+                          <span>Up to {pkg.max_group_size || 20} travelers</span>
+                        </span>
                       </div>
                     </div>
                   </div>

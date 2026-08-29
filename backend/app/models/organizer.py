@@ -22,6 +22,7 @@ class Organizer(Base, IDMixin, TimestampMixin):
     website = Column(String, nullable=True)
 
     # Business & Capacity (onboarding fields)
+    cnic = Column(String, nullable=True)
     number_of_buses = Column(Integer, nullable=True)
     vehicle_capacity = Column(Integer, nullable=True)
     maximum_group_size = Column(Integer, nullable=True)
@@ -30,6 +31,7 @@ class Organizer(Base, IDMixin, TimestampMixin):
     onboarding_completed = Column(Boolean, default=False)
 
     # Payment Information
+    payment_wallet_type = Column(String, nullable=True)  # BANK, JAZZCASH, EASYPAISA, SADAPAY, NAYAPAY
     payment_account_title = Column(String, nullable=True)
     payment_account_number = Column(String, nullable=True)
     payment_bank_name = Column(String, nullable=True)

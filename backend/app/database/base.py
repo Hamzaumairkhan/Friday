@@ -3,8 +3,17 @@
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, DateTime
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.ext.compiler import compiles
 
 from app.utils.helpers import generate_id
+
+
+@compiles(String, "mysql")
+def compile_string_mysql(element, compiler, **kw):
+    """Ensure MySQL dialects receive a default length for VARCHAR columns."""
+    if element.length is None:
+        return "VARCHAR(255)"
+    return compiler.visit_VARCHAR(element, **kw)
 
 
 class Base(DeclarativeBase):

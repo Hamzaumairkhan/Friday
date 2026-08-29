@@ -10,7 +10,7 @@ from app.database.database import get_db
 from app.models.trip import Trip, TripStatus, TripMember, MemberRole
 from app.models.itinerary import Itinerary, Day, Activity, ActivityCategory
 from app.models.budget import Budget, BudgetCategory
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.trip import (
     TripCreate,
     TripUpdate,
@@ -26,6 +26,12 @@ from app.services.trip_service import TripService
 from app.services.marketplace_service import MarketplaceService
 from app.services.whatsapp_service import WhatsAppService
 from app.services.email_service import EmailService
+from app.services.dynamic_research_service import (
+    DynamicDestinationResearchService,
+    make_maps_url,
+    fetch_real_web_photo,
+    resolve_regional_fallback_image,
+)
 from app.agents.replanner_agent import ReplannerAgent
 from app.core.security import get_current_user_id
 from app.core.logging import get_logger
@@ -36,42 +42,29 @@ router = APIRouter(prefix="/trips", tags=["Trips"])
 
 def _resolve_destination_image(destination: Optional[str]) -> str:
     if not destination:
-        return "/images/stitch/stitch_asset_11.jpg"
+        return "/images/stitch/panoramic_lake.jpg"
     
-    d = destination.lower()
-    if "hunza" in d or "passu" in d or "karakoram" in d or "altit" in d or "baltit" in d:
-        return "/images/stitch/stitch_asset_6.jpg"
-    elif "skardu" in d or "deosai" in d or "shangrila" in d or "basho" in d or "katpana" in d or "khaplu" in d:
-        return "/images/stitch/stitch_asset_11.jpg"
-    elif "swat" in d or "kalam" in d or "malam" in d or "mahudand" in d or "miandam" in d:
-        return "/images/stitch/stitch_asset_10.jpg"
-    elif "fairy" in d or "nanga" in d or "raikot" in d or "beyal" in d:
-        return "/images/stitch/stitch_asset_7.jpg"
-    elif "kumrat" in d or "jahaz" in d or "dir" in d or "katora" in d:
-        return "/images/stitch/stitch_asset_8.jpg"
-    elif "naran" in d or "kaghan" in d or "saif" in d or "babusar" in d or "shogran" in d or "siri" in d:
-        return "/images/stitch/stitch_asset_9.jpg"
-    elif "neelum" in d or "kashmir" in d or "ratti" in d or "arang" in d or "keran" in d or "sharda" in d:
-        return "/images/stitch/stitch_asset_10.jpg"
-    elif "chitral" in d or "kalash" in d or "shandur" in d or "bumburet" in d:
-        return "/images/stitch/stitch_asset_6.jpg"
-    elif "attabad" in d or "gulmit" in d or "hussaini" in d:
-        return "/images/stitch/stitch_asset_6.jpg"
-    elif "lahore" in d or "badshahi" in d:
-        return "/images/stitch/stitch_asset_2.jpg"
-    elif "islamabad" in d or "margalla" in d or "faisal" in d:
-        return "/images/stitch/stitch_asset_4.jpg"
-    elif "gwadar" in d or "karachi" in d or "kund" in d or "ormara" in d or "hingol" in d:
-        return "/images/stitch/stitch_asset_5.jpg"
-    return "/images/stitch/stitch_asset_11.jpg"
+    # 1. Try real web photo
+    real_photo = fetch_real_web_photo(destination)
+    if real_photo:
+        return real_photo
+
+    # 2. Regional fallback (clean, unbranded)
+    return resolve_regional_fallback_image(destination)
 
 
 async def _fetch_web_images_and_research(destination: str, origin: str) -> tuple[str, list[str]]:
     """Live web search to find real photography and scenic web images for the exact destination."""
-    settings = get_settings()
-    api_key = getattr(settings, "TAVILY_API_KEY", None)
     real_images: list[str] = []
 
+    # 1. Primary: High-definition real web photo of destination
+    direct_photo = fetch_real_web_photo(destination, destination)
+    if direct_photo:
+        real_images.append(direct_photo)
+
+    # 2. Secondary: Tavily Search if active
+    settings = get_settings()
+    api_key = getattr(settings, "TAVILY_API_KEY", None)
     if api_key:
         try:
             from tavily import TavilyClient
@@ -84,29 +77,54 @@ async def _fetch_web_images_and_research(destination: str, origin: str) -> tuple
             )
             for img in res.get("images", []):
                 if isinstance(img, str) and img.startswith("http") and not img.endswith(".svg"):
-                    real_images.append(img)
-            logger.info(f"Retrieved {len(real_images)} real web images for {destination} via Tavily")
-        except Exception as e:
-            logger.warning(f"Tavily web image retrieval failed for {destination}: {e}")
+                    if img not in real_images:
+                        real_images.append(img)
+        except Exception:
+            pass
 
-    # Fallback to scenic photo library if web search did not find direct image tags
+    # 3. Fallback to scenic photo library if web search did not find direct image tags
     if not real_images:
-        fallback_hero = _resolve_destination_image(destination)
-        real_images = [
-            fallback_hero,
-            "/images/stitch/stitch_asset_6.jpg",
-            "/images/stitch/stitch_asset_2.jpg",
-            "/images/stitch/stitch_asset_7.jpg",
-            "/images/stitch/stitch_asset_11.jpg",
-            "/images/stitch/stitch_asset_10.jpg",
-        ]
+        fallback_hero = resolve_regional_fallback_image(destination)
+        real_images = [fallback_hero]
 
     hero_img = real_images[0]
     return hero_img, real_images
 
 
-def _format_trip_response(t) -> TripResponse:
+def _format_trip_response(t, members_override=None) -> TripResponse:
     img = getattr(t, 'image_url', None) or _resolve_destination_image(t.destination)
+    
+    members = []
+    if members_override is not None:
+        members = members_override
+    else:
+        prefs = t.preferences if isinstance(t.preferences, dict) else {}
+        lead = prefs.get("lead_contact", {})
+        if lead and lead.get("name"):
+            members.append({
+                "id": "lead-0",
+                "name": lead.get("name", "Lead Traveler"),
+                "email": lead.get("email", ""),
+                "phone": lead.get("phone", ""),
+                "role": "LEAD TRAVELER",
+                "status": "CONFIRMED",
+                "profile_picture": None,
+            })
+        
+        comps = prefs.get("companions", [])
+        if isinstance(comps, list):
+            for c_idx, c in enumerate(comps):
+                if isinstance(c, dict) and (c.get("name") or c.get("email")):
+                    members.append({
+                        "id": f"comp-{c_idx+1}",
+                        "name": c.get("name", f"Companion #{c_idx+1}"),
+                        "email": c.get("email", ""),
+                        "phone": c.get("phone", ""),
+                        "role": "CO-TRAVELER",
+                        "status": "CONFIRMED",
+                        "profile_picture": None,
+                    })
+
     return TripResponse(
         id=t.id,
         owner_id=t.owner_id,
@@ -124,9 +142,11 @@ def _format_trip_response(t) -> TripResponse:
         constraints=t.constraints or [],
         version=t.version or 1,
         is_public=bool(t.is_public) if hasattr(t, 'is_public') else False,
+        show_members_publicly=bool(getattr(t, 'show_members_publicly', 0)),
         copied_from_trip_id=t.copied_from_trip_id if hasattr(t, 'copied_from_trip_id') else None,
         image_url=img,
         advisories=t.advisories or [] if hasattr(t, 'advisories') else [],
+        members=members,
         created_at=t.created_at.isoformat() if t.created_at else "",
         updated_at=t.updated_at.isoformat() if t.updated_at else "",
     )
@@ -167,6 +187,28 @@ async def list_public_community_trips(
     return [_format_trip_response(t) for t in trips]
 
 
+@router.get("/weather-check")
+async def check_weather(
+    destination: str,
+    departure_date: Optional[str] = None,
+    duration_days: int = 3,
+):
+    """Analyze destination weather for selected dates and return optimal suggested dates if risky."""
+    return DynamicDestinationResearchService.check_weather_advisory(
+        destination=destination,
+        departure_date=departure_date,
+        duration_days=duration_days,
+    )
+
+
+@router.get("/slot-options")
+async def get_hourly_slot_options(
+    destination: str,
+):
+    """Return 4 curated options (A, B, C, D: Let Friday Decide) dynamically for any destination."""
+    return DynamicDestinationResearchService.get_slot_options(destination=destination)
+
+
 @router.get("/{trip_id}", response_model=TripResponse)
 async def get_trip(
     trip_id: str,
@@ -175,7 +217,51 @@ async def get_trip(
 ):
     service = TripService(db)
     trip = await service.get_trip(trip_id=trip_id, user_id=user_id)
-    return _format_trip_response(trip)
+    
+    # Enrich members with Google profile photos and verified names (hide email & phone if public)
+    is_public = bool(trip.is_public)
+    members = []
+    owner_user = await db.get(User, trip.owner_id)
+    prefs = trip.preferences if isinstance(trip.preferences, dict) else {}
+    lead = prefs.get("lead_contact", {})
+
+    owner_name = (owner_user.name if owner_user and owner_user.name else None) or lead.get("name") or "Lead Traveler"
+    owner_photo = owner_user.profile_picture if owner_user else None
+    owner_email = (owner_user.email if owner_user else None) or lead.get("email", "")
+    owner_phone = lead.get("phone", "")
+
+    members.append({
+        "id": trip.owner_id,
+        "name": owner_name,
+        "email": "" if is_public else owner_email,
+        "phone": "" if is_public else owner_phone,
+        "role": "LEAD TRAVELER",
+        "status": "HOST / OWNER",
+        "profile_picture": owner_photo,
+    })
+
+    comps = prefs.get("companions", [])
+    if isinstance(comps, list):
+        for c_idx, c in enumerate(comps):
+            if isinstance(c, dict) and (c.get("name") or c.get("email")):
+                c_email = (c.get("email") or "").strip().lower()
+                c_photo = None
+                if c_email:
+                    u_res = await db.execute(select(User).where(User.email == c_email))
+                    u_obj = u_res.scalars().first()
+                    if u_obj and u_obj.profile_picture:
+                        c_photo = u_obj.profile_picture
+                members.append({
+                    "id": f"comp-{c_idx+1}",
+                    "name": c.get("name", f"Companion #{c_idx+1}"),
+                    "email": "" if is_public else c.get("email", ""),
+                    "phone": "" if is_public else c.get("phone", ""),
+                    "role": "CO-TRAVELER",
+                    "status": "CONFIRMED TRAVELER",
+                    "profile_picture": c_photo,
+                })
+
+    return _format_trip_response(trip, members_override=members)
 
 
 @router.patch("/{trip_id}", response_model=TripResponse)
@@ -207,7 +293,7 @@ async def generate_guided_trip_plan(
     db: AsyncSession = Depends(get_db),
 ):
     """Complete Guided AI Trip Planning Endpoint."""
-    dest = (req.destination_query or "Hunza Valley").strip()
+    dest = (req.destination or req.destination_query or "Islamabad").strip()
     origin = (req.origin or "Islamabad").strip()
     
     # 1. Resolve duration days
@@ -269,187 +355,16 @@ async def generate_guided_trip_plan(
         },
     ]
 
-    # Helper to safely pick web image
-    def get_web_img(idx: int, fallback_cat: str) -> str:
-        if web_images and len(web_images) > idx:
-            return web_images[idx]
-        return _resolve_destination_image(dest)
-
-    # 5. Build Day-by-Day structured schedule with exact time blocks
-    days_data = []
-    for day_idx in range(1, duration_days + 1):
-        if day_idx == 1:
-            day_title = f"Departure from {origin} & Arrival in {dest}"
-            day_summary = f"Scenic highway transit from {origin}, mountain approach, check-in, and evening orientation in {dest}."
-            activities = [
-                {
-                    "order": 1,
-                    "title": f"Departure & Scenic Transit from {origin}",
-                    "description": f"Depart from {origin} via motorway and scenic connecting mountain bypass to {dest}.",
-                    "location": f"{origin} / Motorway",
-                    "start_time": "06:00 AM",
-                    "end_time": "10:30 AM",
-                    "duration_minutes": 270,
-                    "estimated_cost": budget_total * 0.12,
-                    "category": ActivityCategory.TRANSPORT,
-                    "image_url": get_web_img(0, "transport"),
-                },
-                {
-                    "order": 2,
-                    "title": "Traditional Riverside Brunch",
-                    "description": f"Fresh local bread, chai, and regional breakfast en-route to {dest}.",
-                    "location": f"En-route to {dest}",
-                    "start_time": "11:00 AM",
-                    "end_time": "12:30 PM",
-                    "duration_minutes": 90,
-                    "estimated_cost": budget_total * 0.04,
-                    "category": ActivityCategory.FOOD,
-                    "image_url": get_web_img(1, "food"),
-                },
-                {
-                    "order": 3,
-                    "title": f"Arrival & Valley Check-In",
-                    "description": f"Arrive in {dest}, lodge orientation, and refreshing rest.",
-                    "location": dest,
-                    "start_time": "03:00 PM",
-                    "end_time": "05:00 PM",
-                    "duration_minutes": 120,
-                    "estimated_cost": budget_total * 0.10 if req.accommodation_preference != "none" else 0,
-                    "category": ActivityCategory.ACCOMMODATION,
-                    "image_url": get_web_img(2, "hotel"),
-                },
-                {
-                    "order": 4,
-                    "title": "Golden Hour Sunset Walk",
-                    "description": f"Leisurely sunset walk along the {dest} valley edge with panoramic mountain views.",
-                    "location": f"{dest} Viewpoint",
-                    "start_time": "05:30 PM",
-                    "end_time": "07:00 PM",
-                    "duration_minutes": 90,
-                    "estimated_cost": 0,
-                    "category": ActivityCategory.SIGHTSEEING,
-                    "image_url": get_web_img(3, "viewpoint"),
-                },
-                {
-                    "order": 5,
-                    "title": "Local Cuisine & Welcome Dinner",
-                    "description": f"Authentic regional dinner in {dest} and relaxing evening stargazing.",
-                    "location": f"{dest} Town",
-                    "start_time": "07:30 PM",
-                    "end_time": "09:30 PM",
-                    "duration_minutes": 120,
-                    "estimated_cost": budget_total * 0.05,
-                    "category": ActivityCategory.FOOD,
-                    "image_url": get_web_img(1, "food"),
-                },
-            ]
-        elif day_idx == duration_days:
-            day_title = f"Morning Vistas & Return to {origin}"
-            day_summary = f"Sunrise mountain views in {dest}, handicraft souvenir bazaar walk, and comfortable return journey back to {origin}."
-            activities = [
-                {
-                    "order": 1,
-                    "title": "Sunrise Mountain Breakfast",
-                    "description": f"Morning breakfast in {dest} with 360-degree mountain peaks bathed in golden sunlight.",
-                    "location": f"{dest} Lodge",
-                    "start_time": "07:30 AM",
-                    "end_time": "09:00 AM",
-                    "duration_minutes": 90,
-                    "estimated_cost": budget_total * 0.03,
-                    "category": ActivityCategory.FOOD,
-                    "image_url": get_web_img(1, "food"),
-                },
-                {
-                    "order": 2,
-                    "title": "Local Artisan & Souvenir Walk",
-                    "description": f"Visit local dry fruit shops, authentic woolen shawls, and handmade crafts in {dest}.",
-                    "location": f"{dest} Bazaar",
-                    "start_time": "09:30 AM",
-                    "end_time": "11:30 AM",
-                    "duration_minutes": 120,
-                    "estimated_cost": budget_total * 0.03,
-                    "category": ActivityCategory.SHOPPING,
-                    "image_url": get_web_img(4, "shopping"),
-                },
-                {
-                    "order": 3,
-                    "title": f"Return Transit to {origin}",
-                    "description": f"Depart {dest} for return journey back to {origin} with highway photography and lunch rest stops.",
-                    "location": f"Return Highway to {origin}",
-                    "start_time": "12:00 PM",
-                    "end_time": "06:00 PM",
-                    "duration_minutes": 360,
-                    "estimated_cost": budget_total * 0.10,
-                    "category": ActivityCategory.TRANSPORT,
-                    "image_url": get_web_img(0, "transport"),
-                },
-            ]
-        else:
-            day_title = f"Day {day_idx}: Highlights & Wilderness of {dest}"
-            day_summary = f"Full day exploring pristine natural sights, valley treks, local culture, and photographic viewpoints across {dest}."
-            activities = [
-                {
-                    "order": 1,
-                    "title": f"Morning Alpine Trail / Jeep Safari in {dest}",
-                    "description": f"Early morning 4x4 jeep trek to upper high-altitude viewpoints across {dest}.",
-                    "location": f"Upper {dest}",
-                    "start_time": "08:00 AM",
-                    "end_time": "11:30 AM",
-                    "duration_minutes": 210,
-                    "estimated_cost": budget_total * 0.06,
-                    "category": ActivityCategory.ADVENTURE,
-                    "image_url": get_web_img(day_idx % len(web_images) if web_images else 0, "adventure"),
-                },
-                {
-                    "order": 2,
-                    "title": "Local Trout / Regional Lunch",
-                    "description": f"Fresh organic mountain lunch by the {dest} glacial stream.",
-                    "location": f"{dest} Riverside",
-                    "start_time": "12:30 PM",
-                    "end_time": "02:00 PM",
-                    "duration_minutes": 90,
-                    "estimated_cost": budget_total * 0.04,
-                    "category": ActivityCategory.FOOD,
-                    "image_url": get_web_img(1, "food"),
-                },
-                {
-                    "order": 3,
-                    "title": f"Historical Heritage & Cultural Immersion",
-                    "description": f"Explore centuries-old architecture, community heritage, and botanical orchards in {dest}.",
-                    "location": f"{dest} Heritage Site",
-                    "start_time": "02:30 PM",
-                    "end_time": "05:00 PM",
-                    "duration_minutes": 150,
-                    "estimated_cost": budget_total * 0.03,
-                    "category": ActivityCategory.CULTURE,
-                    "image_url": get_web_img(3, "culture"),
-                },
-                {
-                    "order": 4,
-                    "title": "Sunset Viewpoint Photography",
-                    "description": f"Prime photography session with sunset glow illuminating snowy mountain ridges in {dest}.",
-                    "location": f"{dest} Plateau",
-                    "start_time": "05:30 PM",
-                    "end_time": "07:00 PM",
-                    "duration_minutes": 90,
-                    "estimated_cost": 0,
-                    "category": ActivityCategory.SIGHTSEEING,
-                    "image_url": get_web_img(2, "sunset"),
-                },
-                {
-                    "order": 5,
-                    "title": "Bonfire & Traditional Dinner",
-                    "description": f"Outdoor campfire, local folk music, and warm traditional dinner in {dest}.",
-                    "location": f"{dest} Camp / Lodge",
-                    "start_time": "07:30 PM",
-                    "end_time": "09:30 PM",
-                    "duration_minutes": 120,
-                    "estimated_cost": budget_total * 0.05,
-                    "category": ActivityCategory.FOOD,
-                    "image_url": get_web_img(1, "food"),
-                },
-            ]
-        days_data.append({"day_number": day_idx, "title": day_title, "summary": day_summary, "activities": activities})
+    # 5. Build Dynamic Day-by-Day structured schedule with live POI discovery & per-POI image search
+    days_data, researched_hero = await DynamicDestinationResearchService.generate_dynamic_itinerary_days(
+        destination=dest,
+        origin=origin,
+        duration_days=duration_days,
+        budget_total=budget_total,
+        accommodation_preference=req.accommodation_preference or "comfortable",
+    )
+    if not img_url or img_url.startswith("/images/stitch/"):
+        img_url = researched_hero or img_url
 
     # 6. Compute Deterministic Budget Breakdown
     accom_pct = 0.35 if req.accommodation_preference != "none" else 0.0
@@ -468,6 +383,18 @@ async def generate_guided_trip_plan(
     }
 
     # 7. Create DB Records (Trip, TripMember, Itinerary, Days, Activities, Budget)
+    user_obj = await db.get(User, user_id)
+    if not user_obj:
+        lead_c = req.lead_contact or {}
+        user_obj = User(
+            id=user_id,
+            email=lead_c.get("email") or f"{user_id}@friday.local",
+            name=lead_c.get("name") or "Lead Traveler",
+            role=UserRole.TRAVELER,
+        )
+        db.add(user_obj)
+        await db.flush()
+
     traveler_metadata = {
         "travel_styles": req.travel_styles or ["Nature", "Scenic"],
         "lead_contact": req.lead_contact or {},
@@ -485,11 +412,12 @@ async def generate_guided_trip_plan(
         budget_per_person=budget_pp,
         start_date=req.departure_date,
         end_date=req.return_date,
-        status=TripStatus.PLANNED,
+        status=TripStatus.DRAFT,
         preferences=traveler_metadata,
         constraints=[req.additional_preferences] if req.additional_preferences else [],
         version=1,
         is_public=0,
+        show_members_publicly=1 if req.show_members_publicly else 0,
         image_url=img_url,
         advisories=advisories,
     )
@@ -514,7 +442,7 @@ async def generate_guided_trip_plan(
     db.add(itinerary_obj)
     await db.flush()
 
-    # Create Days & Activities
+    # Create Days & Activities with verified Google Maps URLs
     for d_data in days_data:
         day_obj = Day(
             itinerary_id=itinerary_obj.id,
@@ -526,6 +454,13 @@ async def generate_guided_trip_plan(
         await db.flush()
 
         for a_data in d_data["activities"]:
+            act_cat = a_data.get("category", "SIGHTSEEING")
+            if isinstance(act_cat, str):
+                try:
+                    act_cat = ActivityCategory[act_cat.upper()]
+                except KeyError:
+                    act_cat = ActivityCategory.OTHER
+
             act_obj = Activity(
                 day_id=day_obj.id,
                 order=a_data["order"],
@@ -536,8 +471,9 @@ async def generate_guided_trip_plan(
                 end_time=a_data["end_time"],
                 duration_minutes=a_data["duration_minutes"],
                 estimated_cost=a_data["estimated_cost"],
-                category=a_data["category"],
+                category=act_cat,
                 image_url=a_data.get("image_url"),
+                notes=a_data.get("map_url"),
             )
             db.add(act_obj)
 
@@ -554,88 +490,6 @@ async def generate_guided_trip_plan(
 
     await db.commit()
 
-    # 8. Automated Dispatch to Lead & Companions via WhatsApp (Tool-Calling Layer)
-    trip_url = f"http://localhost:5173/trips/{trip.id}"
-    lead_name = (req.lead_contact or {}).get("name", "Traveler")
-    
-    wa_msg = (
-        f"🌄 *FRIDAY® AI TRIP PLANNER — ITINERARY DISPATCH*\n\n"
-        f"Assalam-o-Alaikum! Your AI-crafted itinerary for *{dest}* is ready.\n\n"
-        f"📍 *Destination*: {dest}\n"
-        f"⏳ *Duration*: {duration_days} Days\n"
-        f"👥 *Travelers*: {travelers} People\n"
-        f"💰 *Budget Estimate*: PKR {budget_total:,.0f}\n"
-        f"🏨 *Stay*: {req.accommodation_preference.replace('_', ' ').title()}\n\n"
-        f"🔗 *View & Customize Your Trip*:\n{trip_url}\n\n"
-        f"— *Friday® Travel AI Copilot*"
-    )
-
-    whatsapp_service = WhatsAppService()
-    # Dispatch to Lead Traveler
-    lead_phone = (req.lead_contact or {}).get("phone")
-    if lead_phone:
-        try:
-            await whatsapp_service.send_message(to_number=lead_phone, message=wa_msg)
-            logger.info(f"Dispatched WhatsApp trip itinerary to Lead Traveler: {lead_phone}")
-        except Exception as e:
-            logger.warning(f"Failed to send WhatsApp to lead traveler: {e}")
-
-    # Dispatch to each Companion
-    for comp in (req.companions or []):
-        comp_phone = comp.get("phone")
-        comp_name = comp.get("name", "Traveler")
-        if comp_phone:
-            comp_msg = (
-                f"🌄 *FRIDAY® AI TRIP PLANNER — GROUP INVITATION*\n\n"
-                f"Assalam-o-Alaikum {comp_name}! {lead_name} has planned an expedition to *{dest}* ({duration_days} Days) with you!\n\n"
-                f"📍 *Destination*: {dest}\n"
-                f"👥 *Travelers*: {travelers} People\n"
-                f"💰 *Total Group Budget*: PKR {budget_total:,.0f}\n\n"
-                f"🔗 *Open Group Trip Link*:\n{trip_url}\n\n"
-                f"— *Friday® Travel AI Copilot*"
-            )
-            try:
-                await whatsapp_service.send_message(to_number=comp_phone, message=comp_msg)
-                logger.info(f"Dispatched WhatsApp group invite to Companion {comp_name}: {comp_phone}")
-            except Exception as e:
-                logger.warning(f"Failed to send WhatsApp to companion: {e}")
-
-    # 9. Automated Email Dispatch to Lead & Companions (Tool-Calling Layer)
-    email_service = EmailService()
-    lead_email = (req.lead_contact or {}).get("email")
-    if lead_email:
-        try:
-            await email_service.send_itinerary(
-                trip_id=trip.id,
-                traveler_email=lead_email,
-                traveler_name=lead_name,
-                destination=dest,
-                duration=duration_days,
-                itinerary_days=days_data,
-                budget_summary=budget_breakdown,
-            )
-            logger.info(f"Dispatched email trip itinerary to Lead Traveler: {lead_email}")
-        except Exception as e:
-            logger.warning(f"Failed to send email to lead traveler: {e}")
-
-    for comp in (req.companions or []):
-        comp_email = comp.get("email")
-        comp_name = comp.get("name", "Traveler")
-        if comp_email:
-            try:
-                await email_service.send_itinerary(
-                    trip_id=trip.id,
-                    traveler_email=comp_email,
-                    traveler_name=comp_name,
-                    destination=dest,
-                    duration=duration_days,
-                    itinerary_days=days_data,
-                    budget_summary=budget_breakdown,
-                )
-                logger.info(f"Dispatched group itinerary email to companion {comp_name}: {comp_email}")
-            except Exception as e:
-                logger.warning(f"Failed to send email to companion: {e}")
-
     return {
         "id": trip.id,
         "trip": _format_trip_response(trip),
@@ -648,6 +502,368 @@ async def generate_guided_trip_plan(
         "advisories": advisories,
         "message": f"Successfully planned your {duration_days}-day journey to {dest}!",
     }
+
+
+
+
+
+# ─── PUBLISH TRIP & DISPATCH EMAILS / WHATSAPP ───────────────────────────
+@router.post("/{trip_id}/publish")
+async def publish_trip(
+    trip_id: str,
+    payload: Optional[Dict[str, Any]] = None,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Publish a trip (Public or Private) and trigger automated Email and WhatsApp dispatches."""
+    service = TripService(db)
+    trip = await service.get_trip(trip_id=trip_id, user_id=user_id)
+    if trip.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="Security Alert: Only the trip creator can publish this trip.")
+
+    is_pub = False
+    if payload and "is_public" in payload:
+        is_pub = bool(payload["is_public"])
+    trip.is_public = 1 if is_pub else 0
+    if payload and "show_members_publicly" in payload:
+        trip.show_members_publicly = 1 if payload["show_members_publicly"] else 0
+    trip.status = TripStatus.PLANNED
+
+    # Load days and activities for high-fidelity rendering
+    itinerary_result = await db.execute(
+        select(Itinerary)
+        .where(Itinerary.trip_id == trip.id)
+        .options(selectinload(Itinerary.days).selectinload(Day.activities))
+    )
+    itinerary = itinerary_result.scalar_one_or_none()
+
+    itinerary_days = []
+    if itinerary and itinerary.days:
+        for d in itinerary.days:
+            acts = []
+            for a in d.activities:
+                acts.append({
+                    "title": a.title,
+                    "description": a.description,
+                    "location": a.location,
+                    "start_time": a.start_time,
+                    "end_time": a.end_time,
+                    "duration_minutes": a.duration_minutes,
+                    "estimated_cost": a.estimated_cost,
+                    "category": a.category.value if hasattr(a.category, 'value') else a.category,
+                    "map_url": a.notes or make_maps_url(a.location or trip.destination, trip.destination),
+                })
+            itinerary_days.append({
+                "day_number": d.day_number,
+                "title": d.title,
+                "summary": d.summary,
+                "activities": acts,
+            })
+
+    # Fetch budget records
+    budget_res = await db.execute(select(Budget).where(Budget.trip_id == trip.id))
+    budgets = budget_res.scalars().all()
+    budget_summary = {"total": trip.budget_total or 0}
+    for b in budgets:
+        cat_key = b.category.value.lower() if hasattr(b.category, 'value') else str(b.category).lower()
+        budget_summary[cat_key] = b.estimated_amount
+
+    # Automated Dispatch to Lead & Companions via WhatsApp and Email
+    lead_name = (trip.preferences or {}).get("lead_contact", {}).get("name", "Traveler")
+    lead_phone = (trip.preferences or {}).get("lead_contact", {}).get("phone")
+    lead_email = (trip.preferences or {}).get("lead_contact", {}).get("email")
+
+    email_service = EmailService()
+    whatsapp_service = WhatsAppService()
+
+    trip_url = f"http://localhost:5173/trips/{trip.id}"
+
+    if lead_email:
+        try:
+            await email_service.send_itinerary(
+                trip_id=trip.id,
+                traveler_email=lead_email,
+                traveler_name=lead_name,
+                destination=trip.destination,
+                duration=trip.duration,
+                itinerary_days=itinerary_days,
+                budget_summary=budget_summary,
+            )
+            logger.info(f"Dispatched email itinerary to {lead_email}")
+        except Exception as e:
+            logger.warning(f"Failed to send email to lead traveler: {e}")
+
+    for comp in (trip.preferences or {}).get("companions", []):
+        comp_email = comp.get("email")
+        comp_name = comp.get("name", "Traveler")
+        if comp_email:
+            try:
+                await email_service.send_itinerary(
+                    trip_id=trip.id,
+                    traveler_email=comp_email,
+                    traveler_name=comp_name,
+                    destination=trip.destination,
+                    duration=trip.duration,
+                    itinerary_days=itinerary_days,
+                    budget_summary=budget_summary,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to send email to companion {comp_email}: {e}")
+
+    if lead_phone:
+        wa_msg = (
+            f"🎒 *FRIDAY® EXPEDITION PUBLISHED: {trip.title}*\n\n"
+            f"📍 *Destination*: {trip.destination}\n"
+            f"📅 *Dates*: {trip.start_date or 'Flexible'} – {trip.end_date or ''}\n"
+            f"👥 *Travelers*: {trip.travelers} People\n"
+            f"💰 *Total Estimated Budget*: PKR {trip.budget_total:,.0f}\n\n"
+            f"🔗 *View Interactive Itinerary & Google Maps*:\n{trip_url}\n\n"
+            f"— *Friday® Travel AI Copilot*"
+        )
+        try:
+            await whatsapp_service.send_message(to_number=lead_phone, message=wa_msg)
+        except Exception as e:
+            logger.warning(f"Failed to send WhatsApp to lead: {e}")
+
+    await db.commit()
+    return {
+        "trip": _format_trip_response(trip),
+        "message": f"Expedition published successfully as {'Public (Shared with Community)' if is_pub else 'Private (Expedition Vault)'}! Itinerary dispatched to email.",
+        "is_public": bool(trip.is_public),
+    }
+
+
+# ─── ACTIVITY & DAY CRUD (A-TO-Z CUSTOM EDITING) ──────────────────────────
+@router.post("/{trip_id}/days/{day_id}/activities", status_code=status.HTTP_201_CREATED)
+async def add_custom_activity(
+    trip_id: str,
+    day_id: str,
+    payload: Dict[str, Any],
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a custom stop/activity to a day."""
+    service = TripService(db)
+    trip = await service.get_trip(trip_id=trip_id, user_id=user_id)
+    if trip.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="Only trip owner can add activities.")
+
+    cat_str = payload.get("category", "SIGHTSEEING")
+    try:
+        act_cat = ActivityCategory[cat_str.upper()]
+    except KeyError:
+        act_cat = ActivityCategory.OTHER
+
+    location = payload.get("location", trip.destination)
+    map_url = payload.get("map_url") or make_maps_url(location, trip.destination)
+
+    act = Activity(
+        day_id=day_id,
+        order=int(payload.get("order", 99)),
+        title=payload.get("title", "Custom Activity"),
+        description=payload.get("description", ""),
+        location=location,
+        start_time=payload.get("start_time", "10:00 AM"),
+        end_time=payload.get("end_time", "12:00 PM"),
+        duration_minutes=int(payload.get("duration_minutes", 120)),
+        estimated_cost=float(payload.get("estimated_cost", 0)),
+        category=act_cat,
+        image_url=payload.get("image_url", trip.image_url),
+        notes=map_url,
+    )
+    db.add(act)
+    await db.commit()
+    await db.refresh(act)
+    return {
+        "id": act.id,
+        "day_id": act.day_id,
+        "title": act.title,
+        "description": act.description,
+        "location": act.location,
+        "start_time": act.start_time,
+        "end_time": act.end_time,
+        "duration_minutes": act.duration_minutes,
+        "estimated_cost": act.estimated_cost,
+        "category": act.category.value if hasattr(act.category, 'value') else act.category,
+        "image_url": act.image_url,
+        "map_url": act.notes,
+    }
+
+
+@router.patch("/{trip_id}/activities/{activity_id}")
+async def update_custom_activity(
+    trip_id: str,
+    activity_id: str,
+    payload: Dict[str, Any],
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update details of an activity stop."""
+    service = TripService(db)
+    trip = await service.get_trip(trip_id=trip_id, user_id=user_id)
+    if trip.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="Only trip owner can edit activities.")
+
+    res = await db.execute(select(Activity).where(Activity.id == activity_id))
+    act = res.scalar_one_or_none()
+    if not act:
+        raise HTTPException(status_code=404, detail="Activity not found.")
+
+    if "title" in payload:
+        act.title = payload["title"]
+    if "description" in payload:
+        act.description = payload["description"]
+    if "location" in payload:
+        act.location = payload["location"]
+        act.notes = payload.get("map_url") or make_maps_url(act.location, trip.destination)
+    if "start_time" in payload:
+        act.start_time = payload["start_time"]
+    if "end_time" in payload:
+        act.end_time = payload["end_time"]
+    if "duration_minutes" in payload:
+        act.duration_minutes = int(payload["duration_minutes"])
+    if "estimated_cost" in payload:
+        act.estimated_cost = float(payload["estimated_cost"])
+    if "category" in payload:
+        try:
+            act.category = ActivityCategory[payload["category"].upper()]
+        except KeyError:
+            pass
+    if "map_url" in payload:
+        act.notes = payload["map_url"]
+
+    await db.commit()
+    await db.refresh(act)
+    return {
+        "id": act.id,
+        "title": act.title,
+        "description": act.description,
+        "location": act.location,
+        "start_time": act.start_time,
+        "end_time": act.end_time,
+        "duration_minutes": act.duration_minutes,
+        "estimated_cost": act.estimated_cost,
+        "category": act.category.value if hasattr(act.category, 'value') else act.category,
+        "map_url": act.notes,
+    }
+
+
+@router.delete("/{trip_id}/activities/{activity_id}")
+async def delete_custom_activity(
+    trip_id: str,
+    activity_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete an activity stop."""
+    service = TripService(db)
+    trip = await service.get_trip(trip_id=trip_id, user_id=user_id)
+    if trip.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="Only trip owner can delete activities.")
+
+    res = await db.execute(select(Activity).where(Activity.id == activity_id))
+    act = res.scalar_one_or_none()
+    if not act:
+        raise HTTPException(status_code=404, detail="Activity not found.")
+
+    await db.delete(act)
+    await db.commit()
+    return {"message": "Activity successfully removed."}
+
+
+@router.patch("/{trip_id}/days/{day_id}")
+async def update_custom_day(
+    trip_id: str,
+    day_id: str,
+    payload: Dict[str, Any],
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update title and summary of an itinerary day."""
+    service = TripService(db)
+    trip = await service.get_trip(trip_id=trip_id, user_id=user_id)
+    if trip.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="Only trip owner can edit days.")
+
+    res = await db.execute(select(Day).where(Day.id == day_id))
+    day = res.scalar_one_or_none()
+    if not day:
+        raise HTTPException(status_code=404, detail="Day not found.")
+
+    if "title" in payload:
+        day.title = payload["title"]
+    if "summary" in payload:
+        day.summary = payload["summary"]
+
+    await db.commit()
+    await db.refresh(day)
+    return {"id": day.id, "day_number": day.day_number, "title": day.title, "summary": day.summary}
+
+
+@router.post("/{trip_id}/days", status_code=status.HTTP_201_CREATED)
+async def add_custom_day(
+    trip_id: str,
+    payload: Dict[str, Any],
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a new day to an itinerary."""
+    service = TripService(db)
+    trip = await service.get_trip(trip_id=trip_id, user_id=user_id)
+    if trip.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="Only trip owner can add days.")
+
+    itin_res = await db.execute(
+        select(Itinerary).options(selectinload(Itinerary.days)).where(Itinerary.trip_id == trip_id)
+    )
+    itin = itin_res.scalar_one_or_none()
+    if not itin:
+        raise HTTPException(status_code=404, detail="Itinerary not found.")
+
+    existing_days = itin.days or []
+    next_day_num = max([d.day_number for d in existing_days], default=0) + 1
+
+    new_day = Day(
+        itinerary_id=itin.id,
+        day_number=next_day_num,
+        title=payload.get("title") or f"Day {next_day_num}: Exploration & Highlights of {trip.destination}",
+        summary=payload.get("summary") or f"Custom planned day exploring {trip.destination}.",
+    )
+    db.add(new_day)
+    trip.duration = next_day_num
+    await db.commit()
+    await db.refresh(new_day)
+
+    return {
+        "id": new_day.id,
+        "day_number": new_day.day_number,
+        "title": new_day.title,
+        "summary": new_day.summary,
+        "activities": [],
+    }
+
+
+@router.delete("/{trip_id}/days/{day_id}")
+async def delete_custom_day(
+    trip_id: str,
+    day_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete an itinerary day."""
+    service = TripService(db)
+    trip = await service.get_trip(trip_id=trip_id, user_id=user_id)
+    if trip.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="Only trip owner can delete days.")
+
+    res = await db.execute(select(Day).where(Day.id == day_id))
+    day = res.scalar_one_or_none()
+    if not day:
+        raise HTTPException(status_code=404, detail="Day not found.")
+
+    await db.delete(day)
+    await db.commit()
+    return {"message": "Day successfully removed."}
 
 
 # ─── VISIBILITY TOGGLE (PRIVATE vs PUBLIC) ────────────────────────────────

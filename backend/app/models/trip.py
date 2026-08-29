@@ -1,6 +1,6 @@
 """Trip model."""
 
-from sqlalchemy import Column, String, Integer, Float, JSON, ForeignKey, Enum as SAEnum
+from sqlalchemy import Column, String, Integer, Float, JSON, ForeignKey, Text, Enum as SAEnum
 from sqlalchemy.orm import relationship
 import enum
 
@@ -40,8 +40,9 @@ class Trip(Base, IDMixin, TimestampMixin):
     constraints = Column(JSON, default=list)
     version = Column(Integer, default=1, nullable=False)
     is_public = Column(Integer, default=0, nullable=False)  # 0: private, 1: public
+    show_members_publicly = Column(Integer, default=0, nullable=False)  # 0: hide traveler roster on public feed, 1: show profiles
     copied_from_trip_id = Column(String, nullable=True)
-    image_url = Column(String, nullable=True)
+    image_url = Column(Text, nullable=True)
     advisories = Column(JSON, default=list)
 
     # Relationships

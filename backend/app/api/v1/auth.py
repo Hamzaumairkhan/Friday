@@ -186,6 +186,18 @@ async def login(
         if org:
             organizer_profile = _format_organizer(org)
 
+    # Update profile picture or name from Google OAuth if provided
+    updated = False
+    if req.profile_picture and user.profile_picture != req.profile_picture:
+        user.profile_picture = req.profile_picture
+        updated = True
+    if req.name and (not user.name or user.name == "Traveler" or user.name == req.email.split("@")[0]):
+        user.name = req.name
+        updated = True
+    if updated:
+        await db.commit()
+        await db.refresh(user)
+
     # Return role matching the intended login role
     return AuthResponse(
         user=_format_user(user, target_role_str),

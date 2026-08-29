@@ -10,6 +10,7 @@ import {
   Shield,
   Plus,
   LogOut,
+  Briefcase,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import AuthModal from '../components/auth/AuthModal';
@@ -17,10 +18,13 @@ import AuthModal from '../components/auth/AuthModal';
 export default function TravelerLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, backendUser, signOut } = useAuth();
+  const { user, backendUser, organizerProfile, role, signOut } = useAuth();
+
+  const isOrganizer = role === 'ORGANIZER' || backendUser?.role === 'ORGANIZER' || Boolean(organizerProfile);
 
   const isActive = (path) => {
     if (path === '/explore' && location.pathname.startsWith('/explore')) return true;
+    if (path === '/organizer' && location.pathname.startsWith('/organizer')) return true;
     return location.pathname === path;
   };
 
@@ -54,13 +58,22 @@ export default function TravelerLayout() {
             </Link>
           </div>
 
-          {/* New Trip CTA Button */}
-          <Link to="/plan-trip" className="block">
-            <button className="w-full bg-[#00261D] text-white py-3 px-4 rounded-full text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#00261D]/90 transition-all shadow-xs cursor-pointer">
-              <Plus className="w-4 h-4" />
-              <span>New Trip</span>
-            </button>
-          </Link>
+          {/* Primary Action Button (New Trip for Traveler / Create Package for Organizer) */}
+          {isOrganizer ? (
+            <Link to="/organizer/trips/new" className="block">
+              <button className="w-full bg-[green] text-white py-3 px-4 rounded-full text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#00261D]/90 transition-all shadow-xs cursor-pointer">
+                <Plus className="w-4 h-4 text-[#BBEAD5]" />
+                <span>Create Package</span>
+              </button>
+            </Link>
+          ) : (
+            <Link to="/plan-trip" className="block">
+              <button className="w-full bg-[green] text-white py-3 px-4 rounded-full text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#00261D]/90 transition-all shadow-xs cursor-pointer">
+                <Plus className="w-4 h-4 text-[#BBEAD5]" />
+                <span>New Trip</span>
+              </button>
+            </Link>
+          )}
 
           {/* Main Navigation Links */}
           <nav className="flex flex-col gap-1 text-xs font-semibold" style={{ fontFamily: 'Inter, sans-serif' }}>
@@ -76,17 +89,32 @@ export default function TravelerLayout() {
               <span>Explore</span>
             </Link>
 
-            <Link
-              to="/plan-trip"
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                isActive('/plan-trip')
-                  ? 'bg-[#E7E9E5] text-[#00261D] font-bold shadow-xs'
-                  : 'text-[#414845] hover:bg-black/5'
-              }`}
-            >
-              <Sparkles className="w-4 h-4 text-[#00261D]" />
-              <span>Plan Trip</span>
-            </Link>
+            {/* If Organizer -> Show Organizer Workshop, Else -> Plan Trip */}
+            {isOrganizer ? (
+              <Link
+                to="/organizer/dashboard"
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  isActive('/organizer')
+                    ? 'bg-[#E7E9E5] text-[#00261D] font-bold shadow-xs'
+                    : 'text-[#414845] hover:bg-black/5 hover:text-[#00261D]'
+                }`}
+              >
+                <Briefcase className="w-4 h-4 text-[#00261D]" />
+                <span>Organizer Workshop</span>
+              </Link>
+            ) : (
+              <Link
+                to="/plan-trip"
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  isActive('/plan-trip')
+                    ? 'bg-[#E7E9E5] text-[#00261D] font-bold shadow-xs'
+                    : 'text-[#414845] hover:bg-black/5'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-[#00261D]" />
+                <span>Plan Trip</span>
+              </Link>
+            )}
 
             <Link
               to="/my-trips"
@@ -179,16 +207,28 @@ export default function TravelerLayout() {
           <span>Trips</span>
         </Link>
 
-        {/* 2. Plan */}
-        <Link
-          to="/plan-trip"
-          className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
-            isActive('/plan-trip') ? 'text-[#00261D]' : 'text-[#717975]'
-          }`}
-        >
-          <Sparkles className="w-5 h-5" />
-          <span>Plan</span>
-        </Link>
+        {/* 2. Workshop for Organizer / Plan for Traveler */}
+        {isOrganizer ? (
+          <Link
+            to="/organizer/dashboard"
+            className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
+              location.pathname.startsWith('/organizer') ? 'text-[#00261D]' : 'text-[#717975]'
+            }`}
+          >
+            <Briefcase className="w-5 h-5" />
+            <span>Workshop</span>
+          </Link>
+        ) : (
+          <Link
+            to="/plan-trip"
+            className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
+              isActive('/plan-trip') ? 'text-[#00261D]' : 'text-[#717975]'
+            }`}
+          >
+            <Sparkles className="w-5 h-5" />
+            <span>Plan</span>
+          </Link>
+        )}
 
         {/* 3. Explore (Center) */}
         <Link

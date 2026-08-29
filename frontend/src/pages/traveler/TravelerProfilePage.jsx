@@ -17,8 +17,11 @@ import {
   Heart,
   MapPin,
   Trash2,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { auth } from '../../services/firebase';
 import { tripsService } from '../../services/trips';
 import { bookingsService } from '../../services/bookings';
 import { packagesService } from '../../services/packages';
@@ -34,6 +37,7 @@ export default function TravelerProfilePage() {
   const [showSavedSection, setShowSavedSection] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [photoError, setPhotoError] = useState(false);
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -88,9 +92,14 @@ export default function TravelerProfilePage() {
     navigate('/', { replace: true });
   };
 
-  const userName = backendUser?.name || firebaseUser?.displayName || 'Traveler';
-  const userEmail = backendUser?.email || firebaseUser?.email || '';
-  const userPhoto = backendUser?.profile_picture || firebaseUser?.photoURL;
+  const userName = backendUser?.name || firebaseUser?.displayName || auth.currentUser?.displayName || 'Traveler';
+  const userEmail = backendUser?.email || firebaseUser?.email || auth.currentUser?.email || '';
+  const userPhoto = !photoError
+    ? (backendUser?.profile_picture ||
+       backendUser?.avatar_url ||
+       firebaseUser?.photoURL ||
+       auth.currentUser?.photoURL)
+    : null;
 
   return (
     <div className="w-full flex-1 flex justify-center px-4 sm:px-8 lg:px-12 py-10 min-h-screen bg-[#F8FAF6]">
@@ -107,6 +116,9 @@ export default function TravelerProfilePage() {
                 <img
                   src={userPhoto}
                   alt={userName}
+                  referrerPolicy="no-referrer"
+                  crossOrigin="anonymous"
+                  onError={() => setPhotoError(true)}
                   className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-4 border-white shadow-md"
                 />
               ) : (
@@ -212,8 +224,9 @@ export default function TravelerProfilePage() {
               }`}>
                 <Bookmark className="w-5 h-5" />
               </div>
-              <span className={`text-[11px] font-bold uppercase tracking-wider ${showSavedSection ? 'text-[#BBEAD5]' : 'text-[#717975]'}`}>
-                {showSavedSection ? 'Hide List ▲' : 'View List ▼'}
+              <span className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 ${showSavedSection ? 'text-[#BBEAD5]' : 'text-[#717975]'}`}>
+                <span>{showSavedSection ? 'Hide List' : 'View List'}</span>
+                {showSavedSection ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </span>
             </div>
             <div className={`text-3xl font-normal ${showSavedSection ? 'text-white' : 'text-[#00261D]'}`} style={{ fontFamily: "'Instrument Serif', serif" }}>
@@ -302,7 +315,7 @@ export default function TravelerProfilePage() {
               </div>
               <h2
                 className="text-3xl sm:text-4xl font-normal leading-tight"
-                style={{ fontFamily: "'Instrument Serif', serif" }}
+                style={{ fontFamily: "'Instrument Serif', serif",color:"white" }}
               >
                 Become a Verified Tour Organizer
               </h2>

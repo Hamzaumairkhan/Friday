@@ -37,12 +37,14 @@ def _format_org(o: Organizer) -> OrganizerResponse:
         reviews_count=o.reviews_count or 0,
         location=o.location,
         website=o.website,
+        cnic=getattr(o, "cnic", None),
         number_of_buses=o.number_of_buses,
         vehicle_capacity=o.vehicle_capacity,
         maximum_group_size=o.maximum_group_size,
         experience_years=o.experience_years,
         experience_description=o.experience_description,
         onboarding_completed=o.onboarding_completed or False,
+        payment_wallet_type=getattr(o, "payment_wallet_type", "BANK"),
         payment_account_title=o.payment_account_title,
         payment_account_number=o.payment_account_number,
         payment_bank_name=o.payment_bank_name,
@@ -104,11 +106,13 @@ class OrganizerProfileUpdate(BaseModel):
     website: Optional[str] = None
     destinations: Optional[List[str]] = None
     # Extended fields
+    cnic: Optional[str] = None
     number_of_buses: Optional[int] = None
     vehicle_capacity: Optional[int] = None
     maximum_group_size: Optional[int] = None
     experience_years: Optional[int] = None
     experience_description: Optional[str] = None
+    payment_wallet_type: Optional[str] = None
     payment_account_title: Optional[str] = None
     payment_account_number: Optional[str] = None
     payment_bank_name: Optional[str] = None

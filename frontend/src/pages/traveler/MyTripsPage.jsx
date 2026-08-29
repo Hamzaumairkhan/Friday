@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Luggage,
   Calendar,
@@ -19,6 +19,7 @@ import {
   Copy,
   Check,
   X,
+  FileText,
 } from 'lucide-react';
 import { bookingsService } from '../../services/bookings';
 import { tripsService } from '../../services/trips';
@@ -28,6 +29,7 @@ import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
 
 export default function MyTripsPage() {
+  const navigate = useNavigate();
   // Default to AI Planned Trips tab as requested
   const [activeTab, setActiveTab] = useState('ai_trips');
   const [bookings, setBookings] = useState([]);
@@ -44,6 +46,20 @@ export default function MyTripsPage() {
   const [isSharing, setIsSharing] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
+  const getDestinationFallback = (dest) => {
+    const d = (dest || '').toLowerCase();
+    if (d.includes('islamabad') || d.includes('margalla') || d.includes('faisal') || d.includes('rawalpindi')) return '/images/stitch/stitch_asset_4.jpg';
+    if (d.includes('lahore') || d.includes('badshahi') || d.includes('punjab') || d.includes('faisalabad') || d.includes('multan')) return '/images/stitch/stitch_asset_2.jpg';
+    if (d.includes('karachi') || d.includes('gwadar') || d.includes('ormara') || d.includes('kund') || d.includes('sindh')) return '/images/stitch/stitch_asset_5.jpg';
+    if (d.includes('swat') || d.includes('kalam') || d.includes('malam') || d.includes('mahudand')) return '/images/stitch/stitch_asset_10.jpg';
+    if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar')) return '/images/stitch/stitch_asset_9.jpg';
+    if (d.includes('kumrat') || d.includes('jahaz') || d.includes('katora')) return '/images/stitch/stitch_asset_8.jpg';
+    if (d.includes('fairy') || d.includes('nanga')) return '/images/stitch/stitch_asset_7.jpg';
+    if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila')) return '/images/stitch/hero_mountains.jpg';
+    if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit')) return '/images/stitch/stitch_asset_6.jpg';
+    return '/images/stitch/panoramic_lake.jpg';
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -51,8 +67,45 @@ export default function MyTripsPage() {
         bookingsService.listUserBookings().catch(() => []),
         tripsService.listTrips().catch(() => []),
       ]);
+
+      let allTrips = Array.isArray(tripsData) ? [...tripsData] : [];
+
+      // Check for local storage draft if not published yet
+      try {
+        const savedDraftStr = localStorage.getItem('friday_trip_draft');
+        if (savedDraftStr) {
+          const localDraft = JSON.parse(savedDraftStr);
+          if (localDraft && localDraft.destination) {
+            const alreadyExists = localDraft.generatedTripId
+              ? allTrips.some((t) => t.id === localDraft.generatedTripId)
+              : false;
+
+            if (!alreadyExists) {
+              allTrips.unshift({
+                id: localDraft.generatedTripId || 'local-draft',
+                is_local_draft: true,
+                title: `${localDraft.destination} (Draft)`,
+                destination: localDraft.destination,
+                origin: localDraft.origin || 'Islamabad',
+                travelers: localDraft.travelers || 2,
+                duration: parseInt(localDraft.customDays) || 3,
+                start_date: localDraft.departureDate || '',
+                end_date: localDraft.returnDate || '',
+                budget_total: Number(localDraft.budgetAmount) || 10000,
+                status: 'DRAFT',
+                is_public: false,
+                image_url: getDestinationFallback(localDraft.destination),
+                created_at: localDraft.savedAt || new Date().toISOString(),
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error reading local draft:', e);
+      }
+
       setBookings(Array.isArray(bookingsData) ? bookingsData : []);
-      setTrips(Array.isArray(tripsData) ? tripsData : []);
+      setTrips(allTrips);
     } catch (err) {
       console.error('Error fetching trips & bookings:', err);
     } finally {
@@ -68,9 +121,15 @@ export default function MyTripsPage() {
     if (!tripToDelete) return;
     setIsDeleting(true);
     try {
-      await tripsService.deleteTrip(tripToDelete.id);
-      setTrips((prev) => prev.filter((t) => t.id !== tripToDelete.id));
-      toast.success('Trip plan successfully deleted.');
+      if (tripToDelete.is_local_draft || tripToDelete.id === 'local-draft') {
+        localStorage.removeItem('friday_trip_draft');
+        setTrips((prev) => prev.filter((t) => t.id !== tripToDelete.id));
+        toast.success('Draft plan successfully deleted.');
+      } else {
+        await tripsService.deleteTrip(tripToDelete.id);
+        setTrips((prev) => prev.filter((t) => t.id !== tripToDelete.id));
+        toast.success('Trip plan successfully deleted.');
+      }
       setTripToDelete(null);
     } catch (err) {
       console.error('Failed to delete trip:', err);
@@ -125,7 +184,7 @@ export default function MyTripsPage() {
               My Trips & Expeditions
             </h1>
             <p className="text-sm text-[#717975] mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
-              Review your bespoke AI-crafted journeys and booked organizer expeditions.
+              Review your bespoke AI-crafted journeys and booked trips organized by experts.
             </p>
           </div>
 
@@ -135,7 +194,7 @@ export default function MyTripsPage() {
                 Marketplace
               </button>
             </Link>
-            <Link to="/plan-trip">
+            <Link to="/plan-trip?new=1" onClick={() => localStorage.removeItem('friday_trip_draft')}>
               <button className="px-5 py-2.5 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#00261D]/90 transition-all shadow-xs cursor-pointer">
                 + Plan New Trip
               </button>
@@ -143,156 +202,301 @@ export default function MyTripsPage() {
           </div>
         </div>
 
-        {/* Tabs: AI Planned Trips first */}
-        <div className="flex border-b border-black/10 space-x-8">
-          <button
-            onClick={() => setActiveTab('ai_trips')}
-            className={`pb-4 text-sm font-semibold transition-all relative cursor-pointer ${
-              activeTab === 'ai_trips'
-                ? 'text-[#00261D]'
-                : 'text-[#717975] hover:text-[#00261D]'
-            }`}
-            style={{ fontFamily: 'Inter, sans-serif' }}
-          >
-            AI Planned Trips ({trips.length})
-            {activeTab === 'ai_trips' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00261D]" />
-            )}
-          </button>
+        {/* Tabs: AI Planned Trips, Drafts, Organizer Bookings */}
+        {(() => {
+          const publishedTrips = trips.filter((t) => t.status !== 'DRAFT');
+          const draftTrips = trips.filter((t) => t.status === 'DRAFT');
+          return (
+            <div className="flex border-b border-black/10 space-x-8">
+              <button
+                onClick={() => setActiveTab('ai_trips')}
+                className={`pb-4 text-sm font-semibold transition-all relative cursor-pointer ${activeTab === 'ai_trips'
+                    ? 'text-[#00261D]'
+                    : 'text-[#717975] hover:text-[#00261D]'
+                  }`}
+                style={{ fontFamily: 'Inter, sans-serif' }}
+              >
+                AI Planned Trips ({publishedTrips.length})
+                {activeTab === 'ai_trips' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00261D]" />
+                )}
+              </button>
 
-          <button
-            onClick={() => setActiveTab('bookings')}
-            className={`pb-4 text-sm font-semibold transition-all relative cursor-pointer ${
-              activeTab === 'bookings'
-                ? 'text-[#00261D]'
-                : 'text-[#717975] hover:text-[#00261D]'
-            }`}
-            style={{ fontFamily: 'Inter, sans-serif' }}
-          >
-            Organizer Bookings ({bookings.length})
-            {activeTab === 'bookings' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00261D]" />
-            )}
-          </button>
-        </div>
+              <button
+                onClick={() => setActiveTab('drafts')}
+                className={`pb-4 text-sm font-semibold transition-all relative cursor-pointer flex items-center gap-1.5 ${activeTab === 'drafts'
+                    ? 'text-[#00261D]'
+                    : 'text-[#717975] hover:text-[#00261D]'
+                  }`}
+                style={{ fontFamily: 'Inter, sans-serif' }}
+              >
+                <span>Drafts & In-Progress</span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'drafts' ? 'bg-amber-100 text-amber-900' : 'bg-black/5 text-[#717975]'
+                    }`}
+                >
+                  {draftTrips.length}
+                </span>
+                {activeTab === 'drafts' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00261D]" />
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('bookings')}
+                className={`pb-4 text-sm font-semibold transition-all relative cursor-pointer ${activeTab === 'bookings'
+                    ? 'text-[#00261D]'
+                    : 'text-[#717975] hover:text-[#00261D]'
+                  }`}
+                style={{ fontFamily: 'Inter, sans-serif' }}
+              >
+                Organizer Bookings ({bookings.length})
+                {activeTab === 'bookings' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00261D]" />
+                )}
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Tab Content */}
         {loading ? (
           <LoadingSpinner text="Fetching your travel itineraries..." />
         ) : activeTab === 'ai_trips' ? (
-          trips.length === 0 ? (
-            <EmptyState
-              title="No AI Trips Created Yet"
-              description="Tell Friday where you've been thinking about going. The AI planner will craft a complete custom itinerary with routes, stays, and budget."
-              actionText="Plan a Trip with Friday"
-              actionHref="/plan-trip"
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {trips.map((trip) => {
-                const defaultThumb = '/images/stitch/stitch_asset_11.jpg';
-                const cardImage = trip.image_url || defaultThumb;
-                return (
-                  <div
-                    key={trip.id}
-                    className="rounded-3xl border border-black/10 bg-white overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
-                  >
-                    {/* Destination Image Preview Header */}
-                    <div className="relative w-full h-40 bg-[#00261D] overflow-hidden">
-                      <img
-                        src={cardImage}
-                        alt={trip.destination || 'Trip'}
-                        onError={(e) => {
-                          if (e.currentTarget.src !== defaultThumb) {
-                            e.currentTarget.src = defaultThumb;
-                          }
-                        }}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+          (() => {
+            const publishedTrips = trips.filter((t) => t.status !== 'DRAFT');
+            return publishedTrips.length === 0 ? (
+              <EmptyState
+                title="No Published AI Trips Yet"
+                description="Tell Friday where you've been thinking about going. The AI planner will craft a complete custom itinerary with routes, stays, and budget."
+                actionText="Plan a Trip with Friday"
+                actionHref="/plan-trip?new=1"
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {publishedTrips.map((trip) => {
+                  const defaultThumb = getDestinationFallback(trip.destination);
+                  const cardImage = trip.image_url || defaultThumb;
+                  return (
+                    <div
+                      key={trip.id}
+                      onClick={() => navigate(`/trips/${trip.id}`)}
+                      className="rounded-3xl border border-black/10 bg-white overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer hover:border-black/30"
+                    >
+                      {/* Destination Image Preview Header */}
+                      <div className="relative w-full h-40 bg-[#00261D] overflow-hidden">
+                        <img
+                          src={cardImage}
+                          alt={trip.destination || 'Trip'}
+                          onError={(e) => {
+                            if (e.currentTarget.src !== defaultThumb) {
+                              e.currentTarget.src = defaultThumb;
+                            }
+                          }}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
 
-                      {/* Visibility Pill */}
-                      <div className="absolute top-3 left-3">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border ${
-                          trip.is_public
-                            ? 'bg-emerald-950/70 text-emerald-300 border-emerald-500/30'
-                            : 'bg-black/60 text-white/90 border-white/20'
-                        }`}>
-                          {trip.is_public ? 'Public Feed' : 'Private'}
-                        </span>
-                      </div>
-
-                      {/* Top Action Icons: Share & Delete */}
-                      <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleOpenShare(trip)}
-                          className="w-8 h-8 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md text-white flex items-center justify-center transition-colors cursor-pointer"
-                          title="Share Itinerary Link"
-                        >
-                          <Share2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setTripToDelete(trip)}
-                          className="w-8 h-8 rounded-full bg-black/50 hover:bg-red-600 backdrop-blur-md text-white flex items-center justify-center transition-colors cursor-pointer"
-                          title="Delete Trip Plan"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      <div className="absolute bottom-3 left-4 right-4">
-                        <h3
-                          className="text-xl font-normal text-white truncate"
-                          style={{ fontFamily: "'Instrument Serif', serif" }}
-                        >
-                          {trip.title || `${trip.destination || 'Pakistan'}, at your pace`}
-                        </h3>
-                        <p className="text-[11px] text-white/80 flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-emerald-400" />
-                          <span>{trip.destination || 'Pakistan'}</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Card Content & Details */}
-                    <div className="p-5 space-y-4 flex-1 flex flex-col justify-between">
-                      <div className="grid grid-cols-3 gap-2 py-2.5 border-y border-black/10 text-xs">
-                        <div>
-                          <span className="text-[9px] text-[#717975] uppercase block font-semibold">Destination</span>
-                          <span className="font-bold text-[#00261D] truncate block">{trip.destination || 'Pakistan'}</span>
-                        </div>
-                        <div>
-                          <span className="text-[9px] text-[#717975] uppercase block font-semibold">Duration</span>
-                          <span className="font-bold text-[#00261D]">{trip.duration || 4} Days</span>
-                        </div>
-                        <div>
-                          <span className="text-[9px] text-[#717975] uppercase block font-semibold">Group</span>
-                          <span className="font-bold text-[#00261D]">{trip.travelers || 1} Person(s)</span>
-                        </div>
-                      </div>
-
-                      {/* Footer Budget & View CTA */}
-                      <div className="flex items-center justify-between pt-1">
-                        <div>
-                          <span className="text-[10px] text-[#717975] block uppercase font-semibold">Budget</span>
-                          <span className="text-sm font-bold text-[#420E00]">
-                            Rs. {Number(trip.budget_total || 0).toLocaleString()}
+                        {/* Visibility Pill */}
+                        <div className="absolute top-3 left-3">
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border ${trip.is_public
+                                ? 'bg-emerald-950/70 text-emerald-300 border-emerald-500/30'
+                                : 'bg-black/60 text-white/90 border-white/20'
+                              }`}
+                          >
+                            {trip.is_public ? 'Public Feed' : 'Private'}
                           </span>
                         </div>
 
-                        <Link to={`/trips/${trip.id}`}>
-                          <button className="px-4 py-2 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs">
-                            <span>View Itinerary</span>
-                            <ArrowRight className="w-3 h-3" />
+                        {/* Top Action Icons: Share & Delete */}
+                        <div className="absolute top-3 right-3 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenShare(trip);
+                            }}
+                            className="w-8 h-8 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md text-white flex items-center justify-center transition-colors cursor-pointer"
+                            title="Share Itinerary Link"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
                           </button>
-                        </Link>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTripToDelete(trip);
+                            }}
+                            className="w-8 h-8 rounded-full bg-black/50 hover:bg-red-600 backdrop-blur-md text-white flex items-center justify-center transition-colors cursor-pointer"
+                            title="Delete Trip Plan"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="absolute bottom-3 left-4 right-4">
+                          <h3
+                            className="text-xl font-normal text-white truncate"
+                            style={{ fontFamily: "'Instrument Serif', serif" }}
+                          >
+                            {trip.title || `${trip.destination || 'Pakistan'}, at your pace`}
+                          </h3>
+                          <p className="text-[11px] text-white/80 flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3 text-emerald-400" />
+                            <span>{trip.destination || 'Pakistan'}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Card Content & Details */}
+                      <div className="p-5 space-y-4 flex-1 flex flex-col justify-between">
+                        <div className="grid grid-cols-3 gap-2 py-2.5 border-y border-black/10 text-xs">
+                          <div>
+                            <span className="text-[9px] text-[#717975] uppercase block font-semibold">Destination</span>
+                            <span className="font-bold text-[#00261D] truncate block">
+                              {trip.destination || 'Pakistan'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] text-[#717975] uppercase block font-semibold">Duration</span>
+                            <span className="font-bold text-[#00261D]">{trip.duration || 4} Days</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] text-[#717975] uppercase block font-semibold">Group</span>
+                            <span className="font-bold text-[#00261D]">{trip.travelers || 1} Person(s)</span>
+                          </div>
+                        </div>
+
+                        {/* Footer Budget & View CTA */}
+                        <div className="flex items-center justify-between pt-1">
+                          <div>
+                            <span className="text-[10px] text-[#717975] block uppercase font-semibold">Budget</span>
+                            <span className="text-sm font-bold text-[#420E00]">
+                              Rs. {Number(trip.budget_total || 0).toLocaleString()}
+                            </span>
+                          </div>
+
+                          <Link to={`/trips/${trip.id}`}>
+                            <button className="px-4 py-2 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs">
+                              <span>View Itinerary</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          </Link>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )
+                  );
+                })}
+              </div>
+            );
+          })()
+        ) : activeTab === 'drafts' ? (
+          (() => {
+            const draftTrips = trips.filter((t) => t.status === 'DRAFT');
+            return draftTrips.length === 0 ? (
+              <EmptyState
+                title="No Saved Drafts"
+                description="When you start planning a trip or reload the page mid-way, your in-progress expedition is saved here as a draft until you publish."
+                actionText="Start a New Plan"
+                actionHref="/plan-trip"
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {draftTrips.map((trip) => {
+                  const defaultThumb = getDestinationFallback(trip.destination);
+                  const cardImage = trip.image_url || defaultThumb;
+                  return (
+                    <div
+                      key={trip.id}
+                      className="rounded-3xl border-2 border-dashed border-amber-300 bg-amber-50/20 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
+                    >
+                      {/* Destination Image Preview Header */}
+                      <div className="relative w-full h-40 bg-[#00261D] overflow-hidden">
+                        <img
+                          src={cardImage}
+                          alt={trip.destination || 'Trip'}
+                          onError={(e) => {
+                            if (e.currentTarget.src !== defaultThumb) {
+                              e.currentTarget.src = defaultThumb;
+                            }
+                          }}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+                        {/* Draft Status Badge */}
+                        <div className="absolute top-3 left-3">
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-white shadow-xs flex items-center gap-1">
+                            <FileText className="w-3 h-3" />
+                            <span>Draft • Unpublished</span>
+                          </span>
+                        </div>
+
+                        {/* Delete Draft Action */}
+                        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                          <button
+                            onClick={() => setTripToDelete(trip)}
+                            className="w-8 h-8 rounded-full bg-black/60 hover:bg-red-600 backdrop-blur-md text-white flex items-center justify-center transition-colors cursor-pointer"
+                            title="Discard Draft"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="absolute bottom-3 left-4 right-4">
+                          <h3
+                            className="text-xl font-normal text-white truncate"
+                            style={{ fontFamily: "'Instrument Serif', serif" }}
+                          >
+                            {trip.title || `${trip.destination || 'Pakistan'} (Draft)`}
+                          </h3>
+                          <p className="text-[11px] text-white/80 flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3 text-amber-400" />
+                            <span>{trip.destination || 'Pakistan'}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Card Content & Details */}
+                      <div className="p-5 space-y-4 flex-1 flex flex-col justify-between">
+                        <div className="grid grid-cols-3 gap-2 py-2.5 border-y border-black/10 text-xs">
+                          <div>
+                            <span className="text-[9px] text-[#717975] uppercase block font-semibold">Origin</span>
+                            <span className="font-bold text-[#00261D] truncate block">
+                              {trip.origin || 'Islamabad'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] text-[#717975] uppercase block font-semibold">Duration</span>
+                            <span className="font-bold text-[#00261D]">{trip.duration || 4} Days</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] text-[#717975] uppercase block font-semibold">Travelers</span>
+                            <span className="font-bold text-[#00261D]">{trip.travelers || 1} Person(s)</span>
+                          </div>
+                        </div>
+
+                        {/* Footer Budget & Continue CTA */}
+                        <div className="flex items-center justify-between pt-1">
+                          <div>
+                            <span className="text-[10px] text-[#717975] block uppercase font-semibold">Target Budget</span>
+                            <span className="text-sm font-bold text-[#420E00]">
+                              Rs. {Number(trip.budget_total || 0).toLocaleString()}
+                            </span>
+                          </div>
+
+                          <Link to={trip.is_local_draft ? '/plan-trip' : `/plan-trip?tripId=${trip.id}`}>
+                            <button className="px-4 py-2 rounded-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs">
+                              <span>Continue Planning →</span>
+                            </button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()
         ) : (
           /* Bookings Tab */
           bookings.length === 0 ? (

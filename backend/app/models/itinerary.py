@@ -60,7 +60,7 @@ class Activity(Base, IDMixin, TimestampMixin):
     category = Column(SAEnum(ActivityCategory), default=ActivityCategory.OTHER)
     travel_time_minutes = Column(Integer, nullable=True)
     confidence = Column(Float, default=0.8)
-    image_url = Column(String, nullable=True)
+    image_url = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
 
     day = relationship("Day", back_populates="activities")

@@ -136,15 +136,15 @@ export default function PackageFormPage() {
   const tabs = ['BASICS', 'PRICING', 'INCLUSIONS', 'MEDIA'];
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-10 space-y-10">
-      {/* ─── Header (Stitch 14_package_builder.html) ─────────────────── */}
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-10">
+      {/* ─── Header ─────────────────────────────────────────────────── */}
       <header className="flex items-center justify-between border-b border-black/10 pb-6">
         <div>
           <p className="text-xs uppercase tracking-[0.25em] font-semibold text-[#420E00] mb-2" style={{ fontFamily: 'Inter, sans-serif' }}>
-            ROAD CREW / CREATE JOURNEY
+            ORGANIZER WORKSPACE / PACKAGE BUILDER
           </p>
           <h1
-            className="text-4xl sm:text-5xl font-normal text-black italic leading-tight"
+            className="text-3xl sm:text-5xl font-normal text-[#00261D] italic leading-tight"
             style={{ fontFamily: "'Instrument Serif', serif" }}
           >
             {isEditing ? 'Refine your journey.' : 'Build a journey worth taking.'}
@@ -152,23 +152,23 @@ export default function PackageFormPage() {
         </div>
 
         <Link to="/organizer/trips">
-          <button className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center hover:bg-slate-100 transition-colors cursor-pointer text-black" title="Cancel">
+          <button className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-colors cursor-pointer text-[#00261D]" title="Cancel">
             <X className="w-5 h-5" />
           </button>
         </Link>
       </header>
 
       {/* ─── Navigation Tabs ─────────────────────────────────────────── */}
-      <div className="flex items-center gap-8 border-b border-black/10 pb-3 overflow-x-auto">
+      <div className="flex items-center gap-6 border-b border-black/10 pb-3 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
-            className={`text-xs font-bold uppercase tracking-widest transition-all pb-2 cursor-pointer ${
+            className={`text-xs font-bold uppercase tracking-wider transition-all pb-2 cursor-pointer ${
               activeTab === tab
-                ? 'text-black border-b-2 border-black'
-                : 'text-[#6F6F6F] hover:text-black'
+                ? 'text-[#00261D] border-b-2 border-[#00261D]'
+                : 'text-[#717975] hover:text-[#00261D]'
             }`}
           >
             {tab}
@@ -177,58 +177,58 @@ export default function PackageFormPage() {
       </div>
 
       {/* ─── Form Container ──────────────────────────────────────────── */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-black/10 p-8 sm:p-12 shadow-sm space-y-8">
+      <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-black/10 p-6 sm:p-12 shadow-2xs space-y-8">
         {/* TAB 1: BASICS */}
         {activeTab === 'BASICS' && (
           <div className="space-y-6 animate-in fade-in">
-            <h2 className="text-2xl font-normal text-black" style={{ fontFamily: "'Instrument Serif', serif" }}>
+            <h2 className="text-2xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
               Journey Overview & Destination
             </h2>
 
             <div className="space-y-5">
               <div>
-                <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Journey Title</label>
+                <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Journey Title *</label>
                 <input
                   value={formData.title}
                   onChange={(e) => updateField('title', e.target.value)}
                   placeholder="e.g. Hunza & Passu Autumn Expedition"
                   required
-                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black"
+                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] font-semibold focus:outline-none focus:border-[#00261D]"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Primary Destination</label>
+                  <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Primary Destination *</label>
                   <input
                     value={formData.destination}
                     onChange={(e) => updateField('destination', e.target.value)}
                     placeholder="e.g. Hunza Valley, Gilgit-Baltistan"
                     required
-                    className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black"
+                    className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] focus:outline-none focus:border-[#00261D]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Duration (Days)</label>
+                  <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Duration (Days) *</label>
                   <input
                     type="number"
                     min={1}
                     max={30}
                     value={formData.duration_days}
                     onChange={(e) => updateField('duration_days', e.target.value)}
-                    className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black"
+                    className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] font-bold focus:outline-none focus:border-[#00261D]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Expedition Description</label>
+                <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Expedition Description</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => updateField('description', e.target.value)}
                   rows={4}
                   placeholder="Describe the adventure highlights, scenic routes, and travel culture..."
-                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black resize-none"
+                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl p-4 text-sm text-[#00261D] focus:outline-none focus:border-[#00261D] resize-none"
                 />
               </div>
             </div>
@@ -238,54 +238,54 @@ export default function PackageFormPage() {
         {/* TAB 2: PRICING */}
         {activeTab === 'PRICING' && (
           <div className="space-y-6 animate-in fade-in">
-            <h2 className="text-2xl font-normal text-black" style={{ fontFamily: "'Instrument Serif', serif" }}>
+            <h2 className="text-2xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
               Pricing & Maximum Group Capacity
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Price per Traveler (PKR)</label>
+                <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Price per Traveler (PKR) *</label>
                 <input
                   type="number"
                   min={1000}
                   value={formData.price_per_person}
                   onChange={(e) => updateField('price_per_person', e.target.value)}
-                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black font-bold focus:outline-none focus:border-black"
+                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] font-bold focus:outline-none focus:border-[#00261D]"
                 />
-                <p className="text-[11px] text-[#6F6F6F] mt-1">Directly paid to your account via Bank/JazzCash.</p>
+                <p className="text-[11px] text-[#717975] mt-1">Directly paid to your account via Bank / Mobile Wallet.</p>
               </div>
 
               <div>
-                <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Maximum Traveler Seats</label>
+                <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Maximum Traveler Seats</label>
                 <input
                   type="number"
                   min={1}
                   max={100}
                   value={formData.max_travelers}
                   onChange={(e) => updateField('max_travelers', e.target.value)}
-                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black"
+                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] focus:outline-none focus:border-[#00261D]"
                 />
-                <p className="text-[11px] text-[#6F6F6F] mt-1">Set any capacity suitable for your bus or coaster.</p>
+                <p className="text-[11px] text-[#717975] mt-1">Set any capacity suitable for your coaster or group.</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
               <div>
-                <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Accommodation Type</label>
+                <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Accommodation Type</label>
                 <input
                   value={formData.accommodation_type}
                   onChange={(e) => updateField('accommodation_type', e.target.value)}
                   placeholder="e.g. Standard 3-Star Hotels / Alpine Cottages"
-                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black"
+                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] focus:outline-none focus:border-[#00261D]"
                 />
               </div>
               <div>
-                <label className="block text-xs uppercase font-bold text-[#6F6F6F] mb-1">Vehicle / Transportation</label>
+                <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Vehicle / Transportation</label>
                 <input
                   value={formData.transportation_type}
                   onChange={(e) => updateField('transportation_type', e.target.value)}
                   placeholder="e.g. AC Grand Cabin / Saloon Coaster"
-                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-5 py-3.5 text-sm text-black focus:outline-none focus:border-black"
+                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] focus:outline-none focus:border-[#00261D]"
                 />
               </div>
             </div>
@@ -297,62 +297,62 @@ export default function PackageFormPage() {
           <div className="space-y-8 animate-in fade-in">
             {/* Inclusions */}
             <div className="space-y-3">
-              <label className="block text-xs uppercase font-bold text-black">What's Included</label>
+              <label className="block text-xs uppercase font-bold text-[#00261D]">What's Included</label>
               <div className="flex flex-wrap gap-2">
                 {formData.inclusions.map((item) => (
-                  <span key={item} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-900">
+                  <span key={item} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 border border-emerald-200 text-emerald-900 shadow-2xs">
                     {item}
-                    <button type="button" onClick={() => removeItem('inclusions', item)} className="hover:text-red-600">
+                    <button type="button" onClick={() => removeItem('inclusions', item)} className="hover:text-red-700 cursor-pointer ml-1">
                       <X className="w-3 h-3" />
                     </button>
                   </span>
                 ))}
               </div>
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-2 pt-1 flex-col sm:flex-row">
                 <input
                   value={formData.inclusionInput}
                   onChange={(e) => updateField('inclusionInput', e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addItem('inclusions', 'inclusionInput'))}
-                  placeholder="Add inclusion (e.g. Fuel, Tolls, Guide)..."
-                  className="flex-1 bg-[#F8FAF6] border border-black/10 rounded-full px-5 py-2.5 text-xs text-black focus:outline-none focus:border-black"
+                  placeholder="Add inclusion (e.g. Fuel, Tolls, Tour Guide, Breakfast)..."
+                  className="flex-1 bg-[#F8FAF6] border border-black/10 rounded-2xl sm:rounded-full px-5 py-2.5 text-xs text-[#00261D] focus:outline-none focus:border-[#00261D]"
                 />
                 <button
                   type="button"
                   onClick={() => addItem('inclusions', 'inclusionInput')}
-                  className="px-5 py-2.5 rounded-full bg-black text-white text-xs font-semibold"
+                  className="px-6 py-2.5 rounded-2xl sm:rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold cursor-pointer transition-all shadow-2xs"
                 >
-                  Add
+                  + Add
                 </button>
               </div>
             </div>
 
             {/* Exclusions */}
             <div className="space-y-3 pt-4 border-t border-black/10">
-              <label className="block text-xs uppercase font-bold text-black">What's Not Included (Exclusions)</label>
+              <label className="block text-xs uppercase font-bold text-[#00261D]">What's Not Included (Exclusions)</label>
               <div className="flex flex-wrap gap-2">
                 {formData.exclusions.map((item) => (
-                  <span key={item} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-red-100 text-red-900">
+                  <span key={item} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-red-50 border border-red-200 text-red-900 shadow-2xs">
                     {item}
-                    <button type="button" onClick={() => removeItem('exclusions', item)} className="hover:text-red-700">
+                    <button type="button" onClick={() => removeItem('exclusions', item)} className="hover:text-red-700 cursor-pointer ml-1">
                       <X className="w-3 h-3" />
                     </button>
                   </span>
                 ))}
               </div>
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-2 pt-1 flex-col sm:flex-row">
                 <input
                   value={formData.exclusionInput}
                   onChange={(e) => updateField('exclusionInput', e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addItem('exclusions', 'exclusionInput'))}
-                  placeholder="Add exclusion (e.g. Personal shopping, Lunch)..."
-                  className="flex-1 bg-[#F8FAF6] border border-black/10 rounded-full px-5 py-2.5 text-xs text-black focus:outline-none focus:border-black"
+                  placeholder="Add exclusion (e.g. Personal shopping, Laundry, Lunch)..."
+                  className="flex-1 bg-[#F8FAF6] border border-black/10 rounded-2xl sm:rounded-full px-5 py-2.5 text-xs text-[#00261D] focus:outline-none focus:border-[#00261D]"
                 />
                 <button
                   type="button"
                   onClick={() => addItem('exclusions', 'exclusionInput')}
-                  className="px-5 py-2.5 rounded-full bg-black text-white text-xs font-semibold"
+                  className="px-6 py-2.5 rounded-2xl sm:rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold cursor-pointer transition-all shadow-2xs"
                 >
-                  Add
+                  + Add
                 </button>
               </div>
             </div>
@@ -362,7 +362,7 @@ export default function PackageFormPage() {
         {/* TAB 4: MEDIA & PUBLISH */}
         {activeTab === 'MEDIA' && (
           <div className="space-y-6 animate-in fade-in">
-            <h2 className="text-2xl font-normal text-black" style={{ fontFamily: "'Instrument Serif', serif" }}>
+            <h2 className="text-2xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
               Cover Image & Final Confirmation
             </h2>
 
@@ -375,17 +375,17 @@ export default function PackageFormPage() {
         )}
 
         {/* ─── Footer Action Bar ─────────────────────────────────────── */}
-        <div className="flex items-center justify-between pt-6 border-t border-black/10">
-          <div className="flex gap-2">
-            {tabs.indexOf(activeTab) > 0 && (
+        <div className="flex items-center justify-between pt-6 border-t border-black/10 flex-wrap gap-3">
+          <div>
+            {tabs.indexOf(activeTab) > 0 ? (
               <button
                 type="button"
                 onClick={() => setActiveTab(tabs[tabs.indexOf(activeTab) - 1])}
-                className="px-6 py-3 rounded-full border border-black/10 text-xs font-bold uppercase tracking-wider hover:bg-slate-50 transition-colors cursor-pointer"
+                className="px-6 py-3 rounded-full border border-black/15 text-xs font-bold uppercase tracking-wider hover:bg-black/5 transition-colors cursor-pointer text-[#00261D]"
               >
                 Previous Section
               </button>
-            )}
+            ) : <div />}
           </div>
 
           <div className="flex gap-3">
@@ -393,7 +393,7 @@ export default function PackageFormPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab(tabs[tabs.indexOf(activeTab) + 1])}
-                className="px-8 py-3.5 rounded-full bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all hover:scale-105 shadow-md cursor-pointer"
+                className="px-8 py-3.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider transition-all hover:scale-101 shadow-xs cursor-pointer"
               >
                 Next Section &rarr;
               </button>
@@ -401,10 +401,10 @@ export default function PackageFormPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-10 py-4 rounded-full bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all hover:scale-105 shadow-xl flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="px-10 py-4 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider transition-all hover:scale-101 shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                {isEditing ? 'Save Changes' : 'Publish Journey to Marketplace'}
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 text-[#BBEAD5]" />}
+                <span>{isEditing ? 'Save Changes' : 'Publish Journey to Marketplace'}</span>
               </button>
             )}
           </div>

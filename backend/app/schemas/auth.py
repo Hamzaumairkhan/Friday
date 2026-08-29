@@ -39,6 +39,8 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=150)
     intended_role: PublicRegistrationRole = PublicRegistrationRole.TRAVELER
+    name: Optional[str] = None
+    profile_picture: Optional[str] = None
     # Optional Firebase ID token passed from frontend Google/Firebase auth
     firebase_id_token: Optional[str] = None
 

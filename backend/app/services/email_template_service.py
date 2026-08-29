@@ -278,59 +278,134 @@ def render_itinerary_email(
     budget_summary: Optional[Dict[str, Any]] = None,
     dashboard_url: str = "http://localhost:5173/my-trips",
 ) -> str:
-    """Generate high-end AI itinerary summary email."""
+    """Generate high-end AI itinerary summary email with full day-by-day stops and Google Maps links."""
     days_html = ""
     for day in itinerary_days:
         day_num = day.get("day_number", 1)
         title = day.get("title", f"Day {day_num}")
         summary = day.get("summary", "")
+        activities = day.get("activities", [])
+
+        acts_html = ""
+        for act in activities:
+            act_title = act.get("title") or "Activity"
+            act_desc = act.get("description") or ""
+            act_loc = act.get("location") or destination
+            start_t = act.get("start_time") or ""
+            end_t = act.get("end_time") or ""
+            time_str = f"{start_t} – {end_t}" if start_t and end_t else start_t
+            category = act.get("category", "SIGHTSEEING")
+            cost = act.get("estimated_cost", 0)
+            map_url = act.get("map_url") or f"https://www.google.com/maps/search/?api=1&query={act_loc.replace(' ', '+')}"
+
+            cost_tag = f'<span style="font-size: 11px; font-weight: 700; color: #047857; background-color: #ecfdf5; padding: 2px 8px; border-radius: 6px;">PKR {cost:,.0f}</span>' if cost > 0 else '<span style="font-size: 11px; color: #94a3b8;">Free / En-Route</span>'
+            time_tag = f'<span style="font-size: 11px; font-weight: 600; color: #334155; margin-right: 8px;">⏱ {time_str}</span>' if time_str else ""
+
+            acts_html += f"""
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-top: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #0f766e; background-color: #ccfbf1; padding: 2px 6px; border-radius: 4px; display: inline-block;">
+                  {category}
+                </span>
+                <div style="text-align: right;">
+                  {cost_tag}
+                </div>
+              </div>
+              <div style="font-size: 14px; font-weight: 700; color: #0f172a; margin: 4px 0 2px 0;">
+                {act_title}
+              </div>
+              {f'<div style="font-size: 12px; color: #475569; line-height: 1.4; margin-bottom: 6px;">{act_desc}</div>' if act_desc else ''}
+              <div style="font-size: 12px; color: #64748b; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+                {time_tag}
+                <a href="{map_url}" target="_blank" style="color: #047857; text-decoration: none; font-weight: 600; font-size: 11px; display: inline-block;">
+                  📍 {act_loc} <span style="font-size: 9px;">↗ Google Maps</span>
+                </a>
+              </div>
+            </div>
+            """
+
         days_html += f"""
-        <div style="margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid #f1f5f9;">
-          <div style="font-size: 12px; font-weight: 700; color: #047857; text-transform: uppercase; letter-spacing: 0.05em;">Day {day_num}</div>
-          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin: 2px 0 6px 0;">{title}</div>
-          <div style="font-size: 13px; color: #475569; line-height: 1.5;">{summary}</div>
+        <div style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 2px solid #f1f5f9;">
+          <div style="font-size: 11px; font-weight: 800; color: #047857; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px;">
+            DAY {day_num}
+          </div>
+          <div style="font-size: 17px; font-weight: 700; color: #0f172a; margin: 2px 0 6px 0;">
+            {title}
+          </div>
+          {f'<div style="font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 12px;">{summary}</div>' if summary else ''}
+          {acts_html}
         </div>
         """
 
-    budget_html = ""
+    # Resolve accurate total budget
+    total_budget = 0.0
+    breakdown_rows = ""
     if budget_summary:
-        budget_html = f"""
-        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin: 20px 0;">
-          <tr>
-            <td style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">Estimated Budget</td>
-            <td align="right" style="font-size: 16px; font-weight: 700; color: #0a0a0a;">Rs. {budget_summary.get('total_estimated', 0):,.0f}</td>
-          </tr>
-        </table>
-        """
+        total_budget = float(budget_summary.get("total") or budget_summary.get("total_estimated") or 0.0)
+        
+        # Build category breakdown rows
+        cats = [
+            ("Accommodation & Lodging", budget_summary.get("accommodation", 0)),
+            ("Transit & High-Altitude Jeeps", budget_summary.get("transport", 0)),
+            ("Local Meals & Regional Cuisine", budget_summary.get("food", 0)),
+            ("Activities, Permits & Guides", budget_summary.get("activities", 0)),
+            ("Contingency & Miscellaneous", budget_summary.get("other", 0)),
+        ]
+        for cat_name, cat_amt in cats:
+            if cat_amt > 0:
+                breakdown_rows += f"""
+                <tr>
+                  <td style="padding: 6px 0; font-size: 12px; color: #64748b;">{cat_name}</td>
+                  <td align="right" style="padding: 6px 0; font-size: 12px; font-weight: 600; color: #0f172a;">Rs. {float(cat_amt):,.0f}</td>
+                </tr>
+                """
+
+    budget_html = f"""
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin: 24px 0;">
+      <tr>
+        <td style="font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; padding-bottom: 8px;">
+          Estimated Total Budget
+        </td>
+        <td align="right" style="font-size: 18px; font-weight: 800; color: #047857; padding-bottom: 8px;">
+          Rs. {total_budget:,.0f}
+        </td>
+      </tr>
+      {breakdown_rows}
+    </table>
+    """
 
     content_html = f"""
     <!-- Badge -->
-    <div style="text-align: center; margin-bottom: 24px;">
-      <span style="display: inline-block; background-color: #f3f4f6; color: #1f2937; border: 1px solid #e5e7eb; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 9999px;">
-        ✨ Friday AI Travel Copilot
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="display: inline-block; background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 9999px;">
+        ✦ Friday AI Travel Copilot
       </span>
     </div>
 
     <!-- Heading -->
-    <h1 style="margin: 0 0 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 28px; font-weight: 400; color: #0a0a0a; text-align: center; line-height: 1.2;">
+    <h1 style="margin: 0 0 8px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 28px; font-weight: 400; color: #0a0a0a; text-align: center; line-height: 1.2;">
       Your {duration}-Day {destination} Expedition
     </h1>
-    <p style="margin: 0 0 28px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: center;">
-      Hello {traveler_name}, here is your personalized day-by-day travel plan curated with smart route planning and local logistics.
+    <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: center;">
+      Hello <strong>{traveler_name}</strong>, here is your complete personalized itinerary curated with verified logistics, scenic photo stops, and authentic points of interest.
     </p>
 
-    <!-- Itinerary Stream -->
+    <!-- Itinerary Feed -->
     <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 20px;">
       {days_html}
     </div>
 
     {budget_html}
+
+    <div style="font-size: 12px; color: #64748b; background-color: #f1f5f9; border-radius: 10px; padding: 12px 16px; text-align: center; margin-bottom: 8px;">
+      🔒 <strong>Private Expedition Vault:</strong> This itinerary is accessible only by registered travelers in your expedition group.
+    </div>
     """
 
     return _get_base_layout(
         title=f"Your {duration}-Day {destination} Itinerary — Friday",
-        preheader=f"Custom AI travel plan for {destination}",
+        preheader=f"Custom AI travel plan for {destination} with Google Maps links",
         content_html=content_html,
         action_url=dashboard_url,
-        action_text="View Interactive Map & Itinerary →",
+        action_text="View Interactive Itinerary & Maps →",
     )

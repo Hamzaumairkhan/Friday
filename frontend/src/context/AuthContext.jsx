@@ -129,8 +129,8 @@ export const AuthProvider = ({ children }) => {
 
       let authRes;
       try {
-        // Try logging in first
-        authRes = await authService.loginWithBackend(email, intendedRole, idToken);
+        // Try logging in first with Google photo sync
+        authRes = await authService.loginWithBackend(email, intendedRole, idToken, name, profilePic);
       } catch (loginErr) {
         // If account not found (404), auto-register
         if (loginErr.status === 404) {

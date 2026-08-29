@@ -1,4 +1,5 @@
 import { Badge } from '../ui/badge';
+import { Check, ShieldCheck } from 'lucide-react';
 
 export default function StatusBadge({ status, type = 'booking' }) {
   if (!status) return null;
@@ -31,7 +32,12 @@ export default function StatusBadge({ status, type = 'booking' }) {
       case 'PROOF_UPLOADED':
         return <Badge variant="warning">Proof Uploaded (Pending Review)</Badge>;
       case 'VERIFIED':
-        return <Badge variant="success">Payment Verified ✓</Badge>;
+        return (
+          <Badge variant="success" className="inline-flex items-center gap-1">
+            <Check className="w-3 h-3" />
+            <span>Payment Verified</span>
+          </Badge>
+        );
       case 'REJECTED':
         return <Badge variant="destructive">Payment Rejected</Badge>;
       default:
@@ -44,7 +50,12 @@ export default function StatusBadge({ status, type = 'booking' }) {
     switch (normalized) {
       case 'PLATFORM_CURATED':
       case 'VERIFIED':
-        return <Badge variant="success">Verified Organizer ✓</Badge>;
+        return (
+          <Badge variant="success" className="inline-flex items-center gap-1">
+            <ShieldCheck className="w-3 h-3" />
+            <span>Verified Organizer</span>
+          </Badge>
+        );
       case 'PENDING':
         return <Badge variant="warning">Verification Pending</Badge>;
       case 'REJECTED':

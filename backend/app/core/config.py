@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     # LLM - PRIMARY (Groq Cloud)
     GROQ_API_KEY: Optional[str] = None
-    GROQ_MODEL: str = "openai/gpt-oss-20b"
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
 
     # LLM - REASONING & PLANNING / FALLBACK (Google Gemini)
     GOOGLE_API_KEY: Optional[str] = None

@@ -32,6 +32,7 @@ class TripUpdate(BaseModel):
     title: Optional[str] = None
     status: Optional[str] = None
     is_public: Optional[bool] = None
+    show_members_publicly: Optional[bool] = None
     image_url: Optional[str] = None
     advisories: Optional[list] = None
 
@@ -53,9 +54,11 @@ class TripResponse(BaseModel):
     constraints: Optional[Any] = None
     version: int
     is_public: bool = False
+    show_members_publicly: bool = False
     copied_from_trip_id: Optional[str] = None
     image_url: Optional[str] = None
     advisories: list = Field(default_factory=list)
+    members: list[dict] = Field(default_factory=list)
     created_at: str
     updated_at: str
 
@@ -63,7 +66,8 @@ class TripResponse(BaseModel):
 
 
 class GuidedPlanRequest(BaseModel):
-    destination_query: str
+    destination_query: Optional[str] = None
+    destination: Optional[str] = None
     origin: Optional[str] = "Islamabad"
     travelers: int = Field(default=2, ge=1, le=10)
     duration: Optional[str] = "4-6_days"
@@ -76,8 +80,12 @@ class GuidedPlanRequest(BaseModel):
     accommodation_preference: str = "comfortable"
     travel_styles: list[str] = Field(default_factory=list)
     additional_preferences: Optional[str] = None
+    slot_preferences: Optional[dict] = None
+    slot_selections: Optional[dict] = None
     lead_contact: Optional[dict] = None  # {"name": "...", "email": "...", "phone": "..."}
     companions: Optional[list[dict]] = Field(default_factory=list)  # [{"name": "...", "email": "...", "phone": "..."}, ...]
+    show_members_publicly: bool = False
+
 
 
 class TripMemberAdd(BaseModel):

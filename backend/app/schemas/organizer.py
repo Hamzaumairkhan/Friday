@@ -17,6 +17,7 @@ class OrganizerResponse(BaseModel):
     website: Optional[str] = None
 
     # Business & Capacity
+    cnic: Optional[str] = None
     number_of_buses: Optional[int] = None
     vehicle_capacity: Optional[int] = None
     maximum_group_size: Optional[int] = None
@@ -25,6 +26,7 @@ class OrganizerResponse(BaseModel):
     onboarding_completed: bool = False
 
     # Payment Information
+    payment_wallet_type: Optional[str] = None
     payment_account_title: Optional[str] = None
     payment_account_number: Optional[str] = None
     payment_bank_name: Optional[str] = None

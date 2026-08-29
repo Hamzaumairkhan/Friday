@@ -12,14 +12,15 @@ export default function NotificationBell() {
   const dropdownRef = useRef(null);
 
   const fetchNotifications = async () => {
-    if (!isAuthenticated) return;
+    const hasToken = !!localStorage.getItem('friday_session') || !!localStorage.getItem('token') || !!localStorage.getItem('auth_user');
+    if (!isAuthenticated && !hasToken) return;
     try {
       const data = await notificationsService.listNotifications();
       setNotifications(data || []);
       const countRes = await notificationsService.getUnreadCount();
       setUnreadCount(countRes?.unread_count || 0);
-    } catch (err) {
-      console.warn('Could not fetch notifications:', err.message);
+    } catch {
+      // Silently handle guest / unauthorized states
     }
   };
 

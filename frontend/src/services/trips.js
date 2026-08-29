@@ -61,6 +61,56 @@ export const tripsService = {
     return await api.get(`/trips/${tripId}/budget`);
   },
 
+  // Publish trip (Public or Private) and trigger email/WhatsApp dispatch
+  async publishTrip(tripId, data = {}) {
+    return await api.post(`/trips/${tripId}/publish`, data);
+  },
+
+  // Check destination weather advisory & suggested dates
+  async checkWeather(destination, departureDate, durationDays = 3) {
+    const params = new URLSearchParams({
+      destination,
+      duration_days: durationDays,
+    });
+    if (departureDate) params.append('departure_date', departureDate);
+    return await api.get(`/trips/weather-check?${params.toString()}`);
+  },
+
+  // Get 4 curated options per time slot for destination
+  async getSlotOptions(destination) {
+    return await api.get(`/trips/slot-options?destination=${encodeURIComponent(destination)}`);
+  },
+
+  // Add custom activity to day
+  async addActivity(tripId, dayId, data) {
+    return await api.post(`/trips/${tripId}/days/${dayId}/activities`, data);
+  },
+
+  // Update activity stop
+  async updateActivity(tripId, activityId, data) {
+    return await api.patch(`/trips/${tripId}/activities/${activityId}`, data);
+  },
+
+  // Delete activity stop
+  async deleteActivity(tripId, activityId) {
+    return await api.delete(`/trips/${tripId}/activities/${activityId}`);
+  },
+
+  // Add custom day to itinerary
+  async addDay(tripId, data = {}) {
+    return await api.post(`/trips/${tripId}/days`, data);
+  },
+
+  // Delete an itinerary day
+  async deleteDay(tripId, dayId) {
+    return await api.delete(`/trips/${tripId}/days/${dayId}`);
+  },
+
+  // Update day title / summary
+  async updateDay(tripId, dayId, data) {
+    return await api.patch(`/trips/${tripId}/days/${dayId}`, data);
+  },
+
   // Match organizers for this trip
   async matchOrganizers(tripId) {
     return await api.post(`/trips/${tripId}/organizer-match`);

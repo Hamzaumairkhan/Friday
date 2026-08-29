@@ -13,7 +13,7 @@ export default function RoleRoute({ children, allowedRole }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/register" replace />;
+    return <Navigate to="/" replace />;
   }
 
   if (role !== allowedRole) {

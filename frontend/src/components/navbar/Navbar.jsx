@@ -6,12 +6,13 @@ import NotificationBell from '../shared/NotificationBell';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { backendUser, role, signOut } = useAuth();
+  const { backendUser, firebaseUser, role, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
   const isAuthenticated = !!backendUser;
   const isOrganizer = role === 'ORGANIZER' || backendUser?.role === 'ORGANIZER';
+  const navUserPhoto = backendUser?.profile_picture || backendUser?.avatar_url || firebaseUser?.photoURL;
 
   // Dynamic Navigation Links based on role & auth
   const travelerNav = [
@@ -39,7 +40,7 @@ const Navbar = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/');
+    navigate('/', { replace: true });
   };
 
   const handleNavClick = (e, item) => {
@@ -114,15 +115,17 @@ const Navbar = () => {
                   to={isOrganizer ? '/organizer/profile' : '/my-trips'}
                   className="flex items-center gap-2.5 p-1.5 pr-3 rounded-full hover:bg-slate-100 border border-black/10 bg-white transition-colors shadow-xs"
                 >
-                  {backendUser?.profile_picture ? (
+                  {navUserPhoto ? (
                     <img
-                      src={backendUser.profile_picture}
-                      alt={backendUser.name}
-                      className="w-7 h-7 rounded-full object-cover border border-black/10"
+                      src={navUserPhoto}
+                      alt={backendUser?.name || 'User'}
+                      referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
+                      className="w-7 h-7 rounded-full object-cover border border-black/10 shadow-2xs"
                     />
                   ) : (
-                    <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-semibold text-black">
-                      {backendUser?.name?.charAt(0) || 'U'}
+                    <div className="w-7 h-7 rounded-full bg-[#00261D] text-white flex items-center justify-center text-xs font-bold">
+                      {(backendUser?.name || 'U').charAt(0).toUpperCase()}
                     </div>
                   )}
                   <span className="text-xs font-medium text-black max-w-[110px] truncate" style={{ fontFamily: 'Inter, sans-serif' }}>

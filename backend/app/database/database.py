@@ -41,17 +41,30 @@ async_session_factory = async_sessionmaker(
 )
 
 
-def _auto_migrate_sqlite(sync_conn):
-    """Check for missing columns on existing SQLite tables and add them dynamically."""
+def _auto_migrate_schema(sync_conn):
+    """Check for missing columns on existing tables (SQLite/MySQL) and add them dynamically."""
     inspector = inspect(sync_conn)
     for table in Base.metadata.tables.values():
         if inspector.has_table(table.name):
-            existing_columns = {col["name"] for col in inspector.get_columns(table.name)}
-            for column in table.columns:
-                if column.name not in existing_columns:
-                    col_type = column.type.compile(sync_conn.dialect)
-                    nullable = "" if column.nullable else ""
-                    sync_conn.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {column.name} {col_type}"))
+            try:
+                existing_columns = {col["name"] for col in inspector.get_columns(table.name)}
+                for column in table.columns:
+                    if column.name not in existing_columns:
+                        col_type = column.type.compile(sync_conn.dialect)
+                        try:
+                            sync_conn.execute(text(f"ALTER TABLE `{table.name}` ADD COLUMN `{column.name}` {col_type} NULL"))
+                        except Exception:
+                            try:
+                                sync_conn.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {column.name} {col_type}"))
+                            except Exception:
+                                pass
+                    elif column.name == "image_url":
+                        try:
+                            sync_conn.execute(text(f"ALTER TABLE `{table.name}` MODIFY COLUMN `image_url` TEXT NULL"))
+                        except Exception:
+                            pass
+            except Exception:
+                pass
 
 
 async def get_db() -> AsyncSession:
@@ -72,7 +85,7 @@ async def init_db() -> None:
     _ensure_sqlite_dir(settings.DATABASE_URL)
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        await conn.run_sync(_auto_migrate_sqlite)
+        await conn.run_sync(_auto_migrate_schema)
 
 
 def init_db_sync() -> None:
@@ -80,4 +93,5 @@ def init_db_sync() -> None:
     _ensure_sqlite_dir(settings.DATABASE_SYNC_URL)
     Base.metadata.create_all(bind=sync_engine)
     with sync_engine.begin() as conn:
-        _auto_migrate_sqlite(conn)
+        _auto_migrate_schema(conn)
+

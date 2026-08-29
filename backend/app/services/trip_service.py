@@ -121,10 +121,43 @@ class TripService:
         trip = await self.repo.get_by_id(trip_id)
         if not trip:
             raise NotFoundError("Trip", trip_id)
+
+        # 1. Public trip is accessible by everyone
+        if hasattr(trip, 'is_public') and trip.is_public == 1:
+            return trip
+
+        # 2. Check if user is already registered owner or member
         is_member = await self.repo.is_trip_member(trip_id, user_id)
-        if not is_member and not (hasattr(trip, 'is_public') and trip.is_public == 1):
-            raise AuthorizationError("Access denied to this trip")
-        return trip
+        if is_member:
+            return trip
+
+        # 3. Check if user email matches lead traveler or registered companion
+        from app.repositories.user_repository import UserRepository
+        user_repo = UserRepository(self.db)
+        curr_user = await user_repo.get_by_id(user_id)
+        user_email = (curr_user.email or "").strip().lower() if curr_user else None
+
+        if user_email and isinstance(trip.preferences, dict):
+            lead_email = (trip.preferences.get("lead_contact") or {}).get("email", "").strip().lower()
+            companion_emails = [
+                c.get("email", "").strip().lower()
+                for c in (trip.preferences.get("companions") or [])
+                if isinstance(c, dict) and c.get("email")
+            ]
+
+            if user_email == lead_email or user_email in companion_emails:
+                # Auto-enroll companion as a TripMember
+                new_member = TripMember(
+                    trip_id=trip.id,
+                    user_id=user_id,
+                    role=MemberRole.MEMBER,
+                    invitation_status="ACCEPTED",
+                )
+                await self.repo.add_member(new_member)
+                await self.db.commit()
+                return trip
+
+        raise AuthorizationError("Security Alert: This is a private trip. Only registered travelers and invited companions can view this itinerary.")
 
     async def list_user_trips(self, user_id: str) -> List[Trip]:
         return await self.repo.get_user_trips(user_id)
@@ -135,6 +168,8 @@ class TripService:
 
         for key, value in update_data.items():
             if hasattr(trip, key):
+                if key in ("is_public", "show_members_publicly") and isinstance(value, bool):
+                    value = 1 if value else 0
                 setattr(trip, key, value)
 
         # Update budget calculations if changed

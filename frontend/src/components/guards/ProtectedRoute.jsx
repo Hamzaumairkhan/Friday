@@ -19,7 +19,7 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to={`/register?redirect=${encodeURIComponent(location.pathname + location.search)}`} state={{ from: location }} replace />;
+    return <Navigate to="/" replace />;
   }
 
   return children;

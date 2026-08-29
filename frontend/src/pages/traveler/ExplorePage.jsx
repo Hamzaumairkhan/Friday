@@ -28,7 +28,7 @@ export default function ExplorePage() {
   const [searchDestination, setSearchDestination] = useState('');
   const [selectedDuration, setSelectedDuration] = useState('ALL');
   const [selectedBudget, setSelectedBudget] = useState('ALL');
-  const [feedSource, setFeedSource] = useState('ORGANIZER'); // 'ORGANIZER' or 'PUBLIC'
+  const [feedSource, setFeedSource] = useState('ALL'); // 'ALL', 'ORGANIZER', 'PUBLIC', 'SAVED'
   const [savedPackages, setSavedPackages] = useState({});
 
   const fetchMarketplaceData = async () => {
@@ -40,19 +40,41 @@ export default function ExplorePage() {
         tripsService.listCommunityTrips().catch(() => []),
       ]);
 
-      // Format community trips into package card shapes
-      const formattedCommunity = (communityTrips || []).map((ct) => ({
-        id: ct.id,
-        title: ct.title || `Trip to ${ct.destination}`,
-        destination: ct.destination,
-        duration_days: ct.duration || 4,
-        price_per_person: ct.budget_per_person || Math.round((ct.budget_total || 60000) / (ct.travelers || 2)),
-        image_url: '/images/stitch/stitch_asset_11.jpg',
-        is_public_community: true,
-        max_group_size: ct.travelers || 4,
-        difficulty: 'Flexible',
-        organizer_id: null,
-      }));
+      // Format community trips into package card shapes with accurate cover images and creator names
+      const formattedCommunity = (communityTrips || []).map((ct) => {
+        const totalBudget = Number(ct.budget_total || 0);
+        const travelersCount = Number(ct.travelers || 1);
+        const pp = ct.budget_per_person || (travelersCount > 0 ? totalBudget / travelersCount : totalBudget);
+
+        const getDestinationFallback = (dest) => {
+          const d = (dest || '').toLowerCase();
+          if (d.includes('islamabad') || d.includes('margalla') || d.includes('faisal') || d.includes('rawalpindi')) return '/images/stitch/stitch_asset_4.jpg';
+          if (d.includes('lahore') || d.includes('badshahi') || d.includes('punjab') || d.includes('faisalabad') || d.includes('multan')) return '/images/stitch/stitch_asset_2.jpg';
+          if (d.includes('karachi') || d.includes('gwadar') || d.includes('ormara') || d.includes('kund') || d.includes('sindh')) return '/images/stitch/stitch_asset_5.jpg';
+          if (d.includes('swat') || d.includes('kalam') || d.includes('malam') || d.includes('mahudand')) return '/images/stitch/stitch_asset_10.jpg';
+          if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar')) return '/images/stitch/stitch_asset_9.jpg';
+          if (d.includes('kumrat') || d.includes('jahaz') || d.includes('katora')) return '/images/stitch/stitch_asset_8.jpg';
+          if (d.includes('fairy') || d.includes('nanga')) return '/images/stitch/stitch_asset_7.jpg';
+          if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila')) return '/images/stitch/hero_mountains.jpg';
+          if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit')) return '/images/stitch/stitch_asset_6.jpg';
+          return '/images/stitch/panoramic_lake.jpg';
+        };
+
+        return {
+          id: ct.id,
+          title: ct.title || `Trip to ${ct.destination}`,
+          destination: ct.destination,
+          duration_days: ct.duration || 4,
+          price_per_person: pp,
+          budget_total: totalBudget,
+          image_url: ct.image_url || getDestinationFallback(ct.destination),
+          is_public_community: true,
+          max_group_size: travelersCount,
+          difficulty: 'Flexible',
+          organizer_id: null,
+          creator_name: (ct.preferences && ct.preferences.lead_contact && ct.preferences.lead_contact.name) ? ct.preferences.lead_contact.name : 'Community Traveler',
+        };
+      });
 
       setPackages([...(pkgs || []), ...formattedCommunity]);
 
@@ -99,7 +121,7 @@ export default function ExplorePage() {
   };
 
   const filteredPackages = packages.filter((pkg) => {
-    // Feed Source filter (By Organizer vs By Public vs Saved)
+    // Feed Source filter (All vs By Organizer vs By Public vs Saved)
     if (feedSource === 'SAVED') {
       if (!savedPackages[pkg.id]) return false;
     } else if (feedSource === 'ORGANIZER') {
@@ -151,66 +173,64 @@ export default function ExplorePage() {
               />
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-hide text-xs">
-              <button
-                onClick={() => {
-                  const destinations = ['', 'Hunza', 'Skardu', 'Swat', 'Kumrat'];
-                  const next = destinations[(destinations.indexOf(searchDestination) + 1) % destinations.length];
-                  setSearchDestination(next);
-                }}
-                className={`px-4 py-2 rounded-full font-semibold uppercase tracking-wider transition-colors cursor-pointer shrink-0 ${
-                  searchDestination
-                    ? 'bg-[#00261D] text-white'
-                    : 'bg-[#F3F4F0] text-[#191C1A] border border-black/10 hover:bg-[#E7E9E5]'
-                }`}
-              >
-                Destination {searchDestination ? `(${searchDestination})` : ''}
-              </button>
+            {/* Sub-Filters: Duration & Budget Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              <div className="flex items-center gap-1.5 bg-[#E7E9E5] p-1 rounded-full text-xs shrink-0">
+                <span className="px-2 font-medium text-[#717975] uppercase text-[10px]">Duration:</span>
+                {['ALL', 'SHORT', 'MEDIUM', 'LONG'].map((dur) => (
+                  <button
+                    key={dur}
+                    onClick={() => setSelectedDuration(dur)}
+                    className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
+                      selectedDuration === dur ? 'bg-[#00261D] text-white shadow-xs' : 'text-[#414845] hover:text-[#00261D]'
+                    }`}
+                  >
+                    {dur === 'ALL' ? 'All' : dur === 'SHORT' ? '1-3 Days' : dur === 'MEDIUM' ? '4-6 Days' : '7+ Days'}
+                  </button>
+                ))}
+              </div>
 
-              <button
-                onClick={() => {
-                  const modes = ['ALL', 'SHORT', 'MEDIUM', 'LONG'];
-                  const next = modes[(modes.indexOf(selectedDuration) + 1) % modes.length];
-                  setSelectedDuration(next);
-                }}
-                className={`px-4 py-2 rounded-full font-semibold uppercase tracking-wider transition-colors cursor-pointer shrink-0 ${
-                  selectedDuration !== 'ALL'
-                    ? 'bg-[#00261D] text-white'
-                    : 'bg-[#F3F4F0] text-[#191C1A] border border-black/10 hover:bg-[#E7E9E5]'
-                }`}
-              >
-                Duration {selectedDuration !== 'ALL' ? `(${selectedDuration})` : ''}
-              </button>
-
-              <button
-                onClick={() => {
-                  const modes = ['ALL', 'BUDGET', 'MID', 'PREMIUM'];
-                  const next = modes[(modes.indexOf(selectedBudget) + 1) % modes.length];
-                  setSelectedBudget(next);
-                }}
-                className={`px-4 py-2 rounded-full font-semibold uppercase tracking-wider transition-colors cursor-pointer shrink-0 ${
-                  selectedBudget !== 'ALL'
-                    ? 'bg-[#00261D] text-white'
-                    : 'bg-[#F3F4F0] text-[#191C1A] border border-black/10 hover:bg-[#E7E9E5]'
-                }`}
-              >
-                Budget {selectedBudget !== 'ALL' ? `(${selectedBudget})` : ''}
-              </button>
+              <div className="flex items-center gap-1.5 bg-[#E7E9E5] p-1 rounded-full text-xs shrink-0">
+                <span className="px-2 font-medium text-[#717975] uppercase text-[10px]">Budget:</span>
+                {['ALL', 'BUDGET', 'MID', 'PREMIUM'].map((b) => (
+                  <button
+                    key={b}
+                    onClick={() => setSelectedBudget(b)}
+                    className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
+                      selectedBudget === b ? 'bg-[#00261D] text-white shadow-xs' : 'text-[#414845] hover:text-[#00261D]'
+                    }`}
+                  >
+                    {b === 'ALL' ? 'All' : b === 'BUDGET' ? '< 35k' : b === 'MID' ? '35k-60k' : '60k+'}
+                  </button>
+                ))}
+              </div>
             </div>
           </header>
 
-          {/* Editorial Headline & By Organizer / By Public / Saved Toggle */}
+          {/* Editorial Headline & Filter Buttons */}
           <div className="space-y-4">
             <h2
-              className="text-4xl sm:text-5xl font-normal italic text-[#00261D] leading-tight"
-              style={{ fontFamily: "'Instrument Serif', serif" }}
+              className="text-4xl sm:text-5xl font-normal italic  leading-tight"
+              style={{ fontFamily: "'Instrument Serif', serif", color:"#00261D" }}
             >
               Find somewhere worth getting lost in
             </h2>
 
-            {/* ─── By Organizer / By Public / Saved Filter Buttons ──────────── */}
+            {/* ─── ALL / BY ORGANIZER / BY PUBLIC / SAVED (Icon Only) ──────────── */}
             <div className="flex items-center gap-2.5 pt-1 overflow-x-auto pb-1 scrollbar-hide">
+              <button
+                onClick={() => setFeedSource('ALL')}
+                className={`px-4 sm:px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                  feedSource === 'ALL'
+                    ? 'bg-[#00261D] text-white shadow-xs scale-105'
+                    : 'bg-[#E7E9E5] text-[#414845] hover:bg-[#DCDFD9] hover:text-[#00261D]'
+                }`}
+                style={{ fontFamily: 'Inter, sans-serif' }}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>All</span>
+              </button>
+
               <button
                 onClick={() => setFeedSource('ORGANIZER')}
                 className={`px-4 sm:px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
@@ -239,16 +259,16 @@ export default function ExplorePage() {
 
               <button
                 onClick={() => setFeedSource('SAVED')}
-                className={`px-4 sm:px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                className={`p-2.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center justify-center shrink-0 ${
                   feedSource === 'SAVED'
                     ? 'bg-[#00261D] text-white shadow-xs scale-105'
                     : 'bg-[#E7E9E5] text-[#414845] hover:bg-[#DCDFD9] hover:text-[#00261D]'
                 }`}
                 style={{ fontFamily: 'Inter, sans-serif' }}
                 title="View Saved Trips"
+                aria-label="View Saved Trips"
               >
-                <Bookmark className="w-4 h-4" />
-                <span>Saved</span>
+                <Bookmark className={`w-4 h-4 ${feedSource === 'SAVED' ? 'fill-white' : ''}`} />
               </button>
             </div>
           </div>
@@ -267,8 +287,11 @@ export default function ExplorePage() {
           ) : filteredPackages.length > 0 ? (
             <div className="flex flex-col gap-10">
               {filteredPackages.map((pkg) => {
+                const isCommunity = pkg.is_public_community === true;
                 const org = organizers[pkg.organizer_id];
                 const isSaved = !!savedPackages[pkg.id];
+                const targetLink = isCommunity ? `/trips/${pkg.id}` : `/explore/${pkg.id}`;
+
                 return (
                   <article
                     key={pkg.id}
@@ -288,9 +311,9 @@ export default function ExplorePage() {
 
                       {/* Verified / Community Badge */}
                       <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md text-[#00261D] px-3.5 py-1.5 rounded-full flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase shadow-xs">
-                        {feedSource === 'PUBLIC' ? (
+                        {isCommunity ? (
                           <>
-                            <Users className="w-3.5 h-3.5 text-[#00261D]" />
+                            <Users className="w-3.5 h-3.5 text-emerald-800" />
                             Community Shared Trip
                           </>
                         ) : (
@@ -301,15 +324,18 @@ export default function ExplorePage() {
                         )}
                       </div>
 
-                      {/* Save Button */}
+                      {/* Save / Bookmark Button */}
                       <button
                         onClick={(e) => toggleSave(pkg.id, e)}
-                        className={`absolute top-4 right-4 h-10 w-10 rounded-full backdrop-blur-md flex items-center justify-center transition-colors cursor-pointer ${
-                          isSaved ? 'bg-white text-red-500 shadow-md' : 'bg-white/80 text-black hover:text-red-500'
+                        className={`absolute top-4 right-4 h-10 w-10 rounded-full backdrop-blur-md flex items-center justify-center transition-all cursor-pointer shadow-sm ${
+                          isSaved
+                            ? 'bg-[#00261D] text-[#BBEAD5] scale-105 shadow-md ring-2 ring-white/60'
+                            : 'bg-white/90 text-[#00261D] hover:bg-white hover:scale-105'
                         }`}
-                        title={isSaved ? 'Remove from saved' : 'Save expedition'}
+                        title={isSaved ? 'Remove from Saved' : 'Save to Bookmarks'}
+                        aria-label={isSaved ? 'Remove from Saved' : 'Save to Bookmarks'}
                       >
-                        <Heart className={`w-5 h-5 ${isSaved ? 'fill-red-500' : ''}`} />
+                        <Bookmark className={`w-5 h-5 ${isSaved ? 'fill-[#BBEAD5]' : ''}`} />
                       </button>
                     </div>
 
@@ -331,24 +357,41 @@ export default function ExplorePage() {
 
                         <div className="text-right">
                           <span className="block text-2xl sm:text-3xl font-normal text-[#420E00]" style={{ fontFamily: "'Instrument Serif', serif" }}>
-                            PKR {Number(pkg.price_per_person || 0).toLocaleString()}
+                            PKR {Number(isCommunity ? (pkg.budget_total || pkg.price_per_person || 0) : (pkg.price_per_person || 0)).toLocaleString()}
                           </span>
-                          <span className="text-[11px] text-[#717975]">per person</span>
+                          <span className="text-[11px] text-[#717975]">
+                            {isCommunity
+                              ? (pkg.max_group_size > 1 ? `total budget (${pkg.max_group_size} travelers)` : 'total budget')
+                              : 'per person'}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Host Row */}
+                      {/* Host / Author Row */}
                       <div className="flex items-center gap-4 py-4 border-y border-black/10">
                         <div className="w-11 h-11 rounded-full bg-slate-100 border border-black/10 flex items-center justify-center font-bold text-black shrink-0">
-                          {org?.name?.charAt(0) || 'H'}
+                          {isCommunity
+                            ? (pkg.creator_name ? pkg.creator_name.charAt(0).toUpperCase() : 'U')
+                            : (org?.name?.charAt(0) || 'H')}
                         </div>
                         <div>
                           <p className="text-xs font-bold text-[#00261D]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                            Hosted by {org?.name || 'Alpine Treks & Expeditions'}
+                            {isCommunity
+                              ? `Shared by ${pkg.creator_name || 'Community Traveler'}`
+                              : `Hosted by ${org?.name || 'Alpine Treks & Expeditions'}`}
                           </p>
                           <p className="text-[11px] text-[#717975] flex items-center gap-1">
-                            <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                            <span>{org?.rating || 4.9} ({org?.reviews_count || 48} reviews)</span>
+                            {isCommunity ? (
+                              <span className="text-emerald-700 font-medium flex items-center gap-1">
+                                <ShieldCheck className="w-3 h-3 text-emerald-700 inline" />
+                                <span>Verified Community Traveler</span>
+                              </span>
+                            ) : (
+                              <>
+                                <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                                <span>{org?.rating || 4.9} ({org?.reviews_count || 48} reviews)</span>
+                              </>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -358,21 +401,23 @@ export default function ExplorePage() {
                         <div className="flex gap-4 sm:gap-6 text-xs flex-wrap">
                           <div>
                             <span className="text-[10px] text-[#717975] uppercase font-semibold block">Duration</span>
-                            <span className="font-semibold text-[#00261D]">{pkg.duration_days || 5} Days</span>
+                            <span className="font-semibold text-[#00261D]">{pkg.duration_days || 3} Days</span>
                           </div>
                           <div>
                             <span className="text-[10px] text-[#717975] uppercase font-semibold block">Difficulty</span>
-                            <span className="font-semibold text-[#00261D]">{pkg.difficulty || 'Moderate'}</span>
+                            <span className="font-semibold text-[#00261D]">{pkg.difficulty || 'Flexible'}</span>
                           </div>
                           <div>
                             <span className="text-[10px] text-[#717975] uppercase font-semibold block">Group Size</span>
-                            <span className="font-semibold text-[#00261D]">Max {pkg.max_group_size || 12}</span>
+                            <span className="font-semibold text-[#00261D]">
+                              {isCommunity ? `${pkg.max_group_size || 2} Person(s)` : `Max ${pkg.max_group_size || 12}`}
+                            </span>
                           </div>
                         </div>
 
-                        <Link to={`/explore/${pkg.id}`} className="w-full sm:w-auto">
+                        <Link to={targetLink} className="w-full sm:w-auto">
                           <button className="w-full sm:w-auto bg-[#00261D] hover:bg-[#00261D]/90 text-white rounded-full px-6 py-3 text-xs uppercase font-bold tracking-widest flex items-center justify-center gap-2 group-hover:gap-3 transition-all cursor-pointer shadow-sm">
-                            <span>View Expedition</span>
+                            <span>{isCommunity ? 'View Itinerary' : 'View Expedition'}</span>
                             <ArrowRight className="w-3.5 h-3.5" />
                           </button>
                         </Link>

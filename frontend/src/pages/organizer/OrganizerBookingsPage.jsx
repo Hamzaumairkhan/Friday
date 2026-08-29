@@ -102,30 +102,33 @@ export default function OrganizerBookingsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
-      {/* ─── Header Section (Stitch 15_bookings_verification.html) ─────── */}
+      {/* ─── Header Section ─────────────────────────────────────────── */}
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b border-black/10 pb-8">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] font-semibold text-[#420E00] mb-2" style={{ fontFamily: 'Inter, sans-serif' }}>
-            ROAD CREW / AUDIT & LEDGER
+            ORGANIZER WORKSPACE / BOOKINGS & LEDGER
           </p>
           <h1
-            className="text-5xl sm:text-6xl font-normal text-black leading-tight italic"
+            className="text-4xl sm:text-6xl font-normal text-[#00261D] leading-tight italic"
             style={{ fontFamily: "'Instrument Serif', serif" }}
           >
             Reconcile your revenue.
           </h1>
+          <p className="text-xs sm:text-sm text-[#717975] mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+            Review direct booking receipts, verify traveler bank transfers, and confirm reservations.
+          </p>
         </div>
 
-        <div className="flex gap-4">
-          <div className="bg-white rounded-2xl border border-black/10 px-5 py-3 shadow-xs">
-            <p className="text-[10px] uppercase font-bold text-[#6F6F6F]">Verified Gross</p>
-            <p className="text-xl font-bold text-black" style={{ fontFamily: "'Instrument Serif', serif" }}>
+        <div className="flex gap-3">
+          <div className="bg-white rounded-2xl border border-black/10 px-5 py-3 shadow-2xs">
+            <p className="text-[10px] uppercase font-bold text-[#717975]">Verified Gross</p>
+            <p className="text-xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
               PKR {verifiedTotal.toLocaleString()}
             </p>
           </div>
-          <div className="bg-white rounded-2xl border border-black/10 px-5 py-3 shadow-xs">
-            <p className="text-[10px] uppercase font-bold text-[#6F6F6F]">Awaiting Review</p>
-            <p className="text-xl font-bold text-[#420E00]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+          <div className="bg-white rounded-2xl border border-black/10 px-5 py-3 shadow-2xs">
+            <p className="text-[10px] uppercase font-bold text-[#717975]">Awaiting Review</p>
+            <p className="text-xl font-normal text-[#420E00]" style={{ fontFamily: "'Instrument Serif', serif" }}>
               {pendingProofCount} Slip(s)
             </p>
           </div>
@@ -133,33 +136,33 @@ export default function OrganizerBookingsPage() {
       </header>
 
       {/* ─── Filter Pills ─────────────────────────────────────────────── */}
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="flex gap-2.5 overflow-x-auto pb-2">
         <button
           onClick={() => setFilter('ALL')}
-          className={`px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold transition-all cursor-pointer ${
+          className={`px-5 py-2 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
             filter === 'ALL'
-              ? 'bg-black text-white shadow-xs'
-              : 'bg-white text-[#6F6F6F] border border-black/10 hover:border-black/30'
+              ? 'bg-[#00261D] text-white shadow-2xs'
+              : 'bg-white text-[#717975] border border-black/10 hover:border-black/30'
           }`}
         >
           All ({bookings.length})
         </button>
         <button
           onClick={() => setFilter('PENDING')}
-          className={`px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold transition-all cursor-pointer ${
+          className={`px-5 py-2 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
             filter === 'PENDING'
-              ? 'bg-black text-white shadow-xs'
-              : 'bg-white text-[#6F6F6F] border border-black/10 hover:border-black/30'
+              ? 'bg-[#00261D] text-white shadow-2xs'
+              : 'bg-white text-[#717975] border border-black/10 hover:border-black/30'
           }`}
         >
           Pending Review ({pendingProofCount})
         </button>
         <button
           onClick={() => setFilter('VERIFIED')}
-          className={`px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold transition-all cursor-pointer ${
+          className={`px-5 py-2 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
             filter === 'VERIFIED'
-              ? 'bg-black text-white shadow-xs'
-              : 'bg-white text-[#6F6F6F] border border-black/10 hover:border-black/30'
+              ? 'bg-[#00261D] text-white shadow-2xs'
+              : 'bg-white text-[#717975] border border-black/10 hover:border-black/30'
           }`}
         >
           Verified ({bookings.filter((b) => b.payment_status === 'VERIFIED').length})
@@ -191,15 +194,15 @@ export default function OrganizerBookingsPage() {
               </thead>
               <tbody className="divide-y divide-black/5 text-xs text-[#191C1A]">
                 {filteredBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-4 px-6 font-semibold text-black">
+                  <tr key={b.id} className="hover:bg-[#F8FAF6] transition-colors">
+                    <td className="py-4 px-6 font-bold text-[#00261D]">
                       {b.user_name || 'Anonymous Traveler'}
                     </td>
-                    <td className="py-4 px-6 max-w-xs truncate font-medium">
+                    <td className="py-4 px-6 max-w-xs truncate font-medium text-[#00261D]">
                       {b.package_title}
                     </td>
-                    <td className="py-4 px-6">{b.travelers} Seats</td>
-                    <td className="py-4 px-6 font-bold font-mono">
+                    <td className="py-4 px-6 text-[#717975]">{b.travelers} Seats</td>
+                    <td className="py-4 px-6 font-bold font-mono text-[#00261D]">
                       PKR {Number(b.total_price || 0).toLocaleString()}
                     </td>
                     <td className="py-4 px-6">
@@ -209,24 +212,24 @@ export default function OrganizerBookingsPage() {
                             setSelectedBooking(b);
                             setProofModalOpen(true);
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#E7E9E5] text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all cursor-pointer shadow-2xs"
                         >
                           <Eye className="w-3.5 h-3.5" /> View Slip
                         </button>
                       ) : (
-                        <span className="text-[11px] text-[#6F6F6F]">No slip uploaded</span>
+                        <span className="text-[11px] text-[#717975]">No slip uploaded</span>
                       )}
                     </td>
                     <td className="py-4 px-6">
                       <span
                         className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                           b.payment_status === 'VERIFIED'
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-emerald-100 text-emerald-900'
                             : b.payment_status === 'PROOF_UPLOADED'
                             ? 'bg-amber-100 text-amber-900 animate-pulse'
                             : b.payment_status === 'REJECTED'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-slate-100 text-[#6F6F6F]'
+                            ? 'bg-red-100 text-red-900'
+                            : 'bg-slate-100 text-[#717975]'
                         }`}
                       >
                         {b.payment_status || 'PENDING'}
@@ -237,7 +240,7 @@ export default function OrganizerBookingsPage() {
                         <button
                           onClick={() => handleVerifyPayment(b.id)}
                           disabled={processingAction}
-                          className="px-4 py-1.5 rounded-full bg-black text-white text-[11px] font-bold uppercase tracking-wider hover:bg-slate-900 transition-all cursor-pointer disabled:opacity-50"
+                          className="px-4 py-1.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
                         >
                           Verify & Confirm
                         </button>
@@ -249,7 +252,7 @@ export default function OrganizerBookingsPage() {
                             setRejectModalOpen(true);
                           }}
                           disabled={processingAction}
-                          className="px-3 py-1.5 rounded-full border border-red-200 text-red-600 text-[11px] font-bold uppercase tracking-wider hover:bg-red-50 transition-colors cursor-pointer"
+                          className="px-3 py-1.5 rounded-full border border-red-200 text-red-700 text-[11px] font-bold uppercase tracking-wider hover:bg-red-50 transition-colors cursor-pointer"
                         >
                           Reject
                         </button>
@@ -266,18 +269,18 @@ export default function OrganizerBookingsPage() {
       {/* ─── Slip Preview Modal ─────────────────────────────────────────── */}
       {proofModalOpen && selectedBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setProofModalOpen(false)} />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setProofModalOpen(false)} />
           <div className="relative bg-white rounded-3xl max-w-lg w-full p-6 space-y-6 z-10 border border-black/10 shadow-2xl">
             <div className="flex justify-between items-center border-b border-black/10 pb-4">
-              <h3 className="text-xl font-normal text-black" style={{ fontFamily: "'Instrument Serif', serif" }}>
+              <h3 className="text-xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
                 Payment Slip — {selectedBooking.user_name}
               </h3>
-              <button onClick={() => setProofModalOpen(false)} className="p-1 rounded-full hover:bg-slate-100">
+              <button onClick={() => setProofModalOpen(false)} className="p-1.5 rounded-full hover:bg-black/5 text-[#717975] cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="max-h-[400px] overflow-auto rounded-2xl border border-black/10 bg-slate-50 flex items-center justify-center p-2">
+            <div className="max-h-[400px] overflow-auto rounded-2xl border border-black/10 bg-[#F8FAF6] flex items-center justify-center p-2">
               <img
                 src={selectedBooking.payment_proof_url}
                 alt="Payment Transaction Slip"
@@ -286,14 +289,14 @@ export default function OrganizerBookingsPage() {
             </div>
 
             <div className="flex justify-between items-center pt-2">
-              <span className="text-xs font-bold text-black font-mono">
+              <span className="text-xs font-bold text-[#00261D] font-mono">
                 Amount: PKR {Number(selectedBooking.total_price || 0).toLocaleString()}
               </span>
               <div className="flex gap-2">
                 <button
                   onClick={() => handleVerifyPayment(selectedBooking.id)}
                   disabled={processingAction}
-                  className="px-6 py-2.5 rounded-full bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-slate-900 cursor-pointer"
+                  className="px-6 py-2.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider cursor-pointer shadow-xs"
                 >
                   Verify Now
                 </button>

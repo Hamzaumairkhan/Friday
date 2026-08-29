@@ -11,11 +11,13 @@ export const authService = {
   },
 
   // Log in with FastAPI backend
-  async loginWithBackend(email, intendedRole, idToken) {
+  async loginWithBackend(email, intendedRole, idToken, name, profilePicture) {
     return await api.post('/auth/login', {
       email,
       intended_role: intendedRole,
       firebase_id_token: idToken,
+      name,
+      profile_picture: profilePicture,
     });
   },
 
