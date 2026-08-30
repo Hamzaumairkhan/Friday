@@ -188,6 +188,20 @@ export default function WhatsAppTripMessenger({
       backendUser?.name || user?.displayName || 'User'
     )}`;
 
+  const getDestinationFallback = (dest) => {
+    const d = (dest || '').toLowerCase();
+    if (d.includes('pine') || d.includes('nathia') || d.includes('murree') || d.includes('galyat') || d.includes('ayubia')) return '/images/stitch/stitch_asset_11.jpg';
+    if (d.includes('islamabad') || d.includes('margalla') || d.includes('faisal') || d.includes('rawalpindi')) return '/images/stitch/stitch_asset_4.jpg';
+    if (d.includes('lahore') || d.includes('badshahi') || d.includes('punjab')) return '/images/stitch/stitch_asset_2.jpg';
+    if (d.includes('karachi') || d.includes('gwadar') || d.includes('ormara') || d.includes('sindh')) return '/images/stitch/stitch_asset_5.jpg';
+    if (d.includes('swat') || d.includes('kalam') || d.includes('malam')) return '/images/stitch/stitch_asset_10.jpg';
+    if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar')) return '/images/stitch/stitch_asset_9.jpg';
+    if (d.includes('hunza') || d.includes('passu') || d.includes('attabad')) return '/images/stitch/stitch_asset_1.jpg';
+    if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila')) return '/images/stitch/hero_mountains.jpg';
+    if (d.includes('neelum') || d.includes('kashmir') || d.includes('kumrat')) return '/images/stitch/stitch_asset_8.jpg';
+    return '/images/stitch/hero_mountains.jpg';
+  };
+
   const activeTitle =
     activeGroupDetails?.title || selectedGroup?.title || 'Trip Community';
   const activeDestination =
@@ -198,6 +212,11 @@ export default function WhatsAppTripMessenger({
     0;
   const activeMax =
     activeGroupDetails?.max_travelers ?? selectedGroup?.max_travelers ?? 20;
+  const activeImg =
+    activeGroupDetails?.image_url ||
+    selectedGroup?.image_url ||
+    selectedGroup?.cover_image ||
+    getDestinationFallback(activeDestination);
 
   return (
     <div className="w-full max-w-7xl mx-auto h-[820px] max-h-[88vh] bg-white rounded-3xl border border-black/10 shadow-xl overflow-hidden flex flex-col md:flex-row">
@@ -296,10 +315,8 @@ export default function WhatsAppTripMessenger({
                   })
                 : '';
 
-              const groupImg =
-                group.image_url ||
-                group.cover_image ||
-                '/images/stitch/hero_mountains.jpg';
+              const fallbackImg = getDestinationFallback(group.destination || group.title);
+              const groupImg = group.image_url || group.cover_image || fallbackImg;
 
               return (
                 <div
@@ -320,7 +337,7 @@ export default function WhatsAppTripMessenger({
                       src={groupImg}
                       alt={group.title}
                       onError={(e) => {
-                        e.currentTarget.src = '/images/stitch/hero_mountains.jpg';
+                        e.currentTarget.src = fallbackImg;
                       }}
                       className="w-12 h-12 rounded-full object-cover border border-black/10 shadow-2xs"
                     />
@@ -329,35 +346,29 @@ export default function WhatsAppTripMessenger({
 
                   {/* Group Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <h4
-                        className={`text-sm truncate font-semibold ${
-                          isSelected ? 'text-[#00261D]' : 'text-[#1B221E]'
-                        }`}
-                      >
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <h4 className="text-xs font-bold text-[#00261D] truncate">
                         {group.title}
                       </h4>
                       {formattedTime && (
-                        <span className="text-[10px] text-[#8E9793] shrink-0 font-medium">
+                        <span className="text-[10px] text-[#717975] shrink-0 font-medium">
                           {formattedTime}
                         </span>
                       )}
                     </div>
-
-                    <div className="flex items-center justify-between text-xs text-[#5C6661]">
-                      <p className="truncate text-xs max-w-[200px] text-[#717975]">
+                    <div className="flex items-center justify-between text-[11px] text-[#717975]">
+                      <p className="truncate max-w-[170px] sm:max-w-[190px]">
                         {group.last_message ? (
                           <span>{group.last_message}</span>
                         ) : (
-                          <span className="italic text-[#9AA39F]">
-                            Start the conversation...
+                          <span className="italic text-[#8E9793]">
+                            No messages yet. Say hello! 👋
                           </span>
                         )}
                       </p>
-
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-100/90 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
                         <Users className="w-2.5 h-2.5" />
-                        {group.confirmed_travelers_count || 0}/{group.max_travelers || 20}
+                        {group.confirmed_travelers_count}/{group.max_travelers || 20}
                       </span>
                     </div>
                   </div>
@@ -370,14 +381,17 @@ export default function WhatsAppTripMessenger({
 
       {/* ─── RIGHT COLUMN: Active WhatsApp Chat Pane ───────────────────── */}
       <main
-        className={`flex-1 flex flex-col h-full bg-[#F6F8F5] relative overflow-hidden ${
-          showMobileChat ? 'flex' : 'hidden md:flex'
+        className={`flex-1 flex flex-col bg-[#EFEAE2] min-w-0 relative ${
+          !showMobileChat ? 'hidden md:flex' : 'flex'
         }`}
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.025' fill-rule='evenodd'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E")`,
+        }}
       >
         {selectedGroup ? (
           <>
-            {/* Top Chat Header */}
-            <header className="px-4 py-3 bg-white border-b border-black/10 flex items-center justify-between shrink-0 shadow-2xs z-10">
+            {/* WhatsApp Chat Header */}
+            <header className="h-18 px-4 sm:px-6 bg-white border-b border-black/10 flex items-center justify-between shrink-0 shadow-2xs">
               <div className="flex items-center gap-3 min-w-0">
                 {/* Mobile Back Button */}
                 <button
@@ -390,16 +404,12 @@ export default function WhatsAppTripMessenger({
 
                 {/* Group Avatar */}
                 <img
-                  src={
-                    selectedGroup.image_url ||
-                    selectedGroup.cover_image ||
-                    '/images/stitch/hero_mountains.jpg'
-                  }
+                  src={activeImg}
                   alt={activeTitle}
                   onError={(e) => {
-                    e.currentTarget.src = '/images/stitch/hero_mountains.jpg';
+                    e.currentTarget.src = getDestinationFallback(activeDestination);
                   }}
-                  className="w-10 h-10 rounded-full object-cover border border-black/10 shrink-0"
+                  className="w-10 h-10 rounded-full object-cover border border-black/10 shrink-0 shadow-2xs"
                 />
 
                 {/* Group Details */}

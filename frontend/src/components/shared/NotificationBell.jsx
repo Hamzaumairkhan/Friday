@@ -5,7 +5,7 @@ import { notificationsService } from '../../services/notifications';
 import { useAuth } from '../../context/AuthContext';
 import { playNotificationSound } from '../../utils/notificationSound';
 
-export default function NotificationBell() {
+export default function NotificationBell({ align = 'right' }) {
   const navigate = useNavigate();
   const { isAuthenticated, role, backendUser } = useAuth();
   const [notifications, setNotifications] = useState([]);
@@ -102,6 +102,11 @@ export default function NotificationBell() {
     }
   };
 
+  const dropdownAlignClass =
+    align === 'left'
+      ? 'left-0 right-auto'
+      : 'right-0 left-auto';
+
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Bell Button */}
@@ -120,7 +125,7 @@ export default function NotificationBell() {
 
       {/* Notifications Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-3xl border border-black/10 bg-white shadow-2xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95">
+        <div className={`absolute ${dropdownAlignClass} mt-3 w-80 sm:w-96 max-w-[calc(100vw-2rem)] rounded-3xl border border-black/10 bg-white shadow-2xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95`}>
           {/* Header */}
           <div className="p-4 border-b border-black/10 flex items-center justify-between bg-slate-50/70">
             <h4

@@ -78,7 +78,7 @@ export default function TravelerLayout() {
                 AI Travel Copilot
               </p>
             </Link>
-            <NotificationBell />
+            <NotificationBell align="left" />
           </div>
 
           {/* Primary Action Button (New Trip for Traveler / Create Package for Organizer) */}
