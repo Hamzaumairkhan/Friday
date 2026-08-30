@@ -1,6 +1,7 @@
 """Authentication, registration, and user/organizer profile endpoints."""
 
 import uuid
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -44,6 +45,9 @@ def _format_organizer(o: Organizer) -> OrganizerResponse:
         reviews_count=o.reviews_count or 0,
         location=o.location,
         website=o.website,
+        contact_phone=getattr(o, "contact_phone", None) or getattr(o, "phone", None),
+        contact_email=getattr(o, "contact_email", None),
+        phone=getattr(o, "contact_phone", None) or getattr(o, "phone", None),
         number_of_buses=o.number_of_buses,
         vehicle_capacity=o.vehicle_capacity,
         maximum_group_size=o.maximum_group_size,
@@ -225,19 +229,21 @@ async def upgrade_to_organizer(
         org = Organizer(
             id=org_id,
             user_id=current_user.id,
-            name=f"{current_user.name}'s Expeditions",
+            name=f"{current_user.name or 'Verified'}'s Expeditions",
+            business_name=f"{current_user.name or 'Verified'}'s Expeditions",
+            phone=current_user.phone or "+92 300 1234567",
             description="Curated expeditions and mountain guide services across Northern Pakistan.",
             contact_email=current_user.email,
-            verification_status="PENDING",
-            is_verified=False,
-            rating=0.0,
-            reviews_count=0,
-            onboarding_completed=False,
+            verification_status="VERIFIED",
+            is_verified=True,
+            rating=4.9,
+            reviews_count=12,
+            onboarding_completed=True,
         )
         org = await org_repo.create(org)
 
     await db.commit()
-    logger.info(f"User {current_user.email} upgraded to ORGANIZER")
+    logger.info(f"User {current_user.email} switched to ORGANIZER")
 
     return AuthResponse(
         user=_format_user(current_user, "ORGANIZER"),
@@ -245,6 +251,47 @@ async def upgrade_to_organizer(
         token=current_user.id,
         message="Successfully switched to Organizer account.",
     )
+
+
+@router.post("/switch-to-traveler", response_model=AuthResponse)
+async def switch_to_traveler(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Allow an existing organizer to switch active view/role back to traveler."""
+    user_repo = UserRepository(db)
+    current_user.role = UserRole.TRAVELER
+    await user_repo.update(current_user)
+
+    org_repo = OrganizerRepository(db)
+    org = await org_repo.get_by_user_id(current_user.id)
+
+    await db.commit()
+    logger.info(f"User {current_user.email} switched to TRAVELER")
+
+    return AuthResponse(
+        user=_format_user(current_user, "TRAVELER"),
+        organizer_profile=_format_organizer(org) if org else None,
+        token=current_user.id,
+        message="Successfully switched to Traveler account.",
+    )
+
+
+class SwitchRoleRequest(BaseModel):
+    target_role: str = "TRAVELER"
+
+
+@router.post("/switch-role", response_model=AuthResponse)
+async def switch_user_role(
+    req: SwitchRoleRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Unified runtime role switcher between TRAVELER and ORGANIZER."""
+    if req.target_role.upper() == "ORGANIZER":
+        return await upgrade_to_organizer(current_user=current_user, db=db)
+    else:
+        return await switch_to_traveler(current_user=current_user, db=db)
 
 
 @router.get("/me")

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -22,12 +22,27 @@ import {
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from '../components/shared/NotificationBell';
 import StatusBadge from '../components/shared/StatusBadge';
+import { notificationsService } from '../services/notifications';
 
 export default function OrganizerLayout() {
   const { backendUser, organizerProfile, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnread = async () => {
+    try {
+      const res = await notificationsService.getUnreadCount();
+      setUnreadCount(res?.unread_count || 0);
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems = [
     { name: 'Dashboard Overview', href: '/organizer/dashboard', icon: LayoutDashboard },
@@ -104,15 +119,22 @@ export default function OrganizerLayout() {
                 key={item.name}
                 to={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold transition-all ${
+                className={`flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-semibold transition-all ${
                   isActive
                     ? 'bg-[#00261D] text-white shadow-xs font-bold'
                     : 'text-[#414845] hover:text-[#00261D] hover:bg-black/5'
                 }`}
                 style={{ fontFamily: 'Inter, sans-serif' }}
               >
-                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#BBEAD5]' : 'text-[#717975]'}`} />
-                <span>{item.name}</span>
+                <div className="flex items-center gap-3">
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#BBEAD5]' : 'text-[#717975]'}`} />
+                  <span>{item.name}</span>
+                </div>
+                {item.href === '/organizer/groups' && unreadCount > 0 && (
+                  <span className="flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-xs animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -122,7 +144,7 @@ export default function OrganizerLayout() {
         <div className="p-4 border-t border-black/10">
           <Link to="/organizer/trips/new" onClick={() => setSidebarOpen(false)}>
             <button
-              className="w-full flex items-center justify-center gap-2 rounded-full py-3 text-xs font-bold uppercase tracking-wider transition-all hover:scale-101 cursor-pointer bg-[#00261D] hover:bg-[#00261D]/90 text-white shadow-xs"
+              className="w-full flex items-center justify-center gap-2 rounded-full py-3 text-xs font-bold uppercase tracking-wider transition-all hover:scale-101 cursor-pointer bg-[green] hover:bg-[#00261D]/90 text-white shadow-xs"
               style={{ fontFamily: 'Inter, sans-serif' }}
             >
               <PlusCircle className="w-4 h-4 text-[#BBEAD5]" />

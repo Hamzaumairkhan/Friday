@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Luggage,
   Calendar,
@@ -30,8 +30,8 @@ import toast from 'react-hot-toast';
 
 export default function MyTripsPage() {
   const navigate = useNavigate();
-  // Default to AI Planned Trips tab as requested
-  const [activeTab, setActiveTab] = useState('ai_trips');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'ai_trips');
   const [bookings, setBookings] = useState([]);
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,16 +48,19 @@ export default function MyTripsPage() {
 
   const getDestinationFallback = (dest) => {
     const d = (dest || '').toLowerCase();
+    if (d.includes('pine') || d.includes('nathia') || d.includes('murree') || d.includes('galyat') || d.includes('ayubia') || d.includes('bhurban') || d.includes('patriata') || d.includes('dunga')) return '/images/stitch/stitch_asset_11.jpg';
     if (d.includes('islamabad') || d.includes('margalla') || d.includes('faisal') || d.includes('rawalpindi')) return '/images/stitch/stitch_asset_4.jpg';
     if (d.includes('lahore') || d.includes('badshahi') || d.includes('punjab') || d.includes('faisalabad') || d.includes('multan')) return '/images/stitch/stitch_asset_2.jpg';
     if (d.includes('karachi') || d.includes('gwadar') || d.includes('ormara') || d.includes('kund') || d.includes('sindh')) return '/images/stitch/stitch_asset_5.jpg';
     if (d.includes('swat') || d.includes('kalam') || d.includes('malam') || d.includes('mahudand')) return '/images/stitch/stitch_asset_10.jpg';
-    if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar')) return '/images/stitch/stitch_asset_9.jpg';
+    if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar') || d.includes('shogran')) return '/images/stitch/stitch_asset_9.jpg';
     if (d.includes('kumrat') || d.includes('jahaz') || d.includes('katora')) return '/images/stitch/stitch_asset_8.jpg';
     if (d.includes('fairy') || d.includes('nanga')) return '/images/stitch/stitch_asset_7.jpg';
-    if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila')) return '/images/stitch/hero_mountains.jpg';
-    if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit')) return '/images/stitch/stitch_asset_6.jpg';
-    return '/images/stitch/panoramic_lake.jpg';
+    if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila') || d.includes('khaplu')) return '/images/stitch/hero_mountains.jpg';
+    if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit') || d.includes('attabad')) return '/images/stitch/stitch_asset_1.jpg';
+    if (d.includes('neelum') || d.includes('kashmir') || d.includes('arang') || d.includes('sharda') || d.includes('ratti') || d.includes('taobat')) return '/images/stitch/stitch_asset_8.jpg';
+    if (d.includes('chitral') || d.includes('kalash') || d.includes('shandur')) return '/images/stitch/stitch_asset_14.jpg';
+    return '/images/stitch/hero_mountains.jpg';
   };
 
   const fetchData = async () => {
@@ -204,8 +207,10 @@ export default function MyTripsPage() {
 
         {/* Tabs: AI Planned Trips, Drafts, Organizer Bookings */}
         {(() => {
-          const publishedTrips = trips.filter((t) => t.status !== 'DRAFT');
-          const draftTrips = trips.filter((t) => t.status === 'DRAFT');
+          const isAITrip = (t) => t.status !== 'DRAFT' && t.status !== 'BOOKED' && !t.title?.includes('(Booking)') && !t.is_organizer_booking;
+          const isDraftTrip = (t) => t.status === 'DRAFT' && !t.title?.includes('(Booking)');
+          const publishedTrips = trips.filter(isAITrip);
+          const draftTrips = trips.filter(isDraftTrip);
           return (
             <div className="flex border-b border-black/10 space-x-8">
               <button
@@ -264,7 +269,8 @@ export default function MyTripsPage() {
           <LoadingSpinner text="Fetching your travel itineraries..." />
         ) : activeTab === 'ai_trips' ? (
           (() => {
-            const publishedTrips = trips.filter((t) => t.status !== 'DRAFT');
+            const isAITrip = (t) => t.status !== 'DRAFT' && t.status !== 'BOOKED' && !t.title?.includes('(Booking)') && !t.is_organizer_booking;
+            const publishedTrips = trips.filter(isAITrip);
             return publishedTrips.length === 0 ? (
               <EmptyState
                 title="No Published AI Trips Yet"

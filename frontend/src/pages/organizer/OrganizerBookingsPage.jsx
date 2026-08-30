@@ -14,6 +14,7 @@ import {
   Check,
   X,
   AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 import { organizersService } from '../../services/organizers';
 import EmptyState from '../../components/shared/EmptyState';
@@ -33,6 +34,10 @@ export default function OrganizerBookingsPage() {
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [processingAction, setProcessingAction] = useState(false);
+
+  // Delete Booking Dialog State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [bookingToDelete, setBookingToDelete] = useState(null);
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -82,6 +87,23 @@ export default function OrganizerBookingsPage() {
     } catch (err) {
       console.error('Payment rejection failed:', err);
       toast.error(err.message || 'Failed to reject payment.');
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  const handleDeleteBooking = async () => {
+    if (!bookingToDelete) return;
+    setProcessingAction(true);
+    try {
+      await organizersService.deleteBooking(bookingToDelete.id);
+      setBookings((prev) => prev.filter((b) => b.id !== bookingToDelete.id));
+      toast.success('Booking reservation successfully deleted.');
+      setDeleteModalOpen(false);
+      setBookingToDelete(null);
+    } catch (err) {
+      console.error('Delete booking failed:', err);
+      toast.error(err.message || 'Failed to delete booking reservation.');
     } finally {
       setProcessingAction(false);
     }
@@ -257,6 +279,17 @@ export default function OrganizerBookingsPage() {
                           Reject
                         </button>
                       )}
+                      <button
+                        onClick={() => {
+                          setBookingToDelete(b);
+                          setDeleteModalOpen(true);
+                        }}
+                        disabled={processingAction}
+                        className="p-1.5 rounded-full text-red-600 hover:bg-red-50 hover:text-red-800 transition-colors cursor-pointer inline-flex items-center justify-center align-middle"
+                        title="Delete Reservation"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -349,6 +382,70 @@ export default function OrganizerBookingsPage() {
           </div>
         </div>
       )}
+
+      {/* ─── Delete Confirmation Modal ───────────────────────────────────── */}
+      {deleteModalOpen && bookingToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => !processingAction && setDeleteModalOpen(false)} />
+          <div className="relative bg-white rounded-3xl max-w-md w-full p-6 space-y-6 z-10 border border-black/10 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-center border-b border-black/10 pb-4">
+              <div className="flex items-center gap-2.5 text-red-600">
+                <div className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center">
+                  <Trash2 className="w-4.5 h-4.5" />
+                </div>
+                <h3 className="text-xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+                  Delete Booking Reservation
+                </h3>
+              </div>
+              <button
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={processingAction}
+                className="p-1.5 rounded-full hover:bg-black/5 text-[#717975] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-[#5C6661]">
+              <p>
+                Are you sure you want to delete the booking reservation for <strong className="text-[#00261D]">{bookingToDelete.user_name || 'Traveler'}</strong> for <strong className="text-[#00261D]">{bookingToDelete.package_title}</strong>?
+              </p>
+              <div className="p-3.5 bg-red-50/70 border border-red-200 rounded-2xl space-y-1 text-red-950 font-medium">
+                <p>• Seats Reserved: <strong>{bookingToDelete.travelers} Seat(s)</strong></p>
+                <p>• Amount: <strong>PKR {Number(bookingToDelete.total_price || 0).toLocaleString()}</strong></p>
+                <p>• Status: <strong>{bookingToDelete.payment_status || 'PENDING'}</strong></p>
+              </div>
+              <p className="text-[11px] text-[#717975]">
+                This will permanently remove the reservation and release the held seats back to your tour capacity.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={processingAction}
+                className="px-5 py-2.5 rounded-full border border-black/10 text-xs font-semibold hover:bg-black/5 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteBooking}
+                disabled={processingAction}
+                className="px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs flex items-center gap-2"
+              >
+                {processingAction ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Deleting...
+                  </>
+                ) : (
+                  'Yes, Delete Reservation'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -78,10 +78,14 @@ export default function TravelerProfilePage() {
   const handleSwitchToOrganizer = async () => {
     setIsUpgrading(true);
     try {
-      await upgradeToOrganizer();
-      navigate('/organizer/onboarding');
+      const res = await upgradeToOrganizer();
+      if (res?.organizer_profile?.onboarding_completed) {
+        navigate('/organizer/dashboard');
+      } else {
+        navigate('/organizer/onboarding');
+      }
     } catch (err) {
-      console.error('Failed to upgrade:', err);
+      console.error('Failed to switch to organizer:', err);
     } finally {
       setIsUpgrading(false);
     }

@@ -47,30 +47,73 @@ class BookingService:
             travelers = data.travelers
             notes = data.notes
 
-        if not trip_id or not package_id or not travelers or travelers < 1:
-            raise ValidationError("trip_id, package_id, and a valid travelers count (>=1) are required")
+        if not package_id or not travelers or travelers < 1:
+            raise ValidationError("package_id and a valid travelers count (>=1) are required")
 
-        # 1. Validate trip & membership
-        trip = await self.trip_repo.get_by_id(trip_id)
-        if not trip:
-            raise NotFoundError(f"Trip '{trip_id}' not found")
-
-        is_member = await self.trip_repo.is_trip_member(trip_id=trip_id, user_id=user_id)
-        if not is_member:
-            raise AuthorizationError("Only trip members can initiate bookings")
-
-        # 2. Authoritative Package Resolution (Do NOT trust frontend metadata)
+        # 1. Authoritative Package Resolution (Do NOT trust frontend metadata)
         pkg_res = await self.db.execute(select(Package).where(Package.id == package_id))
         package = pkg_res.scalar_one_or_none()
         if not package or not package.is_active:
             raise NotFoundError(f"Package '{package_id}' is not active or does not exist")
 
-        # 3. Authoritative Organizer Resolution
+        # 2. Ensure traveler user record exists in users table
+        from app.models.user import UserRole
+        user_res = await self.db.execute(select(User).where(User.id == user_id))
+        traveler_user = user_res.scalar_one_or_none()
+        if not traveler_user:
+            traveler_user = User(
+                id=user_id,
+                email=f"{user_id}@friday.local",
+                name="Friday Traveler",
+                role=UserRole.TRAVELER,
+            )
+            self.db.add(traveler_user)
+            await self.db.flush()
+
+        traveler_name = traveler_user.name if traveler_user and traveler_user.name else "Friday Traveler"
+        traveler_email = traveler_user.email if traveler_user and traveler_user.email else "traveler@friday.pk"
+
+        # 3. Validate or auto-provision trip & membership
+        if trip_id:
+            trip = await self.trip_repo.get_by_id(trip_id)
+            if not trip:
+                raise NotFoundError(f"Trip '{trip_id}' not found")
+            is_member = await self.trip_repo.is_trip_member(trip_id=trip_id, user_id=user_id)
+            if not is_member:
+                raise AuthorizationError("Only trip members can initiate bookings")
+        else:
+            import uuid
+            from app.models.trip import Trip, TripStatus, TripMember, MemberRole
+            trip_id = f"trip-{uuid.uuid4().hex[:12]}"
+            trip = Trip(
+                id=trip_id,
+                owner_id=user_id,
+                title=f"{package.title} (Booking)",
+                destination=package.destination,
+                origin="Islamabad",
+                duration=package.duration_days,
+                travelers=travelers,
+                budget_total=package.price_per_person * travelers,
+                budget_per_person=package.price_per_person,
+                start_date=package.start_date,
+                end_date=package.end_date,
+                status=TripStatus.BOOKED,
+                image_url=package.image_url,
+            )
+            await self.trip_repo.create(trip)
+            owner_m = TripMember(
+                trip_id=trip_id,
+                user_id=user_id,
+                role=MemberRole.OWNER,
+            )
+            await self.trip_repo.add_member(owner_m)
+
+        # 4. Authoritative Organizer Resolution
         organizer = await self.organizer_repo.get_by_id(package.organizer_id)
         if not organizer:
             raise NotFoundError("Tour organizer for this package not found")
 
-        # 4. Capacity & Availability Verification
+        # 5. Capacity & Availability Verification
         from sqlalchemy import func, and_
         confirmed_res = await self.db.execute(
             select(func.sum(Booking.travelers)).where(
@@ -82,12 +125,6 @@ class BookingService:
             raise ValidationError(
                 f"Trip capacity reached: Only {max(0, package.max_travelers - current_confirmed)} seat(s) remaining for this organizer trip."
             )
-
-        # 5. Fetch traveler profile
-        user_res = await self.db.execute(select(User).where(User.id == user_id))
-        traveler_user = user_res.scalar_one_or_none()
-        traveler_name = traveler_user.name if traveler_user and traveler_user.name else "Friday Traveler"
-        traveler_email = traveler_user.email if traveler_user else "traveler@friday.pk"
 
         # 6. Authoritative Price Calculation & Immutable Snapshot Derivation
         unit_price = package.price_per_person or 0.0
@@ -113,77 +150,7 @@ class BookingService:
         )
 
         created_booking = await self.booking_repo.create(booking)
-
-        # 6. Trigger Email Notification to Organizer via Resend
-        organizer_email = get_settings().ADMIN_EMAIL or organizer.contact_email or "organizer@friday.pk"
-        subject = f"New Booking Request #{created_booking.id[:8]} — {created_booking.package_title} ({created_booking.destination})"
-        
-        # Travel dates text
-        if trip.start_date and trip.end_date:
-            dates_text = f"{trip.start_date} to {trip.end_date}"
-        elif trip.start_date:
-            dates_text = f"Starting {trip.start_date}"
-        else:
-            dates_text = "To be confirmed"
-
-        email_body = (
-            f"Dear {created_booking.organizer_name},\n\n"
-            f"You have received a new booking request through Friday AI Travel Marketplace.\n\n"
-            f"--- BOOKING DETAILS ---\n"
-            f"• Booking ID: {created_booking.id}\n"
-            f"• Traveler Name: {created_booking.traveler_name} ({traveler_email})\n"
-            f"• Destination: {created_booking.destination}\n"
-            f"• Package: {created_booking.package_title}\n"
-            f"• Number of Travelers: {created_booking.travelers}\n"
-            f"• Total Package Price: Rs. {created_booking.total_price:,.0f} (Rs. {created_booking.price_per_person:,.0f}/person)\n"
-            f"• Duration: {created_booking.duration_days} days\n"
-            f"• Travel Dates: {dates_text}\n"
-            f"• Special Requirements / Notes: {notes or 'None provided'}\n\n"
-            f"Please log in to your Friday organizer dashboard or reply to this email to confirm the reservation.\n\n"
-            f"Best regards,\n"
-            f"Friday AI Travel Marketplace Team"
-        )
-
-        from app.services.email_template_service import render_new_booking_alert_for_organizer
-        html_body = render_new_booking_alert_for_organizer(
-            booking_id=created_booking.id,
-            organizer_name=created_booking.organizer_name or "Organizer",
-            traveler_name=created_booking.traveler_name or "Traveler",
-            package_title=created_booking.package_title or "Tour Package",
-            destination=created_booking.destination or "Pakistan",
-            total_price=created_booking.total_price or 0.0,
-            travelers=created_booking.travelers or 1,
-            notes=notes,
-        )
-
-        email_result = await self.email_tool.send_email(
-            to=organizer_email,
-            subject=subject,
-            body=email_body,
-            html=html_body,
-        )
-        logger.info(f"Booking notification email dispatched. Result: {email_result}")
-
-        # 7. Trigger WhatsApp / SMS Alert to Organizer Phone
-        organizer_phone = organizer.contact_phone or "+923001234567"
-        whatsapp_msg = (
-            f"🌄 *FRIDAY TRAVEL MARKETPLACE — NEW BOOKING REQUEST*\n\n"
-            f"Dear {created_booking.organizer_name},\n"
-            f"A new booking request has been initiated:\n\n"
-            f"📌 *Booking ID*: #{created_booking.id[:8]}\n"
-            f"👤 *Traveler*: {created_booking.traveler_name}\n"
-            f"📍 *Destination*: {created_booking.destination}\n"
-            f"📦 *Package*: {created_booking.package_title}\n"
-            f"👥 *Travelers*: {created_booking.travelers} persons\n"
-            f"⏱️ *Duration*: {created_booking.duration_days} days\n"
-            f"💰 *Total Amount*: Rs. {created_booking.total_price:,.0f}\n"
-            f"📝 *Notes*: {notes or 'Standard request'}\n\n"
-            f"Please check your Friday Organizer portal to confirm this reservation."
-        )
-
-        await self.whatsapp_tool.send_whatsapp(to_number=organizer_phone, message=whatsapp_msg)
-        await self.whatsapp_tool.send_sms(to_number=organizer_phone, message=whatsapp_msg)
-
+        logger.info(f"Booking #{created_booking.id} created in PENDING status. Organizer notifications will dispatch upon payment proof submission.")
         return created_booking
 
     async def get_booking(self, booking_id: str, user_id: str) -> Booking:

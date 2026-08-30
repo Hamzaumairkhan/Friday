@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class BookingCreate(BaseModel):
-    trip_id: str
+    trip_id: Optional[str] = None
     package_id: str
     travelers: int
     notes: Optional[str] = None

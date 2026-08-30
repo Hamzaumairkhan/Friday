@@ -197,7 +197,7 @@ const LandingPage = () => {
           <div className="w-full max-w-6xl h-[420px] sm:h-[580px] rounded-3xl overflow-hidden mb-8 relative shadow-2xl border border-black/5">
             <div
               className="absolute inset-0 w-full h-full bg-cover bg-center transition-transform duration-1000 hover:scale-105"
-              style={{ backgroundImage: `url('/images/stitch/panoramic_lake.jpg')` }}
+              style={{ backgroundImage: `url('/images/stitch/hero_mountains.jpg')` }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end justify-center pb-12">
               <Link to="/explore">

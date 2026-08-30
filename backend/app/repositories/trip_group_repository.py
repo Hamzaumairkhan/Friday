@@ -35,6 +35,9 @@ class TripGroupRepository:
             )
             self.db.add(group)
             await self.db.flush()
+        elif title and group.title != title:
+            group.title = title
+            await self.db.flush()
         return group
 
     async def get_by_package_id(self, package_id: str) -> Optional[TripGroup]:

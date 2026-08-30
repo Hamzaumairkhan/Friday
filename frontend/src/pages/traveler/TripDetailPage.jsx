@@ -9,6 +9,12 @@ import {
   ArrowLeft,
   Sparkles,
   Sun,
+  Cloud,
+  CloudRain,
+  CloudSun,
+  Snowflake,
+  Wind,
+  Droplets,
   CheckSquare,
   Compass,
   Tag,
@@ -35,14 +41,31 @@ import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import EmptyState from '../../components/shared/EmptyState';
 import toast from 'react-hot-toast';
 
+const renderWeatherIcon = (iconName, className = 'w-5 h-5') => {
+  switch (iconName) {
+    case 'sun':
+      return <Sun className={`${className} text-amber-500`} />;
+    case 'cloud-sun':
+      return <CloudSun className={`${className} text-amber-600`} />;
+    case 'cloud-rain':
+      return <CloudRain className={`${className} text-blue-500`} />;
+    case 'snowflake':
+      return <Snowflake className={`${className} text-cyan-500`} />;
+    case 'cloud':
+    default:
+      return <Cloud className={`${className} text-slate-500`} />;
+  }
+};
+
 export default function TripDetailPage() {
   const { tripId } = useParams();
   const navigate = useNavigate();
-  const { backendUser, firebaseUser } = useAuth();
+  const { backendUser, firebaseUser, role, organizerProfile } = useAuth();
 
   const [trip, setTrip] = useState(null);
   const [itinerary, setItinerary] = useState(null);
   const [budget, setBudget] = useState(null);
+  const [tripWeather, setTripWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isCopying, setIsCopying] = useState(false);
 
@@ -107,6 +130,17 @@ export default function TripDetailPage() {
         setBudget(budgetData);
       } catch {
         // Optional
+      }
+
+      if (tripData.weather) {
+        setTripWeather(tripData.weather);
+      } else if (tripData.destination) {
+        tripsService
+          .checkWeather(tripData.destination, tripData.start_date, tripData.duration || 3)
+          .then((res) => {
+            if (res) setTripWeather(res);
+          })
+          .catch(() => {});
       }
     } catch (err) {
       console.error('Error fetching trip details:', err);
@@ -392,20 +426,25 @@ export default function TripDetailPage() {
 
   const getDestinationFallback = (dest) => {
     const d = (dest || '').toLowerCase();
+    if (d.includes('pine') || d.includes('nathia') || d.includes('murree') || d.includes('galyat') || d.includes('ayubia') || d.includes('bhurban') || d.includes('patriata') || d.includes('dunga')) return '/images/stitch/stitch_asset_11.jpg';
     if (d.includes('islamabad') || d.includes('margalla') || d.includes('faisal') || d.includes('rawalpindi')) return '/images/stitch/stitch_asset_4.jpg';
     if (d.includes('lahore') || d.includes('badshahi') || d.includes('punjab') || d.includes('faisalabad') || d.includes('multan')) return '/images/stitch/stitch_asset_2.jpg';
     if (d.includes('karachi') || d.includes('gwadar') || d.includes('ormara') || d.includes('kund') || d.includes('sindh')) return '/images/stitch/stitch_asset_5.jpg';
     if (d.includes('swat') || d.includes('kalam') || d.includes('malam') || d.includes('mahudand')) return '/images/stitch/stitch_asset_10.jpg';
-    if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar')) return '/images/stitch/stitch_asset_9.jpg';
+    if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar') || d.includes('shogran')) return '/images/stitch/stitch_asset_9.jpg';
     if (d.includes('kumrat') || d.includes('jahaz') || d.includes('katora')) return '/images/stitch/stitch_asset_8.jpg';
     if (d.includes('fairy') || d.includes('nanga')) return '/images/stitch/stitch_asset_7.jpg';
-    if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila')) return '/images/stitch/hero_mountains.jpg';
-    if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit')) return '/images/stitch/stitch_asset_6.jpg';
-    return '/images/stitch/panoramic_lake.jpg';
+    if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila') || d.includes('khaplu')) return '/images/stitch/hero_mountains.jpg';
+    if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit') || d.includes('attabad')) return '/images/stitch/stitch_asset_1.jpg';
+    if (d.includes('neelum') || d.includes('kashmir') || d.includes('arang') || d.includes('sharda') || d.includes('ratti') || d.includes('taobat')) return '/images/stitch/stitch_asset_8.jpg';
+    if (d.includes('chitral') || d.includes('kalash') || d.includes('shandur')) return '/images/stitch/stitch_asset_14.jpg';
+    return '/images/stitch/hero_mountains.jpg';
   };
 
   const defaultHero = getDestinationFallback(trip?.destination);
-  const heroImage = trip.image_url || defaultHero;
+  const rawImage = trip?.image_url;
+  const isInvalidImage = !rawImage || rawImage.includes('instagram') || rawImage.includes('fbsbx') || rawImage.includes('panoramic_lake') || rawImage.includes('stitch_asset_6');
+  const heroImage = isInvalidImage ? defaultHero : rawImage;
   const days = itinerary?.days || [];
 
   const tripMembersList = (() => {
@@ -524,16 +563,21 @@ export default function TripDetailPage() {
           ) : (
             <div className="flex items-center gap-3">
               <span className="px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-[#717975] border border-black/5">
-                Community Itinerary (View Only)
+                {trip.is_public ? 'Community Itinerary' : 'Private Itinerary (View Only)'}
               </span>
-              <button
-                onClick={handleCopyTrip}
-                disabled={isCopying}
-                className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#00261D]/90 transition-all shadow-sm cursor-pointer"
-              >
-                {isCopying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>Copy & Customize This Trip →</span>
-              </button>
+              {(!isOwner && Boolean(trip.is_public) && (
+                ((role === 'ORGANIZER' || backendUser?.role === 'ORGANIZER' || Boolean(organizerProfile)) && (trip.owner_role === 'ORGANIZER' || (trip.owner_id && trip.owner_id.startsWith('org-')))) ||
+                (!(role === 'ORGANIZER' || backendUser?.role === 'ORGANIZER' || Boolean(organizerProfile)) && !(trip.owner_role === 'ORGANIZER' || (trip.owner_id && trip.owner_id.startsWith('org-'))))
+              )) && (
+                <button
+                  onClick={handleCopyTrip}
+                  disabled={isCopying}
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#00261D]/90 transition-all shadow-sm cursor-pointer"
+                >
+                  {isCopying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{(role === 'ORGANIZER' || backendUser?.role === 'ORGANIZER' || Boolean(organizerProfile)) ? 'Copy & Customize Package →' : 'Copy & Customize This Trip →'}</span>
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -778,6 +822,78 @@ export default function TripDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* ─── Expedition Weather & Forecast Card ─── */}
+      {tripWeather && (
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-black/10 shadow-xs space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-black/5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#E7F7EE] text-emerald-800 flex items-center justify-center">
+                {renderWeatherIcon(tripWeather.icon || 'sun', 'w-5 h-5')}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#717975] block">
+                    DESTINATION CLIMATE & FORECAST
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live OpenWeather
+                  </span>
+                </div>
+                <h3 className="text-xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+                  {tripWeather.destination || trip.destination} Weather Overview
+                </h3>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-[#717975] flex-wrap">
+              <span>Current: <strong className="text-[#00261D]">{tripWeather.current_temp}°C {tripWeather.condition}</strong></span>
+              <span>•</span>
+              <span>Humidity: {tripWeather.humidity}%</span>
+              <span>•</span>
+              <span>Wind: {tripWeather.wind_speed_kmh} km/h</span>
+            </div>
+          </div>
+
+          {Array.isArray(tripWeather.forecast) && tripWeather.forecast.length > 0 ? (
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-[#717975] uppercase tracking-wider block">
+                Daily Forecast ({tripWeather.forecast.length} Day{tripWeather.forecast.length > 1 ? 's' : ''})
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {tripWeather.forecast.map((fDay) => (
+                  <div
+                    key={fDay.day_number}
+                    className="p-3.5 rounded-2xl bg-[#F8FAF6] border border-black/10 hover:border-[#00261D]/40 transition-all flex flex-col justify-between space-y-2 shadow-2xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#00261D]">{fDay.day_label}</span>
+                      {renderWeatherIcon(fDay.icon || 'sun', 'w-4 h-4')}
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-medium text-[#717975] block truncate">
+                        {fDay.formatted_date}
+                      </span>
+                      <span className="text-base font-bold text-[#00261D] block mt-0.5">
+                        {fDay.temp}°C
+                      </span>
+                      <span className="text-xs font-bold text-[#555E59] block truncate">
+                        {fDay.condition}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-[#717975] pt-1.5 border-t border-black/5 flex items-center justify-between">
+                      <span>{fDay.temp_max}° / {fDay.temp_min}°</span>
+                      {fDay.pop > 0 && <span>💧 {fDay.pop}%</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-[#717975]">{tripWeather.description || 'Favorable travel conditions forecasted across your expedition window.'}</p>
+          )}
+        </div>
+      )}
 
       {/* ─── Expedition Members & Google Profile Photos Card ─────────── */}
       {trip.is_public && !isOwner && !trip.show_members_publicly ? (

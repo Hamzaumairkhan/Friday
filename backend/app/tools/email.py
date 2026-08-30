@@ -3,7 +3,6 @@
 from typing import Dict, Any, Optional, List
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.services.email_template_service import _get_base_layout
 
 logger = get_logger("tools.email")
 settings = get_settings()
@@ -38,36 +37,16 @@ class ResendEmailProvider(BaseEmailProvider):
             import resend
             resend.api_key = self.api_key
 
-            target_to = to
-            # In development/test mode, if admin_email is configured, ensure delivery
-            if self.admin_email and ("example.com" in to or "friday.pk" in to):
-                target_to = self.admin_email
-
-            rendered_html = html or _get_base_layout(
-                title=subject,
-                preheader=subject,
-                content_html=f"<div style='font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;'>{body}</div>",
-            )
+            target_to = to.strip()
 
             params = {
                 "from": self.from_email,
                 "to": [target_to],
                 "subject": subject,
-                "html": rendered_html,
+                "html": html or f"<div style='font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;'>{body}</div>",
                 "text": body,
             }
-            try:
-                response = resend.Emails.send(params)
-            except Exception as resend_err:
-                # If Resend free tier restricts to verified admin email
-                if self.admin_email and target_to != self.admin_email:
-                    logger.warning(f"Retrying Resend email delivery to verified admin email {self.admin_email} due to: {resend_err}")
-                    params["to"] = [self.admin_email]
-                    response = resend.Emails.send(params)
-                    target_to = self.admin_email
-                else:
-                    raise resend_err
-
+            response = resend.Emails.send(params)
             email_id = response.get("id") if isinstance(response, dict) else getattr(response, "id", "email-resend-id")
 
             logger.info(f"Resend live email sent successfully to {target_to}. ID: {email_id}")
@@ -127,6 +106,53 @@ class MockEmailProvider(BaseEmailProvider):
         }
 
 
+class SmtpEmailProvider(BaseEmailProvider):
+    """Direct SMTP email provider (e.g. Gmail SMTP, SendGrid, Amazon SES, or custom SMTP relay)."""
+
+    def __init__(self, host: str, port: int, user: str, password: str, from_email: str):
+        self.host = host
+        self.port = port
+        self.user = user
+        self.password = password
+        self.from_email = from_email
+
+    async def send(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
+        import smtplib
+        import asyncio
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        if not to or not to.strip():
+            return {"success": False, "source": "smtp", "source_type": "invalid_input", "data": None, "error": "Recipient empty."}
+
+        target_to = to.strip()
+
+        def _send_sync():
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = self.from_email
+            msg["To"] = target_to
+
+            msg.attach(MIMEText(body, "plain", "utf-8"))
+            if html:
+                msg.attach(MIMEText(html, "html", "utf-8"))
+
+            with smtplib.SMTP(self.host, self.port) as server:
+                server.starttls()
+                server.login(self.user, self.password)
+                server.sendmail(self.from_email, [target_to], msg.as_string())
+            return True
+
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _send_sync)
+            logger.info(f"Direct SMTP email delivered successfully to {target_to}")
+            return {"success": True, "source": "smtp", "source_type": "live", "data": {"to": target_to, "subject": subject}, "error": None}
+        except Exception as e:
+            logger.error(f"SMTP delivery failed: {e}")
+            return {"success": False, "source": "smtp", "source_type": "live", "data": None, "error": f"SMTP error: {e}"}
+
+
 class EmailTool:
     """Unified email tool used by booking and notification services with source transparency."""
 
@@ -134,8 +160,18 @@ class EmailTool:
         self.api_key = api_key or settings.RESEND_API_KEY
         self.from_email = from_email or settings.EMAIL_FROM
         self.admin_email = admin_email or settings.ADMIN_EMAIL
-        if self.api_key:
-            self.provider: BaseEmailProvider = ResendEmailProvider(api_key=self.api_key, from_email=self.from_email, admin_email=self.admin_email)
+
+        # Priority 1: SMTP if configured
+        if settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD:
+            self.provider: BaseEmailProvider = SmtpEmailProvider(
+                host=settings.SMTP_HOST,
+                port=settings.SMTP_PORT,
+                user=settings.SMTP_USER,
+                password=settings.SMTP_PASSWORD,
+                from_email=self.from_email,
+            )
+        elif self.api_key:
+            self.provider = ResendEmailProvider(api_key=self.api_key, from_email=self.from_email, admin_email=self.admin_email)
         else:
             self.provider = UnconfiguredEmailProvider()
 

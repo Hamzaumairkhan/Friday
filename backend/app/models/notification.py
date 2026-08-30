@@ -13,13 +13,14 @@ class NotificationType(str, enum.Enum):
     PAYMENT_REJECTED = "PAYMENT_REJECTED"
     BOOKING_CONFIRMED = "BOOKING_CONFIRMED"
     BOOKING_REJECTED = "BOOKING_REJECTED"
+    NEW_GROUP_MESSAGE = "NEW_GROUP_MESSAGE"
 
 
 class Notification(Base, IDMixin, TimestampMixin):
     __tablename__ = "notifications"
 
     user_id = Column(String, nullable=False, index=True)
-    type = Column(SAEnum(NotificationType), nullable=False)
+    type = Column(String, nullable=False)
     title = Column(String, nullable=False)
     message = Column(Text, nullable=True)
     related_booking_id = Column(String, nullable=True)

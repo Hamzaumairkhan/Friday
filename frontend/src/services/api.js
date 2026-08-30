@@ -20,27 +20,27 @@ async function getAuthHeaders() {
   }
 
   try {
+    const fToken = localStorage.getItem('friday_auth_token') || localStorage.getItem('token');
+    if (fToken) {
+      return { Authorization: `Bearer ${fToken}`, 'X-User-Id': fToken };
+    }
+
     const cached = localStorage.getItem('friday_session');
     if (cached) {
       const parsed = JSON.parse(cached);
       if (parsed?.token) {
-        return { Authorization: `Bearer ${parsed.token}` };
+        return { Authorization: `Bearer ${parsed.token}`, 'X-User-Id': parsed.user?.id || parsed.token };
       }
       if (parsed?.user?.id) {
-        return { 'X-User-Id': parsed.user.id };
+        return { 'X-User-Id': parsed.user.id, Authorization: `Bearer ${parsed.user.id}` };
       }
     }
 
-    const directToken = localStorage.getItem('token');
-    if (directToken) {
-      return { Authorization: `Bearer ${directToken}` };
-    }
-
-    const authUser = localStorage.getItem('auth_user');
-    if (authUser) {
-      const parsed = JSON.parse(authUser);
+    const bUser = localStorage.getItem('backend_user') || localStorage.getItem('auth_user') || localStorage.getItem('friday_user');
+    if (bUser) {
+      const parsed = JSON.parse(bUser);
       if (parsed?.id) {
-        return { 'X-User-Id': parsed.id };
+        return { 'X-User-Id': parsed.id, Authorization: `Bearer ${parsed.id}` };
       }
     }
   } catch {}

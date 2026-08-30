@@ -5,7 +5,7 @@ from app.models.trip import Trip, TripMember, TripStatus, MemberRole
 from app.models.itinerary import Itinerary, Day, Activity, ActivityCategory
 from app.models.budget import Budget, BudgetCategory
 from app.models.organizer import Organizer
-from app.models.package import Package
+from app.models.package import Package, PackageView
 from app.models.booking import Booking, BookingStatus, PaymentStatus
 from app.models.review import Review
 from app.models.conversation import Conversation, Message
@@ -19,7 +19,7 @@ __all__ = [
     "Itinerary", "Day", "Activity", "ActivityCategory",
     "Budget", "BudgetCategory",
     "Organizer",
-    "Package",
+    "Package", "PackageView",
     "Booking", "BookingStatus", "PaymentStatus",
     "Review",
     "Conversation", "Message",

@@ -88,3 +88,21 @@ class NotificationService:
             message=f"Your booking for '{package_title}' has been rejected by the organizer.",
             related_booking_id=booking_id,
         ))
+
+    async def notify_new_group_message(
+        self,
+        recipient_user_id: str,
+        package_id: str,
+        sender_name: str,
+        group_title: str,
+        message_text: str,
+    ) -> Notification:
+        """Notify recipient of a new chat message in their trip group."""
+        snippet = (message_text[:60] + "...") if len(message_text) > 60 else message_text
+        return await self.repo.create(Notification(
+            user_id=recipient_user_id,
+            type=NotificationType.NEW_GROUP_MESSAGE,
+            title=f"💬 {sender_name} ({group_title})",
+            message=f"{sender_name}: \"{snippet}\"",
+            related_trip_id=package_id,
+        ))

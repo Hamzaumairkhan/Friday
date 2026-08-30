@@ -38,10 +38,61 @@ import {
   Save,
   FileText,
   RefreshCw,
+  Sun,
+  Cloud,
+  CloudRain,
+  CloudSun,
+  Snowflake,
+  Wind,
+  Droplets,
 } from 'lucide-react';
 import { tripsService } from '../../services/trips';
+import { packagesService } from '../../services/packages';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+
+const renderWeatherIcon = (iconName, className = 'w-5 h-5') => {
+  switch (iconName) {
+    case 'sun':
+      return <Sun className={`${className} text-amber-500`} />;
+    case 'cloud-sun':
+      return <CloudSun className={`${className} text-amber-600`} />;
+    case 'cloud-rain':
+      return <CloudRain className={`${className} text-blue-500`} />;
+    case 'snowflake':
+      return <Snowflake className={`${className} text-cyan-500`} />;
+    case 'cloud':
+    default:
+      return <Cloud className={`${className} text-slate-500`} />;
+  }
+};
+
+const createCleanTravelerDaysSchedule = (numDays = 3) => {
+  const count = Math.max(1, Number(numDays) || 3);
+  return Array.from({ length: count }, (_, i) => ({
+    day_number: i + 1,
+    title: '',
+    summary: '',
+    activities: [
+      {
+        title: '',
+        start_time: '08:30 AM',
+        end_time: '12:30 PM',
+        time: '08:30 AM - 12:30 PM',
+        location: '',
+        description: '',
+      },
+      {
+        title: '',
+        start_time: '02:30 PM',
+        end_time: '06:30 PM',
+        time: '02:30 PM - 06:30 PM',
+        location: '',
+        description: '',
+      },
+    ],
+  }));
+};
 
 export default function PlanTripPage() {
   const navigate = useNavigate();
@@ -117,12 +168,12 @@ export default function PlanTripPage() {
     const start = new Date(startDate);
     if (isNaN(start.getTime())) return;
 
-    let days = 3;
+    let days = parseInt(customVal) || 3;
     if (option === '1_day') days = 1;
     else if (option === '2-3_days') days = 3;
     else if (option === '4-6_days') days = 5;
     else if (option === '7+_days') days = 7;
-    else if (option === 'custom') days = Math.max(1, parseInt(customVal) || 8);
+    else if (option === 'custom') days = Math.max(1, parseInt(customVal) || 1);
 
     const end = new Date(start);
     end.setDate(start.getDate() + (days - 1));
@@ -132,7 +183,264 @@ export default function PlanTripPage() {
     setReturnDate(`${yyyy}-${mm}-${dd}`);
   };
 
-  // ─── Schedule Slot Customizer State (Step 7) ──────────────────────────
+  // ─── Day-by-Day Structured Itinerary Customizer (Step 7) ───────────────
+  const [daysSchedule, setDaysSchedule] = useState(() => createCleanTravelerDaysSchedule(3));
+  const [isGeneratingItinerary, setIsGeneratingItinerary] = useState(false);
+
+  const getTravelerDaysCount = () => {
+    if (departureDate && returnDate) {
+      const diff = Math.ceil((new Date(returnDate) - new Date(departureDate)) / (1000 * 60 * 60 * 24)) + 1;
+      if (diff > 0) return diff;
+    }
+    if (durationOption === '1_day') return 1;
+    if (durationOption === '2-3_days') return 3;
+    if (durationOption === '4-6_days') return 5;
+    if (durationOption === '7+_days') return 7;
+    if (durationOption === 'custom') return Math.max(1, parseInt(customDays) || 3);
+    return 3;
+  };
+
+  useEffect(() => {
+    const totalDays = getTravelerDaysCount();
+    setDaysSchedule((prev) => {
+      if (prev.length === totalDays) return prev;
+      if (totalDays > prev.length) {
+        const added = Array.from({ length: totalDays - prev.length }, (_, i) => ({
+          day_number: prev.length + i + 1,
+          title: '',
+          summary: '',
+          activities: [
+            {
+              title: '',
+              start_time: '08:30 AM',
+              end_time: '12:30 PM',
+              time: '08:30 AM - 12:30 PM',
+              location: '',
+              description: '',
+            },
+            {
+              title: '',
+              start_time: '02:30 PM',
+              end_time: '06:30 PM',
+              time: '02:30 PM - 06:30 PM',
+              location: '',
+              description: '',
+            },
+          ],
+        }));
+        return [...prev, ...added];
+      }
+      return prev.slice(0, totalDays);
+    });
+  }, [departureDate, returnDate, durationOption, customDays]);
+
+  const updateDayField = (dIdx, field, value) => {
+    setDaysSchedule((prev) => {
+      const next = [...prev];
+      next[dIdx] = { ...next[dIdx], [field]: value };
+      return next;
+    });
+  };
+
+  const updateActivityField = (dIdx, aIdx, field, value) => {
+    setDaysSchedule((prev) => {
+      const next = [...prev];
+      const targetDay = next[dIdx];
+      const acts = [...(targetDay.activities || [])];
+      acts[aIdx] = { ...acts[aIdx], [field]: value };
+      next[dIdx] = { ...targetDay, activities: acts };
+      return next;
+    });
+  };
+
+  const addActivityToDay = (dayIndex) => {
+    setDaysSchedule((prev) => {
+      const next = [...prev];
+      const targetDay = next[dayIndex];
+      const acts = [...(targetDay.activities || [])];
+      acts.push({
+        title: '',
+        start_time: '02:00 PM',
+        end_time: '05:00 PM',
+        time: '02:00 PM - 05:00 PM',
+        location: '',
+        description: '',
+      });
+      next[dayIndex] = { ...targetDay, activities: acts };
+      return next;
+    });
+  };
+
+  const removeActivityFromDay = (dayIndex, actIndex) => {
+    setDaysSchedule((prev) => {
+      const next = [...prev];
+      const targetDay = next[dayIndex];
+      const acts = (targetDay.activities || []).filter((_, idx) => idx !== actIndex);
+      next[dayIndex] = { ...targetDay, activities: acts };
+      return next;
+    });
+  };
+
+  const addDayManually = () => {
+    setDaysSchedule((prev) => {
+      const nextNum = prev.length + 1;
+      const newDay = {
+        day_number: nextNum,
+        title: '',
+        summary: '',
+        activities: [
+          {
+            title: '',
+            start_time: '08:30 AM',
+            end_time: '12:30 PM',
+            time: '08:30 AM - 12:30 PM',
+            location: '',
+            description: '',
+          },
+          {
+            title: '',
+            start_time: '02:30 PM',
+            end_time: '06:30 PM',
+            time: '02:30 PM - 06:30 PM',
+            location: '',
+            description: '',
+          },
+        ],
+      };
+      return [...prev, newDay];
+    });
+    toast.success('New day added to itinerary!');
+  };
+
+  const removeDay = (dayIndex) => {
+    setDaysSchedule((prev) => {
+      const filtered = prev.filter((_, idx) => idx !== dayIndex);
+      return filtered.map((d, i) => ({
+        ...d,
+        day_number: i + 1,
+      }));
+    });
+  };
+
+  const handleAutoGenerateItinerary = async () => {
+    if (!destination.trim()) {
+      toast.error('Please specify your destination first.');
+      return;
+    }
+    setIsGeneratingItinerary(true);
+    try {
+      const res = await packagesService.generateItinerary({
+        destination: destination.trim(),
+        duration_days: daysSchedule.length || getTravelerDaysCount(),
+        trip_style: selectedStyles?.join(', ') || 'Scenic Exploration',
+        accommodation_type: accommodation || 'Hotel',
+      });
+      const rawDays = (res && (res.days || res.days_schedule)) || [];
+      if (Array.isArray(rawDays) && rawDays.length > 0) {
+        setDaysSchedule(rawDays);
+        toast.success(`AI Day-by-Day schedule generated for ${destination}!`);
+      } else {
+        toast.error('Could not generate schedule. Please try again.');
+      }
+    } catch (err) {
+      console.error('Itinerary generation error:', err);
+      toast.error('AI generation unavailable right now.');
+    } finally {
+      setIsGeneratingItinerary(false);
+    }
+  };
+
+  const validateTravelerStep = (stepNumber) => {
+    if (stepNumber === 1) {
+      if (!origin.trim()) {
+        toast.error('Starting / Departure city is required before moving to next step.');
+        return false;
+      }
+      if (!destination.trim()) {
+        toast.error('Destination is required before moving to next step.');
+        return false;
+      }
+    } else if (stepNumber === 2) {
+      if (!travelers || Number(travelers) < 1) {
+        toast.error('Please select at least 1 traveler.');
+        return false;
+      }
+    } else if (stepNumber === 3) {
+      if (!departureDate) {
+        toast.error('Departure date is required before proceeding.');
+        return false;
+      }
+      if (durationOption === 'custom' && (!customDays || Number(customDays) < 1)) {
+        toast.error('Please enter a valid number of days.');
+        return false;
+      }
+    } else if (stepNumber === 4) {
+      if (!budgetAmount || Number(budgetAmount) <= 0) {
+        toast.error('Please specify a valid budget amount in PKR.');
+        return false;
+      }
+    } else if (stepNumber === 5) {
+      if (!accommodation) {
+        toast.error('Please select your preferred stay / accommodation.');
+        return false;
+      }
+    } else if (stepNumber === 6) {
+      if (!selectedStyles || selectedStyles.length === 0) {
+        toast.error('Please select at least 1 travel style.');
+        return false;
+      }
+    } else if (stepNumber === 7) {
+      if (!daysSchedule || daysSchedule.length === 0) {
+        toast.error('Please configure at least 1 day in your itinerary.');
+        return false;
+      }
+    } else if (stepNumber === 8) {
+      if (!leadContact.name?.trim()) {
+        toast.error('Lead traveler full name is required.');
+        return false;
+      }
+      if (!leadContact.email?.trim()) {
+        toast.error('Lead traveler email address is required.');
+        return false;
+      }
+      if (!leadContact.phone?.trim()) {
+        toast.error('Lead traveler phone / WhatsApp number is required.');
+        return false;
+      }
+      if (travelers > 1) {
+        for (let i = 0; i < companions.length; i++) {
+          const c = companions[i];
+          if (!c.name?.trim()) {
+            toast.error(`Please enter full name for Companion #${i + 2}.`);
+            return false;
+          }
+          if (!c.email?.trim()) {
+            toast.error(`Please enter email for Companion #${i + 2}.`);
+            return false;
+          }
+          if (!c.phone?.trim()) {
+            toast.error(`Please enter phone number for Companion #${i + 2}.`);
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  };
+
+  const handleStepClick = (targetStep) => {
+    if (targetStep <= currentStep) {
+      setCurrentStep(targetStep);
+      return;
+    }
+    for (let s = currentStep; s < targetStep; s++) {
+      if (!validateTravelerStep(s)) {
+        return;
+      }
+    }
+    setCurrentStep(targetStep);
+  };
+
   const [slotOptions, setSlotOptions] = useState(null);
   const [slotSelections, setSlotSelections] = useState({
     morning: 'option_d',
@@ -143,15 +451,18 @@ export default function PlanTripPage() {
   // Fetch Weather Advisory when Destination or Departure Date changes
   useEffect(() => {
     if (destination.trim() && departureDate) {
-      let daysCount = 3;
-      if (durationOption === '1_day') daysCount = 1;
-      else if (durationOption === '2-3_days') daysCount = 3;
-      else if (durationOption === '4-6_days') daysCount = 5;
-      else if (durationOption === '7+_days') daysCount = 7;
-      else if (durationOption === 'custom') daysCount = Math.max(1, parseInt(customDays) || 8);
-      else if (departureDate && returnDate) {
+      let daysCount = parseInt(customDays) || 3;
+      if (departureDate && returnDate) {
         const diff = Math.ceil((new Date(returnDate) - new Date(departureDate)) / (1000 * 60 * 60 * 24)) + 1;
         if (diff > 0) daysCount = diff;
+      } else if (durationOption === '1_day') {
+        daysCount = 1;
+      } else if (durationOption === '2-3_days') {
+        daysCount = 3;
+      } else if (durationOption === '4-6_days') {
+        daysCount = 5;
+      } else if (durationOption === '7+_days') {
+        daysCount = 7;
       }
 
       setIsCheckingWeather(true);
@@ -163,7 +474,7 @@ export default function PlanTripPage() {
     } else {
       setWeatherAdvisory(null);
     }
-  }, [destination, departureDate, durationOption, customDays, returnDate]);
+  }, [destination, departureDate, customDays, returnDate, durationOption]);
 
   // Fetch 4 Slot Options when destination changes
   useEffect(() => {
@@ -694,6 +1005,7 @@ export default function PlanTripPage() {
       travel_styles: selectedStyles,
       additional_preferences: additionalNotes.trim() || null,
       slot_preferences: slotSelections,
+      days_schedule: daysSchedule,
       lead_contact: leadContact,
       companions: companions,
       show_members_publicly: showMembersPublicly,
@@ -1089,11 +1401,10 @@ export default function PlanTripPage() {
   };
 
   // ─── Secondary Conversational Refinement ──────────────────────────────
-  const handleRefineTrip = async (e) => {
-    e?.preventDefault();
-    if (!refineInput.trim() || isRefining || !generatedTripId) return;
+  const handleRefineWithPrompt = async (customPrompt) => {
+    const msg = (customPrompt || refineInput || '').trim();
+    if (!msg || isRefining || !generatedTripId) return;
 
-    const msg = refineInput.trim();
     setRefineInput('');
     setIsRefining(true);
 
@@ -1102,11 +1413,13 @@ export default function PlanTripPage() {
       toast.success(res.message || 'Itinerary refined successfully!');
       const updated = await tripsService.getTrip(generatedTripId);
       const updatedItin = await tripsService.getItinerary(generatedTripId).catch(() => null);
+      const updatedBudget = await tripsService.getBudget(generatedTripId).catch(() => null);
       if (updated) {
         setGeneratedPlan((prev) => ({
           ...prev,
           trip: updated,
           itinerary: updatedItin || prev.itinerary,
+          budget_breakdown: updatedBudget || prev.budget_breakdown,
         }));
       }
     } catch (err) {
@@ -1115,6 +1428,11 @@ export default function PlanTripPage() {
     } finally {
       setIsRefining(false);
     }
+  };
+
+  const handleRefineTrip = (e) => {
+    e?.preventDefault();
+    handleRefineWithPrompt(refineInput);
   };
 
   // ─── RENDER: AI PLANNING PROGRESS STATE ────────────────────────────────
@@ -1166,20 +1484,25 @@ export default function PlanTripPage() {
     
     const getDestinationFallback = (dest) => {
       const d = (dest || '').toLowerCase();
+      if (d.includes('pine') || d.includes('nathia') || d.includes('murree') || d.includes('galyat') || d.includes('ayubia') || d.includes('bhurban') || d.includes('patriata') || d.includes('dunga')) return '/images/stitch/stitch_asset_11.jpg';
       if (d.includes('islamabad') || d.includes('margalla') || d.includes('faisal') || d.includes('rawalpindi')) return '/images/stitch/stitch_asset_4.jpg';
       if (d.includes('lahore') || d.includes('badshahi') || d.includes('punjab') || d.includes('faisalabad') || d.includes('multan')) return '/images/stitch/stitch_asset_2.jpg';
       if (d.includes('karachi') || d.includes('gwadar') || d.includes('ormara') || d.includes('kund') || d.includes('sindh')) return '/images/stitch/stitch_asset_5.jpg';
       if (d.includes('swat') || d.includes('kalam') || d.includes('malam') || d.includes('mahudand')) return '/images/stitch/stitch_asset_10.jpg';
-      if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar')) return '/images/stitch/stitch_asset_9.jpg';
+      if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar') || d.includes('shogran')) return '/images/stitch/stitch_asset_9.jpg';
       if (d.includes('kumrat') || d.includes('jahaz') || d.includes('katora')) return '/images/stitch/stitch_asset_8.jpg';
       if (d.includes('fairy') || d.includes('nanga')) return '/images/stitch/stitch_asset_7.jpg';
-      if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila')) return '/images/stitch/hero_mountains.jpg';
-      if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit')) return '/images/stitch/stitch_asset_6.jpg';
-      return '/images/stitch/panoramic_lake.jpg';
+      if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila') || d.includes('khaplu')) return '/images/stitch/hero_mountains.jpg';
+      if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit') || d.includes('attabad')) return '/images/stitch/stitch_asset_1.jpg';
+      if (d.includes('neelum') || d.includes('kashmir') || d.includes('arang') || d.includes('sharda') || d.includes('ratti') || d.includes('taobat')) return '/images/stitch/stitch_asset_8.jpg';
+      if (d.includes('chitral') || d.includes('kalash') || d.includes('shandur')) return '/images/stitch/stitch_asset_14.jpg';
+      return '/images/stitch/hero_mountains.jpg';
     };
 
     const destName = trip.destination || destination;
-    const heroImage = trip.image_url || getDestinationFallback(destName);
+    const rawImage = trip.image_url;
+    const isInvalidImage = !rawImage || rawImage.includes('instagram') || rawImage.includes('fbsbx') || rawImage.includes('panoramic_lake') || rawImage.includes('stitch_asset_6');
+    const heroImage = isInvalidImage ? getDestinationFallback(destName) : rawImage;
 
     return (
       <div className="w-full flex-1 flex justify-between min-h-screen bg-[#F8FAF6]">
@@ -2219,19 +2542,50 @@ export default function PlanTripPage() {
             )}
 
             {/* ─── Secondary Conversational AI Refinement ─────────────── */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-black/10 shadow-xs space-y-4">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#00261D]">
-                <Sparkles className="w-4 h-4 text-[#00261D]" />
-                <span>Ask Friday to refine something</span>
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-black/10 shadow-xs space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#00261D]">
+                  <Sparkles className="w-4 h-4 text-[#00261D]" />
+                  <span>Ask Friday to refine something</span>
+                </div>
+                {isRefining && (
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-[#00261D] animate-pulse">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Recalculating plan...</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs text-[#717975]">
-                Want to tweak this plan? E.g., <em>"Make it 5k cheaper"</em>, <em>"Add more trekking"</em>, or <em>"Include Pine Valley viewpoint rest"</em>.
+                Select a quick adjustment option below or enter your own custom tweak (e.g., <em>"Make it 5k cheaper"</em> or <em>"Add local food stops"</em>).
               </p>
 
-              <form onSubmit={handleRefineTrip} className="relative flex items-center">
+              {/* Quick Refinement Options */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {[
+                  { label: '💰 Make it Cheaper (-20%)', prompt: 'Make this trip cheaper and optimize budget' },
+                  { label: '📉 Cut Budget by 5,000', prompt: 'Make it 5k cheaper' },
+                  { label: '💎 Upgrade to Luxury (+30%)', prompt: 'Upgrade accommodation and transport to luxury' },
+                  { label: '🌿 Add Scenic Nature & Views', prompt: 'Include more scenic viewpoints and nature exploration' },
+                  { label: '🍽️ Include Local Food Stops', prompt: 'Add authentic local dining and traditional cuisine stops' },
+                  { label: '🥾 Add Mountain Hiking', prompt: 'Add hiking and trekking trails to the daily schedule' },
+                ].map((opt, oIdx) => (
+                  <button
+                    key={oIdx}
+                    type="button"
+                    disabled={isRefining}
+                    onClick={() => handleRefineWithPrompt(opt.prompt)}
+                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#F8FAF6] hover:bg-[#00261D] hover:text-white text-[#00261D] border border-black/10 transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 shadow-2xs active:scale-95"
+                  >
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Tweak Input Form */}
+              <form onSubmit={handleRefineTrip} className="relative flex items-center pt-2">
                 <input
                   type="text"
-                  placeholder="Tell Friday what to adjust in this itinerary..."
+                  placeholder="Or type a custom adjustment for Friday..."
                   value={refineInput}
                   onChange={(e) => setRefineInput(e.target.value)}
                   disabled={isRefining}
@@ -2240,7 +2594,7 @@ export default function PlanTripPage() {
                 <button
                   type="submit"
                   disabled={!refineInput.trim() || isRefining}
-                  className="absolute right-2 p-2 rounded-full bg-[#00261D] text-white hover:bg-[#00261D]/90 disabled:opacity-40 transition-all cursor-pointer"
+                  className="absolute right-2 p-2 rounded-full bg-[#00261D] text-white hover:bg-[#00261D]/90 disabled:opacity-40 transition-all cursor-pointer shadow-xs"
                 >
                   {isRefining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 </button>
@@ -2398,15 +2752,18 @@ export default function PlanTripPage() {
 
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((st) => (
-              <div
+              <button
                 key={st}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
+                type="button"
+                onClick={() => handleStepClick(st)}
+                className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                   st === currentStep
                     ? 'w-8 bg-[#00261D]'
                     : st < currentStep
-                    ? 'w-4 bg-[#00261D]/40'
+                    ? 'w-4 bg-[#00261D]/50 hover:bg-[#00261D]'
                     : 'w-4 bg-black/10'
                 }`}
+                title={`Step ${st}`}
               />
             ))}
           </div>
@@ -2813,6 +3170,7 @@ export default function PlanTripPage() {
                               const current = parseInt(customDays) || 2;
                               const nextVal = Math.max(1, current - 1);
                               setCustomDays(String(nextVal));
+                              setDurationOption('custom');
                               updateDatesFromDuration(departureDate, 'custom', String(nextVal));
                             }}
                             className="w-10 h-10 rounded-lg hover:bg-slate-100 text-[#00261D] font-bold text-lg flex items-center justify-center transition-colors cursor-pointer"
@@ -2829,6 +3187,7 @@ export default function PlanTripPage() {
                             onChange={(e) => {
                               const val = e.target.value;
                               setCustomDays(val);
+                              setDurationOption('custom');
                               updateDatesFromDuration(departureDate, 'custom', val);
                             }}
                             placeholder="2"
@@ -2841,6 +3200,7 @@ export default function PlanTripPage() {
                               const current = parseInt(customDays) || 2;
                               const nextVal = Math.min(60, current + 1);
                               setCustomDays(String(nextVal));
+                              setDurationOption('custom');
                               updateDatesFromDuration(departureDate, 'custom', String(nextVal));
                             }}
                             className="w-10 h-10 rounded-lg bg-[#00261D] hover:bg-[#00261D]/90 text-white font-bold text-lg flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
@@ -2865,6 +3225,7 @@ export default function PlanTripPage() {
                               const current = parseInt(customDays) || 2;
                               const nextVal = Math.min(60, current + addAmount);
                               setCustomDays(String(nextVal));
+                              setDurationOption('custom');
                               updateDatesFromDuration(departureDate, 'custom', String(nextVal));
                             }}
                             className="px-3 py-2 rounded-xl bg-white border border-black/10 hover:border-[#00261D] text-xs font-bold text-[#00261D] hover:bg-slate-50 transition-all cursor-pointer shadow-2xs flex items-center gap-1"
@@ -2878,51 +3239,118 @@ export default function PlanTripPage() {
                   </div>
                 </div>
 
-                {/* Proactive Weather Intelligence Advisory Banner */}
-                {isCheckingWeather && (
-                  <div className="p-4 rounded-2xl bg-[#F8FAF6] border border-black/10 flex items-center gap-3 text-xs text-[#717975]">
+                {/* ─── Real-Time Weather Forecast & Day Predictions ─── */}
+                {isCheckingWeather ? (
+                  <div className="p-4 rounded-2xl bg-white border border-black/10 flex items-center gap-3 text-xs text-[#717975] shadow-2xs">
                     <Loader2 className="w-4 h-4 animate-spin text-[#00261D]" />
-                    <span>Friday is checking weather forecasts and high-altitude road advisories for {destination || 'your destination'}...</span>
+                    <span>Fetching live OpenWeather forecast for {destination || 'your destination'} across {customDays || 3} days...</span>
                   </div>
-                )}
-
-                {weatherAdvisory && weatherAdvisory.status === 'WARNING' && (
-                  <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 space-y-3 animate-in fade-in duration-300">
-                    <div className="flex items-center gap-2 text-amber-950 font-bold text-xs uppercase tracking-wider">
-                      <AlertTriangle className="w-4 h-4 text-amber-700" />
-                      <span>{weatherAdvisory.title || 'Seasonal Weather Advisory'}</span>
-                    </div>
-                    <p className="text-xs text-amber-900 leading-relaxed">
-                      {weatherAdvisory.message}
-                    </p>
-                    {weatherAdvisory.suggested_dates && (
-                      <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-amber-200/60">
-                        <span className="text-xs text-amber-950 font-medium flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                          <span>Suggested Optimal Window: <strong>{weatherAdvisory.suggested_dates.label}</strong></span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDepartureDate(weatherAdvisory.suggested_dates.start_date);
-                            setReturnDate(weatherAdvisory.suggested_dates.end_date);
-                            toast.success('Optimal weather travel dates applied!');
-                          }}
-                          className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-full text-xs font-bold transition-all cursor-pointer shadow-2xs self-start sm:self-auto"
-                        >
-                          Apply Recommended Dates
-                        </button>
+                ) : weatherAdvisory ? (
+                  <div className="space-y-3 pt-2">
+                    <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#00261D]/15 shadow-2xs space-y-4">
+                      {/* Weather Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-black/5 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-full bg-[#E7F7EE] flex items-center justify-center">
+                            {renderWeatherIcon(weatherAdvisory.icon || 'sun', 'w-5 h-5')}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-[#00261D] uppercase tracking-wider">
+                                {weatherAdvisory.destination || destination || 'Destination'} Weather Forecast
+                              </span>
+                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Live OpenWeather
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-[#717975] flex items-center gap-2 mt-0.5">
+                              <span>Current: <strong>{weatherAdvisory.current_temp}°C {weatherAdvisory.condition}</strong></span>
+                              <span>•</span>
+                              <span>Humidity: {weatherAdvisory.humidity}%</span>
+                              <span>•</span>
+                              <span>Wind: {weatherAdvisory.wind_speed_kmh} km/h</span>
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )}
 
-                {weatherAdvisory && weatherAdvisory.status === 'OPTIMAL' && (
-                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-2.5 text-xs text-emerald-900 font-medium">
-                    <Check className="w-4 h-4 text-emerald-700 shrink-0" />
-                    <span>{weatherAdvisory.message || 'Optimal weather conditions forecasted for your travel window.'}</span>
+                      {/* Day-by-Day Forecast Predictions Grid */}
+                      {Array.isArray(weatherAdvisory.forecast) && weatherAdvisory.forecast.length > 0 && (
+                        <div>
+                          <span className="text-[11px] uppercase font-bold text-[#717975] tracking-wider block mb-2.5">
+                            Day-by-Day Weather Prediction ({weatherAdvisory.forecast.length} Day{weatherAdvisory.forecast.length > 1 ? 's' : ''})
+                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                            {weatherAdvisory.forecast.map((fDay) => (
+                              <div
+                                key={fDay.day_number}
+                                className="p-3 rounded-xl bg-[#F8FAF6] border border-black/10 hover:border-[#00261D]/40 transition-all flex flex-col justify-between space-y-2 shadow-2xs"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[11px] font-bold text-[#00261D]">{fDay.day_label}</span>
+                                  {renderWeatherIcon(fDay.icon || 'sun', 'w-4 h-4')}
+                                </div>
+                                <div>
+                                  <span className="text-[10px] font-medium text-[#717975] block truncate">
+                                    {fDay.formatted_date}
+                                  </span>
+                                  <span className="text-sm font-bold text-[#00261D] block mt-0.5">
+                                    {fDay.temp}°C
+                                  </span>
+                                  <span className="text-[10px] font-bold text-[#555E59] block truncate">
+                                    {fDay.condition}
+                                  </span>
+                                </div>
+                                <div className="text-[9px] text-[#717975] pt-1 border-t border-black/5 flex items-center justify-between">
+                                  <span>{fDay.temp_max}° / {fDay.temp_min}°</span>
+                                  {fDay.pop > 0 && <span>💧 {fDay.pop}%</span>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Advisory Warning Banner */}
+                      {weatherAdvisory.status === 'WARNING' && (
+                        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-2 text-xs">
+                          <div className="flex items-center gap-1.5 font-bold text-amber-950 uppercase tracking-wider text-[11px]">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                            <span>{weatherAdvisory.title || 'Seasonal Travel Advisory'}</span>
+                          </div>
+                          <p className="text-amber-900 text-[11px] leading-relaxed">{weatherAdvisory.message}</p>
+                          {weatherAdvisory.suggested_dates && (
+                            <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-amber-200/60">
+                              <span className="text-[11px] text-amber-950 font-medium">
+                                Suggested Optimal Window: <strong>{weatherAdvisory.suggested_dates.label}</strong>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDepartureDate(weatherAdvisory.suggested_dates.start_date);
+                                  setReturnDate(weatherAdvisory.suggested_dates.end_date);
+                                  toast.success('Optimal weather travel dates applied!');
+                                }}
+                                className="px-3 py-1.5 bg-amber-800 hover:bg-amber-900 text-white rounded-full text-[10px] font-bold transition-all cursor-pointer shadow-2xs self-start sm:self-auto"
+                              >
+                                Apply Recommended Dates
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Optimal Status Note */}
+                      {weatherAdvisory.status === 'OPTIMAL' && (
+                        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2 text-xs text-emerald-900">
+                          <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                          <span className="text-[11px]">{weatherAdvisory.message || 'Favorable travel conditions forecasted across your expedition.'}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           )}
@@ -3183,107 +3611,269 @@ export default function PlanTripPage() {
             </div>
           )}
 
-          {/* ─── STEP 7: SCHEDULE SLOT CUSTOMIZER (4 OPTIONS & FAST TRACK) ─── */}
+          {/* ─── STEP 7: DAY-BY-DAY STRUCTURED ITINERARY BUILDER (LIKE ORGANIZER) ─── */}
           {currentStep === 7 && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#BBEAD5]/40 text-[#00261D] inline-block">
-                  Interactive Itinerary Customizer
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowMobileSummary(true)}
-                  className="flex xl:hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#00261D]/20 text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all text-xs font-bold shadow-2xs cursor-pointer"
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#BBEAD5]/40 text-[#00261D] inline-block">
+                    Interactive Itinerary Customizer
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowMobileSummary(true)}
+                    className="flex xl:hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#00261D]/20 text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all text-xs font-bold shadow-2xs cursor-pointer"
+                  >
+                    <Compass className="w-3.5 h-3.5" />
+                    <span>Trip Summary</span>
+                  </button>
+                </div>
+
+                <h1
+                  className="text-4xl sm:text-5xl font-normal text-[#00261D] leading-tight"
+                  style={{ fontFamily: "'Instrument Serif', serif" }}
                 >
-                  <Compass className="w-3.5 h-3.5" />
-                  <span>Trip Summary</span>
-                </button>
+                  Expedition Itinerary & Day-by-Day Schedule
+                </h1>
+                <p className="text-xs sm:text-sm text-[#717975]" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  Structure hourly sightseeing stops, scenic route transits, meal breaks, and hotel check-ins for {destination || 'your destination'}.
+                </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1.5">
-                  <h1
-                    className="text-3xl sm:text-4xl font-normal text-[#00261D] leading-tight"
-                    style={{ fontFamily: "'Instrument Serif', serif" }}
-                  >
-                    How would you like to pace your days?
-                  </h1>
-                  <p className="text-xs text-[#717975]">
-                    Pick curated options for each time slot, or let Friday decide automatically.
+              {/* AI Copilot & Add Day Action Bar */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-[#E7F7EE] border border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-[#00261D] flex items-center justify-center text-white">
+                      <Compass className="w-3.5 h-3.5 text-[#BBEAD5]" />
+                    </div>
+                    <h4 className="text-sm font-bold text-[#00261D]">
+                      Friday AI Itinerary Copilot
+                    </h4>
+                  </div>
+                  <p className="text-xs text-[#00261D]/80">
+                    Auto-generate realistic mountain routes, photography viewpoints, food breaks, and timings for{' '}
+                    <strong>{destination || 'your destination'}</strong>.
                   </p>
                 </div>
 
-                {/* Fast-Track Let Friday Decide All Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSlotSelections({
-                      morning: 'option_d',
-                      afternoon: 'option_d',
-                      evening: 'option_d',
-                    });
-                    toast.success('Friday will automatically optimize all time slots for you!');
-                    setCurrentStep(8);
-                  }}
-                  className="px-5 py-3 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 shrink-0 transition-all hover:scale-105 shadow-xs cursor-pointer"
-                >
-                  <Sparkles className="w-4 h-4 text-[#BBEAD5]" />
-                  <span>Let Friday Decide All →</span>
-                </button>
+                <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
+                  <button
+                    type="button"
+                    disabled={isGeneratingItinerary}
+                    onClick={handleAutoGenerateItinerary}
+                    className="px-4 py-2.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isGeneratingItinerary ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#BBEAD5]" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5 text-[#BBEAD5]" />
+                    )}
+                    <span>{isGeneratingItinerary ? 'Crafting Itinerary...' : '✨ Auto-Generate with AI'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={addDayManually}
+                    className="px-3.5 py-2 rounded-full bg-white hover:bg-black/5 text-[#00261D] border border-black/15 text-xs font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1 whitespace-nowrap"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-[#00261D]" />
+                    <span>Add Day</span>
+                  </button>
+                </div>
               </div>
 
-              {/* 3 Time Slots: Morning, Afternoon, Evening */}
-              {['morning', 'afternoon', 'evening'].map((slotKey) => {
-                const slotTitle = slotKey === 'morning' ? 'Morning (08:00 AM – 12:00 PM)' : slotKey === 'afternoon' ? 'Afternoon (12:30 PM – 04:30 PM)' : 'Evening (05:00 PM – 09:00 PM)';
-                const currentSlotData = slotOptions ? slotOptions[slotKey] : null;
+              {/* Days List (Structured Timeline Layout) */}
+              <div className="space-y-8">
+                {daysSchedule.map((day, dIdx) => (
+                  <div
+                    key={dIdx}
+                    className="p-6 sm:p-7 rounded-3xl bg-white border border-black/10 shadow-2xs space-y-6 relative transition-all hover:border-[#00261D]/30"
+                  >
+                    {/* Day Header Bar */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-black/10">
+                      <div className="flex items-center gap-3 flex-1">
+                        <span className="px-3.5 py-1.5 rounded-full bg-[#00261D] text-white text-xs font-extrabold tracking-wider uppercase shrink-0 shadow-2xs">
+                          DAY {String(day.day_number || dIdx + 1).padStart(2, '0')}
+                        </span>
+                        <input
+                          value={day.title}
+                          onChange={(e) => updateDayField(dIdx, 'title', e.target.value)}
+                          placeholder={
+                            dIdx === 0
+                              ? "e.g. Day 1: Departure, Scenic Transit & Arrival at Destination"
+                              : dIdx === daysSchedule.length - 1
+                              ? `e.g. Day ${dIdx + 1}: Final Sightseeing, Local Souvenirs & Return Journey`
+                              : `e.g. Day ${dIdx + 1}: Guided Sightseeing, Iconic Landmarks & Cultural Exploration`
+                          }
+                          className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-2.5 text-sm sm:text-base font-bold text-[#00261D] focus:outline-none focus:border-[#00261D] transition-colors"
+                        />
+                      </div>
 
-                const defaultChoices = [
-                  { id: 'option_a', title: slotKey === 'morning' ? 'Scenic Mountain Approach & Lake Walk' : slotKey === 'afternoon' ? 'Valley Exploration & Cultural Heritage' : 'Sunset Viewpoint & Local Dining', desc: 'Curated highlight stop for ' + (destination || 'your destination') },
-                  { id: 'option_b', title: slotKey === 'morning' ? 'Highland Trek & Photography Orientation' : slotKey === 'afternoon' ? 'Adventure Activity & Fort Tour' : 'Riverside Relaxation & Stargazing', desc: 'Active exploratory route stop' },
-                  { id: 'option_c', title: slotKey === 'morning' ? 'Relaxed Resort Breakfast & Bazaar Stroll' : slotKey === 'afternoon' ? 'Traditional Cuisine & Crafts Workshop' : 'Traditional Music & Bonfire Gathering', desc: 'Leisurely cultural immersion stop' },
-                  { id: 'option_d', title: 'Let Friday Decide', desc: 'AI dynamically optimizes the best stop according to weather & budget', isAi: true },
-                ];
+                      <div className="flex items-center gap-2 self-end md:self-auto">
+                        <span className="text-[11px] font-semibold text-[#717975] bg-[#F8FAF6] px-3 py-1.5 rounded-full border border-black/5">
+                          {day.activities?.length || 0} Stop{(day.activities?.length || 0) === 1 ? '' : 's'}
+                        </span>
 
-                const choices = currentSlotData?.options || defaultChoices;
+                        <button
+                          type="button"
+                          onClick={() => addActivityToDay(dIdx)}
+                          className="px-3.5 py-1.5 rounded-full bg-[#E7F7EE] hover:bg-[#D4F0E2] text-[#00261D] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                          title="Add new stop to this day"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-emerald-800" />
+                          <span>Add Stop</span>
+                        </button>
 
-                return (
-                  <div key={slotKey} className="bg-white rounded-3xl p-6 sm:p-7 border border-black/10 shadow-xs space-y-4">
-                    <div className="flex items-center gap-2 border-b border-black/5 pb-2.5">
-                      <Clock className="w-4 h-4 text-[#00261D]" />
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-[#00261D]">
-                        {slotTitle}
-                      </h3>
+                        {daysSchedule.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeDay(dIdx)}
+                            className="p-1.5 rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Delete this entire day"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {choices.map((opt) => {
-                        const isSelected = slotSelections[slotKey] === opt.id;
-                        return (
-                          <div
-                            key={opt.id}
-                            onClick={() => setSlotSelections((prev) => ({ ...prev, [slotKey]: opt.id }))}
-                            className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-1 relative ${
-                              isSelected
-                                ? 'bg-[#00261D] text-white border-[#00261D] shadow-xs scale-102'
-                                : 'bg-[#F8FAF6] text-[#191C1A] border-black/5 hover:border-black/20'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <span className="text-xs font-bold block leading-snug">
-                                {opt.title}
-                              </span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-[#BBEAD5] shrink-0 mt-0.5" />}
+                    {/* Day Highlights & Summary Box */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#717975] flex items-center gap-1.5">
+                        <Compass className="w-3.5 h-3.5 text-[#00261D]" />
+                        <span>Day Overview & Scenic Highlights</span>
+                      </label>
+                      <input
+                        value={day.summary || ''}
+                        onChange={(e) => updateDayField(dIdx, 'summary', e.target.value)}
+                        placeholder="e.g. Outline the day's route, transit points, key attractions, and evening stay/meals..."
+                        className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-2.5 text-xs text-[#00261D] focus:outline-none focus:border-[#00261D]"
+                      />
+                    </div>
+
+                    {/* Connected Timeline for Hourly Activities & Sightseeing */}
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-[#00261D] flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-[#00261D]" />
+                          <span>Chronological Stops & Schedule</span>
+                        </span>
+                      </div>
+
+                      {/* Vertical Connecting Line Timeline */}
+                      <div className="relative pl-6 sm:pl-8 space-y-4 border-l-2 border-dashed border-[#00261D]/25 ml-3 sm:ml-4 py-2">
+                        {(day.activities || []).map((act, aIdx) => (
+                          <div key={aIdx} className="relative group">
+                            {/* Timeline Number Circle */}
+                            <div className="absolute -left-[31px] sm:-left-[39px] top-3.5 w-6 h-6 rounded-full bg-white border-2 border-[#00261D] text-[#00261D] flex items-center justify-center text-[10px] font-extrabold shadow-2xs">
+                              {aIdx + 1}
                             </div>
-                            <p className={`text-[11px] leading-relaxed ${isSelected ? 'text-white/80' : 'text-[#717975]'}`}>
-                              {opt.desc}
-                            </p>
+
+                            {/* Stop Card */}
+                            <div className="p-4 sm:p-5 rounded-2xl bg-[#F8FAF6] hover:bg-white border border-black/10 hover:border-[#00261D]/40 transition-all space-y-3 shadow-2xs">
+                              {/* Row 1: Time, Title, Location, Delete */}
+                              <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
+                                {/* Time Input */}
+                                <div className="md:col-span-3">
+                                  <label className="block text-[9px] uppercase font-bold text-[#717975] mb-1 flex items-center gap-1">
+                                    <Clock className="w-3 h-3 text-[#717975]" />
+                                    <span>Time Slot</span>
+                                  </label>
+                                  <input
+                                    value={act.start_time ? `${act.start_time} - ${act.end_time || ''}` : act.time || ''}
+                                    onChange={(e) => updateActivityField(dIdx, aIdx, 'time', e.target.value)}
+                                    placeholder="e.g. 08:30 AM - 12:30 PM"
+                                    className="w-full bg-white border border-black/10 rounded-xl px-3 py-2 text-xs text-[#00261D] font-mono font-bold focus:outline-none focus:border-[#00261D]"
+                                  />
+                                </div>
+
+                                {/* Activity Title */}
+                                <div className="md:col-span-5">
+                                  <label className="block text-[9px] uppercase font-bold text-[#717975] mb-1">
+                                    Activity / Stop Name
+                                  </label>
+                                  <input
+                                    value={act.title || ''}
+                                    onChange={(e) => updateActivityField(dIdx, aIdx, 'title', e.target.value)}
+                                    placeholder={
+                                      aIdx === 0
+                                        ? "e.g. Morning Departure / Highway Rest Stop & Tea"
+                                        : aIdx === 1
+                                        ? "e.g. Arrival, Hotel Check-in & Freshen Up"
+                                        : "e.g. Guided Exploration / Sunset Viewpoint / Dinner"
+                                    }
+                                    className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-[#00261D] focus:outline-none focus:border-[#00261D]"
+                                  />
+                                </div>
+
+                                {/* Location */}
+                                <div className="md:col-span-3">
+                                  <label className="block text-[9px] uppercase font-bold text-[#717975] mb-1 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3 text-[#717975]" />
+                                    <span>Location / Landmark</span>
+                                  </label>
+                                  <input
+                                    value={act.location || ''}
+                                    onChange={(e) => updateActivityField(dIdx, aIdx, 'location', e.target.value)}
+                                    placeholder="e.g. Departure Hub / Landmark / Hotel / Local Bazaar"
+                                    className="w-full bg-white border border-black/10 rounded-xl px-3 py-2 text-xs text-[#00261D] focus:outline-none focus:border-[#00261D]"
+                                  />
+                                </div>
+
+                                {/* Delete Stop Button */}
+                                <div className="md:col-span-1 flex items-end justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeActivityFromDay(dIdx, aIdx)}
+                                    className="p-2 rounded-xl text-red-400 hover:text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
+                                    title="Remove this stop"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Row 2: Description / Experience Notes */}
+                              <div>
+                                <label className="block text-[9px] uppercase font-bold text-[#717975] mb-1">
+                                  Experience Details & Traveler Notes
+                                </label>
+                                <input
+                                  value={act.description || ''}
+                                  onChange={(e) => updateActivityField(dIdx, aIdx, 'description', e.target.value)}
+                                  placeholder="e.g. Outline key experiences, photography viewpoint tips, meal arrangements, ticket inclusions, or luggage instructions..."
+                                  className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2 text-xs text-[#414845] focus:outline-none focus:border-[#00261D]"
+                                />
+                              </div>
+                            </div>
                           </div>
-                        );
-                      })}
+                        ))}
+
+                        {/* Add Stop Button at end of timeline */}
+                        <button
+                          type="button"
+                          onClick={() => addActivityToDay(dIdx)}
+                          className="w-full py-3 rounded-2xl border-2 border-dashed border-black/15 hover:border-[#00261D] bg-white hover:bg-emerald-50/50 text-[#00261D] text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
+                        >
+                          <Plus className="w-4 h-4 text-[#00261D]" />
+                          <span>Add Next Stop to Day {day.day_number || dIdx + 1}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                );
-              })}
+                ))}
+
+                {/* Bottom Wide Add Day CTA */}
+                <button
+                  type="button"
+                  onClick={addDayManually}
+                  className="w-full py-4 rounded-3xl border-2 border-dashed border-[#00261D]/30 hover:border-[#00261D] bg-[#E7F7EE]/60 hover:bg-[#E7F7EE] text-[#00261D] font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs hover:scale-[1.005] active:scale-[0.995]"
+                >
+                  <Plus className="w-5 h-5 text-emerald-800" />
+                  <span>+ Add Day {daysSchedule.length + 1} to Itinerary</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -3464,22 +4054,10 @@ export default function PlanTripPage() {
 
           {currentStep < totalSteps ? (
             <button
+              type="button"
               onClick={() => {
-                if (currentStep === 1) {
-                  if (!origin.trim()) {
-                    toast.error('Please enter your departure city.');
-                    return;
-                  }
-                  if (!destination.trim()) {
-                    toast.error('Please enter where you want to travel.');
-                    return;
-                  }
-                }
-                if (currentStep === 3) {
-                  if (!departureDate) {
-                    toast.error('Departure date is compulsory.');
-                    return;
-                  }
+                if (!validateTravelerStep(currentStep)) {
+                  return;
                 }
                 setCurrentStep(currentStep + 1);
               }}
@@ -3490,7 +4068,13 @@ export default function PlanTripPage() {
             </button>
           ) : (
             <button
-              onClick={handleGeneratePlan}
+              type="button"
+              onClick={() => {
+                if (!validateTravelerStep(8)) {
+                  return;
+                }
+                handleGeneratePlan();
+              }}
               className="px-10 py-4 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2.5 transition-all hover:scale-105 shadow-md cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-[#BBEAD5]" />

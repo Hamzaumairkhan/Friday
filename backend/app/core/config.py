@@ -52,10 +52,14 @@ class Settings(BaseSettings):
     # MAPS & PLACES (Google Maps / OpenStreetMap fallback)
     GOOGLE_MAPS_API_KEY: Optional[str] = None
 
-    # EMAIL (Resend)
+    # EMAIL (Resend & SMTP Fallback)
     RESEND_API_KEY: Optional[str] = None
     EMAIL_FROM: str = "onboarding@resend.dev"
     ADMIN_EMAIL: Optional[str] = None
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
 
     # WHATSAPP (Isolated local Baileys microservice)
     WHATSAPP_SERVICE_URL: str = "http://127.0.0.1:3001"

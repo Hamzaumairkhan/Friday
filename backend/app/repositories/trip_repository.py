@@ -39,10 +39,11 @@ class TripRepository:
         return list(result.scalars().all())
 
     async def get_user_trips(self, user_id: str) -> list[Trip]:
-        """Get all trips a user owns or is a member of."""
+        """Get all trips a user owns or is a member of (excluding package tour bookings)."""
+        from app.models.trip import TripStatus
         # Owned trips
         owned = await self.db.execute(
-            select(Trip).where(Trip.owner_id == user_id).order_by(Trip.created_at.desc())
+            select(Trip).where(Trip.owner_id == user_id, Trip.status != TripStatus.BOOKED).order_by(Trip.created_at.desc())
         )
         owned_trips = list(owned.scalars().all())
 
@@ -54,7 +55,7 @@ class TripRepository:
 
         if member_trip_ids:
             member_trips_result = await self.db.execute(
-                select(Trip).where(Trip.id.in_(member_trip_ids))
+                select(Trip).where(Trip.id.in_(member_trip_ids), Trip.status != TripStatus.BOOKED)
             )
             member_trips = list(member_trips_result.scalars().all())
         else:

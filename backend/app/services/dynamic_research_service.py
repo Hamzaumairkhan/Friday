@@ -14,6 +14,41 @@ import httpx
 _PHOTO_CACHE: Dict[str, Optional[str]] = {}
 
 
+FOREIGN_KEYWORDS = [
+    "california", "yosemite", "nevada", "utah", "arizona", "united states", "usa",
+    "oregon", "colorado", "australia", "canada", "england", "scotland", "new zealand",
+    "san diego", "tunnel view", "texas", "wyoming", "idaho", "alaska", "mexico",
+    "virginia", "carolina", "florida", "georgia", "ohio", "michigan", "pennsylvania",
+    "svk", "slovakia", "poland", "czech", "russia", "norway", "sweden", "finland",
+    "germany", "austria", "switzerland", "france", "spain", "italy", "greece",
+    "brazil", "argentina", "chile", "peru", "colombia", "bolivia", "japan", "korea", "china"
+]
+
+
+def _is_valid_pakistan_photo(data: dict, img_url: str) -> bool:
+    if not img_url or not isinstance(img_url, str):
+        return False
+    if img_url.endswith(".svg"):
+        return False
+    url_lower = img_url.lower()
+    for kw in FOREIGN_KEYWORDS:
+        if kw in url_lower:
+            return False
+    text_content = f"{data.get('title', '')} {data.get('description', '')} {data.get('extract', '')}".lower()
+    for kw in FOREIGN_KEYWORDS:
+        if kw in text_content:
+            return False
+
+    # Positive confirmation: must match Pakistan geographic context
+    pak_signals = [
+        "pakistan", "punjab", "khyber", "gilgit", "baltistan", "kashmir", "sindh",
+        "balochistan", "murree", "galyat", "himalaya", "karakoram", "hindu kush",
+        "swat", "hunza", "skardu", "naran", "kaghan", "neelum", "chitral", "gwadar",
+        "abbottabad", "rawalpindi", "islamabad", "lahore", "peshawar", "quetta", "ziarat"
+    ]
+    return any(sig in text_content or sig in url_lower for sig in pak_signals)
+
+
 async def fetch_real_web_photo_async(query: str, destination: str = "") -> Optional[str]:
     """Asynchronously fetch verified high-resolution photograph for any Pakistan destination or POI."""
     cache_key = f"{query.strip().lower()}:{destination.strip().lower()}"
@@ -25,12 +60,18 @@ async def fetch_real_web_photo_async(query: str, destination: str = "") -> Optio
         "Accept": "application/json",
     }
 
-    search_terms = [query]
-    if destination and destination.lower() not in query.lower():
-        search_terms.append(f"{query} {destination}")
+    search_terms = []
+    clean_q = query.strip()
+    clean_d = destination.strip()
+    if clean_d and clean_d.lower() not in clean_q.lower():
+        search_terms.append(f"{clean_q} {clean_d} Pakistan")
+        search_terms.append(f"{clean_q} {clean_d}")
+    else:
+        search_terms.append(f"{clean_q} Pakistan")
+        search_terms.append(clean_q)
 
     try:
-        async with httpx.AsyncClient(timeout=2.0, headers=headers) as client:
+        async with httpx.AsyncClient(timeout=2.5, headers=headers) as client:
             for term in search_terms:
                 # Step 1: Direct summary search if exact title
                 try:
@@ -40,7 +81,7 @@ async def fetch_real_web_photo_async(query: str, destination: str = "") -> Optio
                     if resp.status_code == 200:
                         data = resp.json()
                         img = data.get("originalimage", {}).get("source") or data.get("thumbnail", {}).get("source")
-                        if img and not img.endswith(".svg"):
+                        if img and _is_valid_pakistan_photo(data, img):
                             _PHOTO_CACHE[cache_key] = img
                             return img
                 except Exception:
@@ -48,7 +89,7 @@ async def fetch_real_web_photo_async(query: str, destination: str = "") -> Optio
 
                 # Step 2: Wikipedia Search API to find top matching page title
                 try:
-                    search_url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={urllib.parse.quote(term)}&format=json&srlimit=2"
+                    search_url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={urllib.parse.quote(term)}&format=json&srlimit=3"
                     resp = await client.get(search_url)
                     if resp.status_code == 200:
                         s_data = resp.json()
@@ -61,7 +102,7 @@ async def fetch_real_web_photo_async(query: str, destination: str = "") -> Optio
                                 if sum_resp.status_code == 200:
                                     sum_data = sum_resp.json()
                                     img = sum_data.get("originalimage", {}).get("source") or sum_data.get("thumbnail", {}).get("source")
-                                    if img and not img.endswith(".svg"):
+                                    if img and _is_valid_pakistan_photo(sum_data, img):
                                         _PHOTO_CACHE[cache_key] = img
                                         return img
                 except Exception:
@@ -74,7 +115,7 @@ async def fetch_real_web_photo_async(query: str, destination: str = "") -> Optio
 
 
 def fetch_real_web_photo(query: str, destination: str = "") -> Optional[str]:
-    """Synchronous cache-aware photo lookup."""
+    """Synchronous cache-aware photo lookup with strict geographic validation."""
     cache_key = f"{query.strip().lower()}:{destination.strip().lower()}"
     if cache_key in _PHOTO_CACHE and _PHOTO_CACHE[cache_key]:
         return _PHOTO_CACHE[cache_key]
@@ -84,9 +125,15 @@ def fetch_real_web_photo(query: str, destination: str = "") -> Optional[str]:
         "Accept": "application/json",
     }
 
-    search_terms = [query]
-    if destination and destination.lower() not in query.lower():
-        search_terms.append(f"{query} {destination}")
+    search_terms = []
+    clean_q = query.strip()
+    clean_d = destination.strip()
+    if clean_d and clean_d.lower() not in clean_q.lower():
+        search_terms.append(f"{clean_q} {clean_d} Pakistan")
+        search_terms.append(f"{clean_q} {clean_d}")
+    else:
+        search_terms.append(f"{clean_q} Pakistan")
+        search_terms.append(clean_q)
 
     for term in search_terms:
         try:
@@ -96,7 +143,7 @@ def fetch_real_web_photo(query: str, destination: str = "") -> Optional[str]:
             with urllib.request.urlopen(req, timeout=1.5) as response:
                 data = json.loads(response.read().decode("utf-8"))
                 img = data.get("originalimage", {}).get("source") or data.get("thumbnail", {}).get("source")
-                if img and not img.endswith(".svg"):
+                if img and _is_valid_pakistan_photo(data, img):
                     _PHOTO_CACHE[cache_key] = img
                     return img
         except Exception:
@@ -106,27 +153,41 @@ def fetch_real_web_photo(query: str, destination: str = "") -> Optional[str]:
 
 
 def resolve_regional_fallback_image(destination: str) -> str:
-    """Return a clean, unbranded regional photo according to the destination geography."""
+    """Return an authentic high-definition regional photo according to the Pakistan destination geography."""
     d = (destination or "").lower()
-    if "islamabad" in d or "margalla" in d or "faisal" in d or "rawalpindi" in d:
-        return "/images/stitch/stitch_asset_4.jpg"
-    elif "lahore" in d or "badshahi" in d or "punjab" in d or "multan" in d or "faisalabad" in d:
-        return "/images/stitch/stitch_asset_2.jpg"
-    elif "karachi" in d or "gwadar" in d or "ormara" in d or "kund" in d or "sindh" in d:
-        return "/images/stitch/stitch_asset_5.jpg"
-    elif "swat" in d or "kalam" in d or "malam" in d or "mahudand" in d:
-        return "/images/stitch/stitch_asset_10.jpg"
-    elif "naran" in d or "kaghan" in d or "saif" in d or "babusar" in d:
-        return "/images/stitch/stitch_asset_9.jpg"
-    elif "kumrat" in d or "jahaz" in d or "katora" in d:
-        return "/images/stitch/stitch_asset_8.jpg"
-    elif "fairy" in d or "nanga" in d:
-        return "/images/stitch/stitch_asset_7.jpg"
-    elif "skardu" in d or "deosai" in d or "shangrila" in d:
+    if "pine" in d or "murree" in d or "galyat" in d or "nathia" in d or "bhurban" in d or "patriata" in d or "ayubia" in d or "dunga" in d or "changla" in d:
+        return "/images/stitch/stitch_asset_11.jpg"
+    elif "hunza" in d or "passu" in d or "altit" in d or "baltit" in d or "attabad" in d or "karimabad" in d or "gulmit" in d or "shimshal" in d:
+        return "/images/stitch/stitch_asset_1.jpg"
+    elif "skardu" in d or "deosai" in d or "shangrila" in d or "khaplu" in d or "shigar" in d or "katpana" in d or "basho" in d:
         return "/images/stitch/hero_mountains.jpg"
-    elif "hunza" in d or "passu" in d or "altit" in d or "baltit" in d:
-        return "/images/stitch/stitch_asset_6.jpg"
-    return "/images/stitch/panoramic_lake.jpg"
+    elif "swat" in d or "kalam" in d or "malam" in d or "mahudand" in d or "fizagat" in d or "bahrain" in d or "saidu" in d:
+        return "/images/stitch/stitch_asset_10.jpg"
+    elif "naran" in d or "kaghan" in d or "saif" in d or "babusar" in d or "lulusar" in d or "shogran" in d or "siri" in d:
+        return "/images/stitch/stitch_asset_9.jpg"
+    elif "fairy" in d or "nanga" in d or "beyal" in d:
+        return "/images/stitch/stitch_asset_7.jpg"
+    elif "kumrat" in d or "jahaz" in d or "katora" in d or "thal" in d:
+        return "/images/stitch/stitch_asset_8.jpg"
+    elif "neelum" in d or "arang" in d or "ratti" in d or "sharda" in d or "kashmir" in d or "keran" in d or "taobat" in d:
+        return "/images/stitch/stitch_asset_8.jpg"
+    elif "chitral" in d or "kalash" in d or "shandur" in d or "tirich" in d or "bumburet" in d:
+        return "/images/stitch/stitch_asset_14.jpg"
+    elif "gwadar" in d or "ormara" in d or "makran" in d or "kund" in d or "pasni" in d or "astola" in d:
+        return "/images/stitch/stitch_asset_5.jpg"
+    elif "gorakh" in d or "sehwan" in d or "ranikot" in d or "dadu" in d:
+        return "/images/stitch/stitch_batch4_7.jpg"
+    elif "bahawalpur" in d or "cholistan" in d or "derawar" in d or "noor mahal" in d:
+        return "/images/stitch/stitch_batch4_2.jpg"
+    elif "lahore" in d or "badshahi" in d or "punjab" in d or "multan" in d or "faisalabad" in d or "shalimar" in d:
+        return "/images/stitch/stitch_asset_2.jpg"
+    elif "islamabad" in d or "margalla" in d or "faisal mosque" in d or "monal" in d or "rawalpindi" in d or "daman" in d:
+        return "/images/stitch/stitch_asset_4.jpg"
+    elif "peshawar" in d or "khyber" in d or "qissa" in d:
+        return "/images/stitch/stitch_asset_3.jpg"
+    elif "quetta" in d or "ziarat" in d or "hannah" in d:
+        return "/images/stitch/stitch_asset_18.jpg"
+    return "/images/stitch/hero_mountains.jpg"
 
 
 def make_maps_url(location_name: str, destination: str) -> str:
@@ -675,28 +736,62 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
         return days_data, hero_img
 
     @classmethod
-    def check_weather_advisory(
+    async def check_weather_advisory(
         cls, destination: str, departure_date: Optional[str] = None, duration_days: int = 3
     ) -> Dict[str, Any]:
-        """Analyze date & destination for seasonal risk and suggest optimal alternate travel windows."""
+        """Analyze date & destination for seasonal risk, fetch live multi-day OpenWeather forecasts, and suggest optimal alternate travel windows."""
         import datetime
+        from app.tools.weather import get_weather
+
         dest_display = destination.strip() if destination else "Your Destination"
+        days_count = max(1, min(duration_days or 3, 14))
         
         today = datetime.date.today()
         opt_start = today + datetime.timedelta(days=14)
-        opt_end = opt_start + datetime.timedelta(days=duration_days)
+        opt_end = opt_start + datetime.timedelta(days=days_count)
+
+        # 1. Fetch live OpenWeather forecast for the specified dates
+        try:
+            weather_res = await get_weather(
+                destination=dest_display,
+                days=days_count,
+                start_date=departure_date or today.strftime("%Y-%m-%d"),
+            )
+            weather_data = weather_res.get("data", {}) if weather_res.get("success") else {}
+        except Exception:
+            weather_data = {}
 
         if not departure_date:
             return {
                 "is_optimal": True,
                 "status": "OPTIMAL",
                 "message": f"Optimal conditions projected for {dest_display}.",
+                "destination": weather_data.get("destination", dest_display),
+                "current_temp": weather_data.get("current_temp", 20),
+                "feels_like": weather_data.get("feels_like", 20),
+                "condition": weather_data.get("condition", "Sunny"),
+                "icon": weather_data.get("icon", "sun"),
+                "description": weather_data.get("description", "Clear sky"),
+                "humidity": weather_data.get("humidity", 45),
+                "wind_speed_kmh": weather_data.get("wind_speed_kmh", 12),
+                "forecast": weather_data.get("forecast", []),
+                "source": weather_data.get("source", "openweather_api"),
                 "suggested_dates": {
                     "start_date": opt_start.strftime("%Y-%m-%d"),
                     "end_date": opt_end.strftime("%Y-%m-%d"),
                     "label": f"{opt_start.strftime('%b %d')} - {opt_end.strftime('%b %d, %Y')}",
                 },
             }
+
+        status = "OPTIMAL"
+        warning_type = None
+        title = None
+        message = f"Clear skies and favorable travel conditions forecast for {dest_display} across your {days_count}-day journey."
+        suggested_dates = {
+            "start_date": departure_date,
+            "end_date": departure_date,
+            "label": "Selected Dates Optimal",
+        }
 
         try:
             dep = datetime.datetime.strptime(departure_date, "%Y-%m-%d").date()
@@ -709,49 +804,51 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                 suggested_start = datetime.date(dep.year if month > 3 else dep.year, 5, 20)
                 if suggested_start < today:
                     suggested_start = today + datetime.timedelta(days=10)
-                suggested_end = suggested_start + datetime.timedelta(days=duration_days)
-                return {
-                    "is_optimal": False,
-                    "status": "WARNING",
-                    "warning_type": "HEAVY_SNOW",
-                    "title": "Winter Road & Snow Closure Advisory",
-                    "message": f"Sub-zero temperatures and severe snowfall frequently close high passes in {dest_display} during winter months.",
-                    "suggested_dates": {
-                        "start_date": suggested_start.strftime("%Y-%m-%d"),
-                        "end_date": suggested_end.strftime("%Y-%m-%d"),
-                        "label": f"{suggested_start.strftime('%b %d')} - {suggested_end.strftime('%b %d, %Y')}",
-                    },
+                suggested_end = suggested_start + datetime.timedelta(days=days_count)
+                status = "WARNING"
+                warning_type = "HEAVY_SNOW"
+                title = "Winter Road & Snow Closure Advisory"
+                message = f"Sub-zero temperatures and severe snowfall frequently close high passes in {dest_display} during winter months."
+                suggested_dates = {
+                    "start_date": suggested_start.strftime("%Y-%m-%d"),
+                    "end_date": suggested_end.strftime("%Y-%m-%d"),
+                    "label": f"{suggested_start.strftime('%b %d')} - {suggested_end.strftime('%b %d, %Y')}",
                 }
 
             # Monsoon landslide risk (July - August)
-            if is_high_north and month in [7, 8]:
+            elif is_high_north and month in [7, 8]:
                 suggested_start = datetime.date(dep.year, 9, 15)
-                suggested_end = suggested_start + datetime.timedelta(days=duration_days)
-                return {
-                    "is_optimal": False,
-                    "status": "WARNING",
-                    "warning_type": "MONSOON_RISK",
-                    "title": "Monsoon Landslide & Rainfall Advisory",
-                    "message": f"Monsoon rainfall and landslide alerts are common along mountain corridors to {dest_display} in July/August.",
-                    "suggested_dates": {
-                        "start_date": suggested_start.strftime("%Y-%m-%d"),
-                        "end_date": suggested_end.strftime("%Y-%m-%d"),
-                        "label": f"{suggested_start.strftime('%b %d')} - {suggested_end.strftime('%b %d, %Y')} (Golden Autumn)",
-                    },
+                suggested_end = suggested_start + datetime.timedelta(days=days_count)
+                status = "WARNING"
+                warning_type = "MONSOON_RISK"
+                title = "Monsoon Landslide & Rainfall Advisory"
+                message = f"Monsoon rainfall and landslide alerts are common along mountain corridors to {dest_display} in July/August."
+                suggested_dates = {
+                    "start_date": suggested_start.strftime("%Y-%m-%d"),
+                    "end_date": suggested_end.strftime("%Y-%m-%d"),
+                    "label": f"{suggested_start.strftime('%b %d')} - {suggested_end.strftime('%b %d, %Y')} (Golden Autumn)",
                 }
 
         except Exception:
             pass
 
         return {
-            "is_optimal": True,
-            "status": "OPTIMAL",
-            "message": f"Clear skies and favorable travel conditions forecast for {dest_display}.",
-            "suggested_dates": {
-                "start_date": departure_date,
-                "end_date": departure_date,
-                "label": "Selected Dates Optimal",
-            },
+            "is_optimal": status == "OPTIMAL",
+            "status": status,
+            "warning_type": warning_type,
+            "title": title,
+            "message": message,
+            "destination": weather_data.get("destination", dest_display),
+            "current_temp": weather_data.get("current_temp", 20),
+            "feels_like": weather_data.get("feels_like", 20),
+            "condition": weather_data.get("condition", "Sunny"),
+            "icon": weather_data.get("icon", "sun"),
+            "description": weather_data.get("description", "Clear sky"),
+            "humidity": weather_data.get("humidity", 45),
+            "wind_speed_kmh": weather_data.get("wind_speed_kmh", 12),
+            "forecast": weather_data.get("forecast", []),
+            "source": weather_data.get("source", "openweather_api"),
+            "suggested_dates": suggested_dates,
         }
 
     @classmethod

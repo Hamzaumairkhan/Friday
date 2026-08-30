@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Compass,
   Sparkles,
   Layers,
+  Package,
   Users,
   Bookmark,
   User,
@@ -14,17 +16,37 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import AuthModal from '../components/auth/AuthModal';
+import NotificationBell from '../components/shared/NotificationBell';
+import UserAvatar from '../components/shared/UserAvatar';
+import { notificationsService } from '../services/notifications';
 
 export default function TravelerLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, backendUser, organizerProfile, role, signOut } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnread = async () => {
+    try {
+      const res = await notificationsService.getUnreadCount();
+      setUnreadCount(res?.unread_count || 0);
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const isOrganizer = role === 'ORGANIZER' || backendUser?.role === 'ORGANIZER' || Boolean(organizerProfile);
 
   const isActive = (path) => {
     if (path === '/explore' && location.pathname.startsWith('/explore')) return true;
-    if (path === '/organizer' && location.pathname.startsWith('/organizer')) return true;
+    if (path === '/organizer' && location.pathname === '/organizer/dashboard') return true;
+    if (path === '/organizer/trips' && location.pathname.startsWith('/organizer/trips')) return true;
+    if (path === '/organizer/profile' && location.pathname.startsWith('/organizer/profile')) return true;
+    if (path === '/organizer/groups' && location.pathname.startsWith('/organizer/groups')) return true;
     return location.pathname === path;
   };
 
@@ -43,8 +65,8 @@ export default function TravelerLayout() {
       {/* ─── DESKTOP LEFT SIDEBAR (Fixed Left w-64) ──────────────────── */}
       <aside className="hidden lg:flex flex-col w-64 p-6 shrink-0 fixed left-0 top-0 h-screen border-r border-black/10 justify-between bg-[#F8FAF6] z-40">
         <div className="space-y-6">
-          {/* Logo */}
-          <div>
+          {/* Logo & Notification Bell */}
+          <div className="flex items-center justify-between">
             <Link to="/" className="inline-block">
               <h1
                 className="text-3xl font-normal text-[#00261D] tracking-tight"
@@ -56,6 +78,7 @@ export default function TravelerLayout() {
                 AI Travel Copilot
               </p>
             </Link>
+            <NotificationBell />
           </div>
 
           {/* Primary Action Button (New Trip for Traveler / Create Package for Organizer) */}
@@ -116,28 +139,50 @@ export default function TravelerLayout() {
               </Link>
             )}
 
-            <Link
-              to="/my-trips"
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                isActive('/my-trips')
-                  ? 'bg-[#E7E9E5] text-[#00261D] font-bold shadow-xs'
-                  : 'text-[#414845] hover:bg-black/5'
-              }`}
-            >
-              <Layers className="w-4 h-4 text-[#00261D]" />
-              <span>My Trips</span>
-            </Link>
+            {/* If Organizer -> My Tour Packages, Else -> My Trips */}
+            {isOrganizer ? (
+              <Link
+                to="/organizer/trips"
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  isActive('/organizer/trips')
+                    ? 'bg-[#E7E9E5] text-[#00261D] font-bold shadow-xs'
+                    : 'text-[#414845] hover:bg-black/5 hover:text-[#00261D]'
+                }`}
+              >
+                <Package className="w-4 h-4 text-[#00261D]" />
+                <span>My Tour Packages</span>
+              </Link>
+            ) : (
+              <Link
+                to="/my-trips"
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  isActive('/my-trips')
+                    ? 'bg-[#E7E9E5] text-[#00261D] font-bold shadow-xs'
+                    : 'text-[#414845] hover:bg-black/5'
+                }`}
+              >
+                <Layers className="w-4 h-4 text-[#00261D]" />
+                <span>My Trips</span>
+              </Link>
+            )}
 
             <Link
-              to="/groups"
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                isActive('/groups')
+              to={isOrganizer ? "/organizer/groups" : "/groups"}
+              className={`flex items-center justify-between px-4 py-3 rounded-xl transition-all ${
+                isActive(isOrganizer ? '/organizer/groups' : '/groups')
                   ? 'bg-[#E7E9E5] text-[#00261D] font-bold shadow-xs'
                   : 'text-[#414845] hover:bg-black/5'
               }`}
             >
-              <Users className="w-4 h-4 text-[#00261D]" />
-              <span>Groups</span>
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-[#00261D]" />
+                <span>Groups</span>
+              </div>
+              {unreadCount > 0 && (
+                <span className="flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-xs animate-pulse">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </Link>
 
             <Link
@@ -158,20 +203,24 @@ export default function TravelerLayout() {
         <div className="space-y-4 pt-4 border-t border-black/10 text-xs text-[#414845]">
           <nav className="flex flex-col gap-1">
             <Link
-              to="/profile"
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${
-                isActive('/profile')
+              to={isOrganizer ? "/organizer/profile" : "/profile"}
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all ${
+                isActive(isOrganizer ? '/organizer/profile' : '/profile')
                   ? 'bg-[#E7E9E5] text-[#00261D] font-bold shadow-xs'
                   : 'hover:text-[#00261D] hover:bg-black/5'
               }`}
             >
-              <User className="w-4 h-4" />
-              <span>Profile</span>
+              <UserAvatar
+                src={user?.photoURL || backendUser?.profile_picture}
+                name={user?.displayName || backendUser?.name || 'Account'}
+                size="xs"
+              />
+              <span className="truncate">{user?.displayName || backendUser?.name || (isOrganizer ? 'Company Profile' : 'Profile')}</span>
             </Link>
 
             <button
               onClick={handleSignOut}
-              className="flex items-center gap-3 px-4 py-2.5 text-[#717975] hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors w-full text-left cursor-pointer"
+              className="flex items-center gap-3 px-4 py-2 text-[#717975] hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors w-full text-left cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               <span>Sign Out</span>
@@ -191,28 +240,59 @@ export default function TravelerLayout() {
 
       {/* ─── MAIN CONTENT VIEWPORT (Full Width, Left-Padded for Sidebar) ─ */}
       <div className="flex-1 w-full lg:pl-64 min-h-screen flex flex-col pb-20 lg:pb-0 overflow-x-hidden">
+        {/* Mobile Top Header (Hidden on Desktop LG+) */}
+        <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-2.5 bg-[#F8FAF6]/90 backdrop-blur-md border-b border-black/10">
+          <Link to="/" className="inline-block">
+            <span className="text-2xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+              Friday®
+            </span>
+          </Link>
+          <div className="flex items-center gap-2.5">
+            <NotificationBell />
+            <Link to={isOrganizer ? "/organizer/profile" : "/profile"}>
+              <UserAvatar
+                src={user?.photoURL || backendUser?.profile_picture}
+                name={user?.displayName || backendUser?.name || 'Account'}
+                size="xs"
+              />
+            </Link>
+          </div>
+        </header>
+
         <Outlet />
       </div>
 
       {/* ─── MOBILE BOTTOM NAV (Hidden on LG+) ──────────────────────── */}
       <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-2.5 lg:hidden bg-[#F8FAF6]/95 backdrop-blur-lg border-t border-black/10 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
-        {/* 1. Trips */}
-        <Link
-          to="/my-trips"
-          className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
-            isActive('/my-trips') ? 'text-[#00261D]' : 'text-[#717975]'
-          }`}
-        >
-          <Layers className="w-5 h-5" />
-          <span>Trips</span>
-        </Link>
+        {/* 1. Trips / Packages */}
+        {isOrganizer ? (
+          <Link
+            to="/organizer/trips"
+            className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
+              location.pathname.startsWith('/organizer/trips') ? 'text-[#00261D]' : 'text-[#717975]'
+            }`}
+          >
+            <Package className="w-5 h-5" />
+            <span>Packages</span>
+          </Link>
+        ) : (
+          <Link
+            to="/my-trips"
+            className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
+              isActive('/my-trips') ? 'text-[#00261D]' : 'text-[#717975]'
+            }`}
+          >
+            <Layers className="w-5 h-5" />
+            <span>Trips</span>
+          </Link>
+        )}
 
         {/* 2. Workshop for Organizer / Plan for Traveler */}
         {isOrganizer ? (
           <Link
             to="/organizer/dashboard"
             className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
-              location.pathname.startsWith('/organizer') ? 'text-[#00261D]' : 'text-[#717975]'
+              location.pathname === '/organizer/dashboard' ? 'text-[#00261D]' : 'text-[#717975]'
             }`}
           >
             <Briefcase className="w-5 h-5" />
@@ -243,20 +323,27 @@ export default function TravelerLayout() {
 
         {/* 4. Groups */}
         <Link
-          to="/groups"
-          className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
-            isActive('/groups') ? 'text-[#00261D]' : 'text-[#717975]'
+          to={isOrganizer ? "/organizer/groups" : "/groups"}
+          className={`relative flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
+            (isOrganizer ? location.pathname.startsWith('/organizer/groups') : isActive('/groups')) ? 'text-[#00261D]' : 'text-[#717975]'
           }`}
         >
-          <Users className="w-5 h-5" />
+          <div className="relative">
+            <Users className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-3.5 min-w-3.5 px-1 items-center justify-center rounded-full bg-emerald-600 text-[8px] font-bold text-white shadow-xs animate-pulse">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </div>
           <span>Groups</span>
         </Link>
 
         {/* 5. Profile */}
         <Link
-          to="/profile"
+          to={isOrganizer ? "/organizer/profile" : "/profile"}
           className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
-            isActive('/profile') ? 'text-[#00261D]' : 'text-[#717975]'
+            (isOrganizer ? location.pathname.startsWith('/organizer/profile') : isActive('/profile')) ? 'text-[#00261D]' : 'text-[#717975]'
           }`}
         >
           <User className="w-5 h-5" />

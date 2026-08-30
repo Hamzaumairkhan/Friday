@@ -115,19 +115,19 @@ const router = createBrowserRouter([
       },
       {
         path: 'trips/:tripId',
-        element: (
-          <RoleRoute allowedRole="TRAVELER">
-            <TripDetailPage />
-          </RoleRoute>
-        ),
+        element: <TripDetailPage />,
+      },
+      {
+        path: 'trips/:tripId/group',
+        element: <TripGroupPage />,
       },
       {
         path: 'trips/:tripId/groups',
-        element: (
-          <RoleRoute allowedRole="TRAVELER">
-            <TripGroupPage />
-          </RoleRoute>
-        ),
+        element: <TripGroupPage />,
+      },
+      {
+        path: 'groups/:groupId',
+        element: <TripGroupPage />,
       },
       {
         path: 'bookings/:bookingId',
@@ -156,11 +156,12 @@ const router = createBrowserRouter([
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'trips', element: <OrganizerTripsPage /> },
       { path: 'trips/new', element: <PackageFormPage /> },
-      { path: 'trips/:packageId/edit', element: <PackageFormPage /> },
+      { path: 'trips/:packageId/edit', element: <Navigate to="/organizer/trips" replace /> },
       { path: 'bookings', element: <OrganizerBookingsPage /> },
       { path: 'profile', element: <OrganizerProfilePage /> },
       { path: 'groups', element: <OrganizerGroupsPage /> },
       { path: 'groups/:groupId', element: <OrganizerGroupPage /> },
+      { path: 'trips/:packageId/group', element: <OrganizerGroupPage /> },
     ],
   },
 

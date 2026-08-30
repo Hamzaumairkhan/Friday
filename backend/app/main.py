@@ -42,16 +42,26 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Seed data notice: {e}")
 
-    # Auto-start Baileys WhatsApp bot microservice
+    # Auto-start Baileys WhatsApp bot microservice if not already running
     whatsapp_dir = BACKEND_DIR / "whatsapp_service"
     server_file = whatsapp_dir / "server.js"
-    if server_file.exists() and shutil.which("node"):
+    is_whatsapp_running = False
+    try:
+        async with httpx.AsyncClient(timeout=1.0) as client:
+            resp = await client.get("http://localhost:3001/status")
+            if resp.status_code == 200:
+                is_whatsapp_running = True
+                logger.info("Friday Baileys WhatsApp bot is already online and connected on http://localhost:3001.")
+    except Exception:
+        is_whatsapp_running = False
+
+    if not is_whatsapp_running and server_file.exists() and shutil.which("node"):
         try:
             logger.info("Starting Friday Baileys WhatsApp bot service on http://localhost:3001...")
             whatsapp_proc = subprocess.Popen(
                 ["node", "server.js"],
                 cwd=str(whatsapp_dir),
-                shell=False,
+                shell=True,
             )
         except Exception as e:
             logger.warning(f"Could not auto-start Baileys WhatsApp service: {e}")

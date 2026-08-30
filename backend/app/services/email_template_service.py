@@ -409,3 +409,415 @@ def render_itinerary_email(
         action_url=dashboard_url,
         action_text="View Interactive Itinerary & Maps →",
     )
+
+
+def render_trip_planned_notification_email(
+    trip_id: str,
+    traveler_name: str,
+    trip_title: str,
+    destination: str,
+    travelers_count: int,
+    budget_total: float,
+    trip_url: str = "http://localhost:5173/my-trips",
+) -> str:
+    """Clean minimal email notifying traveler/companions that their trip has been planned with title, budget, travelers count, and direct link."""
+    content_html = f"""
+    <!-- Badge -->
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="display: inline-block; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 9999px;">
+        ✓ Your Trip Has Been Planned
+      </span>
+    </div>
+
+    <!-- Heading -->
+    <h1 style="margin: 0 0 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 26px; font-weight: 400; color: #0a0a0a; text-align: center; line-height: 1.2;">
+      {trip_title}
+    </h1>
+    <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: center;">
+      Hello <strong>{traveler_name}</strong>, your trip to <strong>{destination}</strong> is ready.
+    </p>
+
+    <!-- Essential Specs Card -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; margin-bottom: 24px; padding: 18px;">
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Travelers</div>
+          <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-top: 2px;">👥 {travelers_count} Person{'' if travelers_count == 1 else 's'}</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Estimated Budget</div>
+          <div style="font-size: 16px; font-weight: 700; color: #047857; margin-top: 2px;">Rs. {budget_total:,.0f}</div>
+        </td>
+      </tr>
+    </table>
+    """
+
+    return _get_base_layout(
+        title=f"Your Trip Has Been Planned — {trip_title}",
+        preheader=f"{trip_title} • {travelers_count} Travelers • Rs. {budget_total:,.0f}",
+        content_html=content_html,
+        action_url=trip_url,
+        action_text="View Trip Details & Itinerary →",
+    )
+
+
+def render_organizer_package_published_email(
+    package_id: str,
+    organizer_name: str,
+    package_title: str,
+    destination: str,
+    duration_days: int,
+    price_per_person: float,
+    package_url: str = "http://localhost:5173/organizer/trips",
+) -> str:
+    """Email sent to Organizer when they create/publish a tour package."""
+    content_html = f"""
+    <!-- Badge -->
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="display: inline-block; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 9999px;">
+        ✓ Expedition Organized &amp; Published
+      </span>
+    </div>
+
+    <!-- Heading -->
+    <h1 style="margin: 0 0 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 26px; font-weight: 400; color: #0a0a0a; text-align: center; line-height: 1.2;">
+      {package_title}
+    </h1>
+    <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: center;">
+      Hello <strong>{organizer_name}</strong>, your tour package has been published and is now live on the Friday traveler marketplace.
+    </p>
+
+    <!-- Specs Grid Card -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; margin-bottom: 24px; padding: 18px;">
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Destination</div>
+          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px;">📍 {destination}</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Duration</div>
+          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px;">⏱ {duration_days} Days</div>
+        </td>
+      </tr>
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Price / Person</div>
+          <div style="font-size: 16px; font-weight: 700; color: #047857; margin-top: 2px;">Rs. {price_per_person:,.0f}</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Status</div>
+          <div style="font-size: 13px; font-weight: 700; color: #047857; margin-top: 2px;">● LIVE ON EXPLORE FEED</div>
+        </td>
+      </tr>
+    </table>
+    """
+
+    return _get_base_layout(
+        title=f"Expedition Published — {package_title}",
+        preheader=f"Your package '{package_title}' is now live on Friday marketplace.",
+        content_html=content_html,
+        action_url=package_url,
+        action_text="View Package in Workspace →",
+    )
+
+
+def render_organizer_payment_uploaded_email(
+    booking_id: str,
+    organizer_name: str,
+    traveler_name: str,
+    traveler_phone: str,
+    package_title: str,
+    destination: str,
+    travelers: int,
+    total_price: float,
+    review_url: str = "http://localhost:5173/organizer/bookings",
+) -> str:
+    """Email sent to Organizer when a traveler uploads bank payment proof."""
+    content_html = f"""
+    <!-- Badge -->
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="display: inline-block; background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 9999px;">
+        ⚡ Payment Proof Uploaded
+      </span>
+    </div>
+
+    <!-- Heading -->
+    <h1 style="margin: 0 0 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 26px; font-weight: 400; color: #0a0a0a; text-align: center; line-height: 1.2;">
+      Verify Payment for #{booking_id[:8].upper()}
+    </h1>
+    <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: center;">
+      Hello <strong>{organizer_name}</strong>, traveler <strong>{traveler_name}</strong> has submitted payment proof for <strong>{package_title}</strong>.
+    </p>
+
+    <!-- Specs Grid Card -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; margin-bottom: 24px; padding: 18px;">
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Traveler Name</div>
+          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px;">👤 {traveler_name}</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Phone / WhatsApp</div>
+          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px;">📞 {traveler_phone or 'Not provided'}</div>
+        </td>
+      </tr>
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Reserved Seats</div>
+          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px;">👥 {travelers} Traveler{'' if travelers == 1 else 's'}</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Total Amount</div>
+          <div style="font-size: 16px; font-weight: 700; color: #047857; margin-top: 2px;">Rs. {total_price:,.0f}</div>
+        </td>
+      </tr>
+    </table>
+    """
+
+    return _get_base_layout(
+        title=f"Payment Proof Uploaded — #{booking_id[:8].upper()}",
+        preheader=f"{traveler_name} uploaded payment proof for {package_title} (Rs. {total_price:,.0f})",
+        content_html=content_html,
+        action_url=review_url,
+        action_text="Review & Verify Payment →",
+    )
+
+
+def render_traveler_booking_approved_email(
+    booking_id: str,
+    traveler_name: str,
+    package_title: str,
+    destination: str,
+    travelers: int,
+    total_price: float,
+    organizer_name: str,
+    group_chat_url: str = "http://localhost:5173/my-trips",
+) -> str:
+    """Email sent to Traveler when Organizer approves their payment/booking with direct Group Chat link."""
+    content_html = f"""
+    <!-- Badge -->
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="display: inline-block; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 9999px;">
+        🎉 Booking Verified &amp; Confirmed
+      </span>
+    </div>
+
+    <!-- Heading -->
+    <h1 style="margin: 0 0 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 26px; font-weight: 400; color: #0a0a0a; text-align: center; line-height: 1.2;">
+      You're Going to {destination}!
+    </h1>
+    <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: center;">
+      Hello <strong>{traveler_name}</strong>, your payment for <strong>{package_title}</strong> has been verified by <strong>{organizer_name}</strong>. Your spot in the expedition group is locked in!
+    </p>
+
+    <!-- Specs Grid Card -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; margin-bottom: 24px; padding: 18px;">
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Expedition</div>
+          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px;">🏔 {package_title}</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Host Organizer</div>
+          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px;">🏷 {organizer_name}</div>
+        </td>
+      </tr>
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Travelers</div>
+          <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-top: 2px;">👥 {travelers} Person{'' if travelers == 1 else 's'}</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Total Paid</div>
+          <div style="font-size: 16px; font-weight: 700; color: #047857; margin-top: 2px;">Rs. {total_price:,.0f}</div>
+        </td>
+      </tr>
+    </table>
+
+    <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px; color: #166534; text-align: center;">
+      💬 <strong>Private Expedition Group Chat:</strong> Connect with your host organizer and fellow travelers before departure.
+    </div>
+    """
+
+    return _get_base_layout(
+        title=f"Booking Confirmed — {package_title}",
+        preheader=f"Your booking for {package_title} is confirmed. Join the group chat!",
+        content_html=content_html,
+        action_url=group_chat_url,
+        action_text="Join Expedition Group Chat →",
+    )
+
+
+def render_organizer_package_published_email(
+    package_id: str,
+    organizer_name: str,
+    package_title: str,
+    destination: str,
+    duration_days: int,
+    price_per_person: float,
+    package_url: str = "http://localhost:5173/packages",
+) -> str:
+    """Branded notification email sent to Organizer when they publish a tour package."""
+    content_html = f"""
+    <!-- Badge -->
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="display: inline-block; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 9999px;">
+        🚀 Tour Package Live on Marketplace
+      </span>
+    </div>
+
+    <!-- Heading -->
+    <h1 style="margin: 0 0 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 26px; font-weight: 400; color: #0a0a0a; text-align: center; line-height: 1.2;">
+      {package_title}
+    </h1>
+    <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: center;">
+      Hello <strong>{organizer_name}</strong>, your tour package for <strong>{destination}</strong> is now live and accepting traveler bookings on Friday.
+    </p>
+
+    <!-- Specs Grid Card -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; margin-bottom: 24px; padding: 18px;">
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Duration</div>
+          <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-top: 2px;">⏱️ {duration_days} Days</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Price per Person</div>
+          <div style="font-size: 16px; font-weight: 700; color: #047857; margin-top: 2px;">Rs. {price_per_person:,.0f}</div>
+        </td>
+      </tr>
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Destination</div>
+          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px;">🏔️ {destination}</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Verified Status</div>
+          <div style="font-size: 15px; font-weight: 600; color: #047857; margin-top: 2px;">✓ Verified Host</div>
+        </td>
+      </tr>
+    </table>
+    """
+
+    return _get_base_layout(
+        title=f"Package Published — {package_title}",
+        preheader=f"{package_title} is live on Friday Marketplace!",
+        content_html=content_html,
+        action_url=package_url,
+        action_text="View Live Package Listing →",
+    )
+
+
+def render_organizer_payment_uploaded_email(
+    booking_id: str,
+    organizer_name: str,
+    traveler_name: str,
+    traveler_phone: str,
+    package_title: str,
+    destination: str,
+    travelers: int,
+    total_price: float,
+    review_url: str = "http://localhost:5173/organizer/bookings",
+) -> str:
+    """Branded email template notifying organizer that a traveler uploaded payment proof."""
+    content_html = f"""
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="display: inline-block; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 9999px;">
+        💳 Payment Proof Uploaded
+      </span>
+    </div>
+
+    <h1 style="margin: 0 0 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: 400; color: #0a0a0a; text-align: center; line-height: 1.2;">
+      Payment Uploaded for {package_title}
+    </h1>
+    <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: center;">
+      Hello <strong>{organizer_name}</strong>, traveler <strong>{traveler_name}</strong> has submitted payment proof for booking #{booking_id[:8].upper()}.
+    </p>
+
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; margin-bottom: 24px; padding: 18px;">
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8;">Traveler</div>
+          <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-top: 2px;">{traveler_name}</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8;">Total Paid</div>
+          <div style="font-size: 16px; font-weight: 700; color: #047857; margin-top: 2px;">Rs. {total_price:,.0f}</div>
+        </td>
+      </tr>
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8;">Seats</div>
+          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px;">{travelers} Person(s)</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8;">Phone / WhatsApp</div>
+          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px;">{traveler_phone or 'Available on Dashboard'}</div>
+        </td>
+      </tr>
+    </table>
+    """
+    return _get_base_layout(
+        title=f"Payment Proof Uploaded — #{booking_id[:8].upper()}",
+        preheader=f"{traveler_name} uploaded payment proof for {package_title}",
+        content_html=content_html,
+        action_url=review_url,
+        action_text="Verify Payment on Organizer Portal →",
+    )
+
+
+def render_traveler_booking_approved_email(
+    booking_id: str,
+    traveler_name: str,
+    package_title: str,
+    destination: str,
+    travelers: int,
+    total_price: float,
+    organizer_name: str,
+    group_chat_url: str = "http://localhost:5173/my-trips",
+) -> str:
+    """Branded email template notifying traveler that payment was verified and booking confirmed."""
+    content_html = f"""
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="display: inline-block; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 9999px;">
+        ✓ Payment Verified & Booking Confirmed
+      </span>
+    </div>
+
+    <h1 style="margin: 0 0 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: 400; color: #0a0a0a; text-align: center; line-height: 1.2;">
+      You are confirmed for {package_title}!
+    </h1>
+    <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: center;">
+      Hello <strong>{traveler_name}</strong>, your payment has been verified by <strong>{organizer_name}</strong>. Your spot is officially secured!
+    </p>
+
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; margin-bottom: 24px; padding: 18px;">
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8;">Destination</div>
+          <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-top: 2px;">🏔️ {destination}</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8;">Total Paid</div>
+          <div style="font-size: 16px; font-weight: 700; color: #047857; margin-top: 2px;">Rs. {total_price:,.0f}</div>
+        </td>
+      </tr>
+      <tr>
+        <td width="50%" valign="top" style="padding: 8px 12px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8;">Reserved Seats</div>
+          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px;">{travelers} Person(s)</div>
+        </td>
+        <td width="50%" valign="top" style="padding: 8px 12px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8;">Host Organizer</div>
+          <div style="font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px;">{organizer_name}</div>
+        </td>
+      </tr>
+    </table>
+    """
+    return _get_base_layout(
+        title=f"Booking Confirmed — {package_title}",
+        preheader=f"Your booking for {package_title} is confirmed!",
+        content_html=content_html,
+        action_url=group_chat_url,
+        action_text="Open Expedition Group Chat →",
+    )

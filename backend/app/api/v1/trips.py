@@ -40,16 +40,34 @@ logger = get_logger("api.trips")
 router = APIRouter(prefix="/trips", tags=["Trips"])
 
 
+BLOCKED_IMAGE_DOMAINS = [
+    "instagram.com", "lookaside.instagram.com", "fbsbx.com", "fbcdn.net",
+    "pinterest.com", "pinimg.com", "tiktok.com", "tripadvisor.com",
+    "facebook.com", "twitter.com", "x.com"
+]
+
+
+def _is_renderable_web_image(url: str) -> bool:
+    if not url or not isinstance(url, str):
+        return False
+    if not (url.startswith("http://") or url.startswith("https://") or url.startswith("/images/")):
+        return False
+    if url.endswith(".svg"):
+        return False
+    u_low = url.lower()
+    return not any(bd in u_low for bd in BLOCKED_IMAGE_DOMAINS)
+
+
 def _resolve_destination_image(destination: Optional[str]) -> str:
     if not destination:
-        return "/images/stitch/panoramic_lake.jpg"
+        return "/images/stitch/hero_mountains.jpg"
     
     # 1. Try real web photo
     real_photo = fetch_real_web_photo(destination)
-    if real_photo:
+    if real_photo and _is_renderable_web_image(real_photo):
         return real_photo
 
-    # 2. Regional fallback (clean, unbranded)
+    # 2. Regional fallback (clean, genuine photography)
     return resolve_regional_fallback_image(destination)
 
 
@@ -59,7 +77,7 @@ async def _fetch_web_images_and_research(destination: str, origin: str) -> tuple
 
     # 1. Primary: High-definition real web photo of destination
     direct_photo = fetch_real_web_photo(destination, destination)
-    if direct_photo:
+    if direct_photo and _is_renderable_web_image(direct_photo):
         real_images.append(direct_photo)
 
     # 2. Secondary: Tavily Search if active
@@ -76,13 +94,12 @@ async def _fetch_web_images_and_research(destination: str, origin: str) -> tuple
                 search_depth="basic",
             )
             for img in res.get("images", []):
-                if isinstance(img, str) and img.startswith("http") and not img.endswith(".svg"):
-                    if img not in real_images:
-                        real_images.append(img)
+                if _is_renderable_web_image(img) and img not in real_images:
+                    real_images.append(img)
         except Exception:
             pass
 
-    # 3. Fallback to scenic photo library if web search did not find direct image tags
+    # 3. Fallback to authentic scenic regional photography
     if not real_images:
         fallback_hero = resolve_regional_fallback_image(destination)
         real_images = [fallback_hero]
@@ -93,12 +110,12 @@ async def _fetch_web_images_and_research(destination: str, origin: str) -> tuple
 
 def _format_trip_response(t, members_override=None) -> TripResponse:
     img = getattr(t, 'image_url', None) or _resolve_destination_image(t.destination)
+    prefs = t.preferences if isinstance(t.preferences, dict) else {}
     
     members = []
     if members_override is not None:
         members = members_override
     else:
-        prefs = t.preferences if isinstance(t.preferences, dict) else {}
         lead = prefs.get("lead_contact", {})
         if lead and lead.get("name"):
             members.append({
@@ -125,6 +142,12 @@ def _format_trip_response(t, members_override=None) -> TripResponse:
                         "profile_picture": None,
                     })
 
+    weather_data = None
+    if isinstance(prefs, dict) and prefs.get("weather"):
+        weather_data = prefs.get("weather")
+
+    owner_role = "ORGANIZER" if (getattr(t, 'owner_id', '') or '').startswith('org-') or (isinstance(prefs, dict) and prefs.get("is_organizer")) else "TRAVELER"
+
     return TripResponse(
         id=t.id,
         owner_id=t.owner_id,
@@ -146,6 +169,8 @@ def _format_trip_response(t, members_override=None) -> TripResponse:
         copied_from_trip_id=t.copied_from_trip_id if hasattr(t, 'copied_from_trip_id') else None,
         image_url=img,
         advisories=t.advisories or [] if hasattr(t, 'advisories') else [],
+        weather=weather_data,
+        owner_role=owner_role,
         members=members,
         created_at=t.created_at.isoformat() if t.created_at else "",
         updated_at=t.updated_at.isoformat() if t.updated_at else "",
@@ -193,8 +218,8 @@ async def check_weather(
     departure_date: Optional[str] = None,
     duration_days: int = 3,
 ):
-    """Analyze destination weather for selected dates and return optimal suggested dates if risky."""
-    return DynamicDestinationResearchService.check_weather_advisory(
+    """Analyze destination weather for selected dates, fetch live multi-day forecast, and return optimal dates."""
+    return await DynamicDestinationResearchService.check_weather_advisory(
         destination=destination,
         departure_date=departure_date,
         duration_days=duration_days,
@@ -264,6 +289,94 @@ async def get_trip(
     return _format_trip_response(trip, members_override=members)
 
 
+async def _dispatch_trip_notifications(trip: Trip, db: AsyncSession):
+    """Reliably dispatches itinerary notification emails and WhatsApp alerts to Lead and ALL Companions."""
+    email_service = EmailService()
+    whatsapp_service = WhatsAppService()
+    trip_url = f"http://localhost:5173/trips/{trip.id}"
+
+    prefs = trip.preferences if isinstance(trip.preferences, dict) else {}
+    lead_c = prefs.get("lead_contact", {})
+    companions = prefs.get("companions", [])
+
+    owner_user = await db.get(User, trip.owner_id)
+    lead_name = lead_c.get("name") or (owner_user.name if owner_user else "Lead Traveler")
+    lead_email = lead_c.get("email") or (owner_user.email if owner_user else None)
+    lead_phone = lead_c.get("phone")
+
+    # 1. Lead Traveler Notification
+    if lead_email:
+        try:
+            await email_service.send_trip_planned_notification(
+                trip_id=trip.id,
+                traveler_email=lead_email,
+                traveler_name=lead_name,
+                trip_title=trip.title,
+                destination=trip.destination,
+                travelers_count=trip.travelers or 1,
+                budget_total=trip.budget_total or 0,
+            )
+            logger.info(f"Dispatched trip planned email to lead traveler: {lead_email}")
+        except Exception as e:
+            logger.warning(f"Failed to send email to lead traveler {lead_email}: {e}")
+
+    if lead_phone:
+        try:
+            wa_msg = (
+                f"🎒 *FRIDAY® TRIP PLAN READY: {trip.title}*\n\n"
+                f"Salam {lead_name}! Your custom {trip.duration or 3}-day itinerary to {trip.destination} is generated and ready.\n\n"
+                f"📍 *Destination*: {trip.destination}\n"
+                f"👥 *Travelers*: {trip.travelers} People\n"
+                f"💰 *Budget*: PKR {trip.budget_total:,.0f}\n\n"
+                f"🔗 *View Itinerary*: {trip_url}\n\n"
+                f"— *Friday® AI Travel Copilot*"
+            )
+            await whatsapp_service.send_message(to_number=lead_phone, message=wa_msg)
+            logger.info(f"Dispatched WhatsApp to lead traveler: {lead_phone}")
+        except Exception as e:
+            logger.warning(f"Failed to send WhatsApp to lead {lead_phone}: {e}")
+
+    # 2. ALL Companions / Co-Travelers Notification (e.g. anime valor, animevalor7@gmail.com)
+    if isinstance(companions, list):
+        for comp in companions:
+            if not isinstance(comp, dict):
+                continue
+            comp_email = (comp.get("email") or "").strip()
+            comp_name = (comp.get("name") or "Co-Traveler").strip()
+            comp_phone = (comp.get("phone") or "").strip()
+
+            if comp_email:
+                try:
+                    await email_service.send_trip_planned_notification(
+                        trip_id=trip.id,
+                        traveler_email=comp_email,
+                        traveler_name=comp_name,
+                        trip_title=trip.title,
+                        destination=trip.destination,
+                        travelers_count=trip.travelers or 1,
+                        budget_total=trip.budget_total or 0,
+                    )
+                    logger.info(f"Dispatched trip planned email to co-traveler {comp_name} ({comp_email})")
+                except Exception as e:
+                    logger.warning(f"Failed to send email to co-traveler {comp_email}: {e}")
+
+            if comp_phone:
+                try:
+                    comp_wa_msg = (
+                        f"🎒 *FRIDAY® EXPEDITION INVITATION: {trip.title}*\n\n"
+                        f"Salam {comp_name}! You have been added as a co-traveler by {lead_name} for an expedition to {trip.destination}.\n\n"
+                        f"📍 *Destination*: {trip.destination}\n"
+                        f"👥 *Group Size*: {trip.travelers} Travelers\n"
+                        f"💰 *Estimated Budget*: PKR {trip.budget_total:,.0f}\n\n"
+                        f"🔗 *View Complete Itinerary & Schedule*:\n{trip_url}\n\n"
+                        f"— *Friday® AI Travel Copilot*"
+                    )
+                    await whatsapp_service.send_message(to_number=comp_phone, message=comp_wa_msg)
+                    logger.info(f"Dispatched WhatsApp to co-traveler {comp_name} ({comp_phone})")
+                except Exception as e:
+                    logger.warning(f"Failed to send WhatsApp to co-traveler {comp_name}: {e}")
+
+
 @router.patch("/{trip_id}", response_model=TripResponse)
 async def update_trip(
     trip_id: str,
@@ -282,6 +395,7 @@ async def update_trip(
     if req.image_url:
         trip.image_url = req.image_url
     await db.commit()
+
     return _format_trip_response(trip)
 
 
@@ -400,6 +514,18 @@ async def generate_guided_trip_plan(
         "lead_contact": req.lead_contact or {},
         "companions": req.companions or [],
     }
+
+    try:
+        from app.tools.weather import get_weather
+        weather_res = await get_weather(
+            destination=dest,
+            days=duration_days,
+            start_date=req.departure_date,
+        )
+        if weather_res and weather_res.get("success"):
+            traveler_metadata["weather"] = weather_res.get("data")
+    except Exception as e:
+        logger.warning(f"Could not attach weather to trip metadata: {e}")
 
     trip = Trip(
         owner_id=user_id,
@@ -568,67 +694,18 @@ async def publish_trip(
         cat_key = b.category.value.lower() if hasattr(b.category, 'value') else str(b.category).lower()
         budget_summary[cat_key] = b.estimated_amount
 
-    # Automated Dispatch to Lead & Companions via WhatsApp and Email
-    lead_name = (trip.preferences or {}).get("lead_contact", {}).get("name", "Traveler")
-    lead_phone = (trip.preferences or {}).get("lead_contact", {}).get("phone")
-    lead_email = (trip.preferences or {}).get("lead_contact", {}).get("email")
-
-    email_service = EmailService()
-    whatsapp_service = WhatsAppService()
-
-    trip_url = f"http://localhost:5173/trips/{trip.id}"
-
-    if lead_email:
-        try:
-            await email_service.send_itinerary(
-                trip_id=trip.id,
-                traveler_email=lead_email,
-                traveler_name=lead_name,
-                destination=trip.destination,
-                duration=trip.duration,
-                itinerary_days=itinerary_days,
-                budget_summary=budget_summary,
-            )
-            logger.info(f"Dispatched email itinerary to {lead_email}")
-        except Exception as e:
-            logger.warning(f"Failed to send email to lead traveler: {e}")
-
-    for comp in (trip.preferences or {}).get("companions", []):
-        comp_email = comp.get("email")
-        comp_name = comp.get("name", "Traveler")
-        if comp_email:
-            try:
-                await email_service.send_itinerary(
-                    trip_id=trip.id,
-                    traveler_email=comp_email,
-                    traveler_name=comp_name,
-                    destination=trip.destination,
-                    duration=trip.duration,
-                    itinerary_days=itinerary_days,
-                    budget_summary=budget_summary,
-                )
-            except Exception as e:
-                logger.warning(f"Failed to send email to companion {comp_email}: {e}")
-
-    if lead_phone:
-        wa_msg = (
-            f"🎒 *FRIDAY® EXPEDITION PUBLISHED: {trip.title}*\n\n"
-            f"📍 *Destination*: {trip.destination}\n"
-            f"📅 *Dates*: {trip.start_date or 'Flexible'} – {trip.end_date or ''}\n"
-            f"👥 *Travelers*: {trip.travelers} People\n"
-            f"💰 *Total Estimated Budget*: PKR {trip.budget_total:,.0f}\n\n"
-            f"🔗 *View Interactive Itinerary & Google Maps*:\n{trip_url}\n\n"
-            f"— *Friday® Travel AI Copilot*"
-        )
-        try:
-            await whatsapp_service.send_message(to_number=lead_phone, message=wa_msg)
-        except Exception as e:
-            logger.warning(f"Failed to send WhatsApp to lead: {e}")
-
     await db.commit()
+
+    # Automated Dispatch to Lead & ALL Companions via WhatsApp and Email
+    await _dispatch_trip_notifications(trip, db)
+
     return {
         "trip": _format_trip_response(trip),
-        "message": f"Expedition published successfully as {'Public (Shared with Community)' if is_pub else 'Private (Expedition Vault)'}! Itinerary dispatched to email.",
+        "itinerary": {
+            "days": itinerary_days,
+        },
+        "budget_summary": budget_summary,
+        "message": f"Expedition published successfully as {'Public (Shared with Community)' if is_pub else 'Private (Expedition Vault)'}! Itinerary dispatched to lead and co-travelers.",
         "is_public": bool(trip.is_public),
     }
 
@@ -904,8 +981,37 @@ async def copy_public_trip(
     if not original_trip:
         raise HTTPException(status_code=404, detail="Trip to copy was not found.")
 
+    if not original_trip.is_public:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This itinerary is private and cannot be copied. Only public itineraries can be copied.",
+        )
+
     if original_trip.owner_id == user_id:
         raise HTTPException(status_code=400, detail="You already own this trip. You can directly customize your own itinerary.")
+
+    # Role compatibility check: User can only copy User trips; Organizer can only copy Organizer trips
+    from app.repositories.user_repository import UserRepository
+    user_repo = UserRepository(db)
+    curr_user = await user_repo.get_by_id(user_id)
+    orig_user = await user_repo.get_by_id(original_trip.owner_id)
+
+    curr_role = getattr(curr_user, "role", None)
+    curr_is_org = (curr_role == UserRole.ORGANIZER or str(curr_role).upper() == "ORGANIZER")
+
+    orig_role = getattr(orig_user, "role", None)
+    orig_is_org = (orig_role == UserRole.ORGANIZER or str(orig_role).upper() == "ORGANIZER")
+
+    if curr_is_org and not orig_is_org:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Organizers can only copy public organizer tour packages, not personal traveler trips.",
+        )
+    if not curr_is_org and orig_is_org:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Travelers can only copy other community travelers' public itineraries.",
+        )
 
     new_trip = Trip(
         owner_id=user_id,
@@ -998,20 +1104,31 @@ async def replan_trip(
     trip_state_dict = trip_state.model_dump()
 
     new_budget_pp = None
+    msg_l = req.message.lower()
+    current_pp = trip.budget_per_person or ((trip.budget_total or 20000.0) / max(1, trip.travelers))
+
     if req.changes and "budget_per_person" in req.changes:
         new_budget_pp = float(req.changes["budget_per_person"])
     elif req.changes and "budget_total" in req.changes:
         new_budget_pp = float(req.changes["budget_total"]) / max(1, trip.travelers)
     else:
         import re
-        b_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:k|thousand|hazar)?\b", req.message.lower())
+        b_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:k|thousand|hazar)?\b", msg_l)
         if b_match:
             val = float(b_match.group(1))
-            if "k" in req.message.lower() or val < 500:
+            if "k" in msg_l or val < 500:
                 val *= 1000
-            new_budget_pp = val
+            # If user said "5k cheaper" or "make it 2000 cheaper"
+            if any(w in msg_l for w in ["cheaper", "kam", "cut", "less", "minus", "discount"]):
+                new_budget_pp = max(2000.0, current_pp - val)
+            else:
+                new_budget_pp = val
+        elif any(w in msg_l for w in ["cheap", "kam", "budget", "cut", "save", "economical", "sasta", "low"]):
+            new_budget_pp = max(2000.0, current_pp * 0.8)
+        elif any(w in msg_l for w in ["luxury", "upgrade", "premium", "deluxe", "expand", "vip"]):
+            new_budget_pp = current_pp * 1.3
         else:
-            new_budget_pp = (trip.budget_per_person or 40000) * 0.75
+            new_budget_pp = max(2000.0, current_pp * 0.85)
 
     updated_state, changes, totals = ReplannerAgent.replan_budget(
         current_trip_state=trip_state_dict,
@@ -1031,7 +1148,7 @@ async def replan_trip(
         changes=changes,
         old_total=totals["old_total"],
         new_total=totals["new_total"],
-        message=f"Trip successfully replanned for Rs. {new_budget_pp:,.0f} per person.",
+        message=f"Trip updated to Rs. {new_budget_pp:,.0f} per person with optimized allocations.",
     )
 
 

@@ -13,8 +13,8 @@ class TripCreate(BaseModel):
     budget_per_person: Optional[float] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
-    preferences: list[str] = Field(default_factory=list)
-    constraints: list[str] = Field(default_factory=list)
+    preferences: Optional[Any] = None
+    constraints: Optional[Any] = None
     title: Optional[str] = None
 
 
@@ -27,8 +27,8 @@ class TripUpdate(BaseModel):
     budget_per_person: Optional[float] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
-    preferences: Optional[list[str]] = None
-    constraints: Optional[list[str]] = None
+    preferences: Optional[Any] = None
+    constraints: Optional[Any] = None
     title: Optional[str] = None
     status: Optional[str] = None
     is_public: Optional[bool] = None
@@ -58,6 +58,8 @@ class TripResponse(BaseModel):
     copied_from_trip_id: Optional[str] = None
     image_url: Optional[str] = None
     advisories: list = Field(default_factory=list)
+    weather: Optional[dict] = None
+    owner_role: Optional[str] = "TRAVELER"
     members: list[dict] = Field(default_factory=list)
     created_at: str
     updated_at: str
@@ -117,8 +119,8 @@ class TripState(BaseModel):
     travelers: int = 1
     budget_total: Optional[float] = None
     budget_per_person: Optional[float] = None
-    preferences: list[str] = Field(default_factory=list)
-    constraints: list[str] = Field(default_factory=list)
+    preferences: Optional[Any] = None
+    constraints: Optional[Any] = None
     itinerary: Optional[dict] = None
     budget_breakdown: Optional[dict] = None
     research: list[dict] = Field(default_factory=list)

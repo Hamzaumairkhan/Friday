@@ -6,8 +6,6 @@ import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
 
-export const useAuth = () => useContext(AuthContext);
-
 export const AuthProvider = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [backendUser, setBackendUser] = useState(null);
@@ -242,14 +240,53 @@ export const AuthProvider = ({ children }) => {
       if (res.organizer_profile) {
         setOrganizerProfile(res.organizer_profile);
       }
-      toast.success('Successfully upgraded to Organizer account!');
+      if (res.token) {
+        localStorage.setItem('friday_auth_token', res.token);
+        localStorage.setItem('token', res.token);
+      }
+      localStorage.setItem('backend_user', JSON.stringify(res.user));
+      toast.success('Switched to Organizer Workshop!');
       return res;
     } catch (err) {
       console.error('Upgrade error:', err);
-      toast.error(err.message || 'Failed to upgrade to Organizer.');
+      toast.error(err.message || 'Failed to switch to Organizer.');
       throw err;
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Switch an existing Organizer to Traveler
+  const switchToTraveler = async () => {
+    setLoading(true);
+    try {
+      const res = await authService.switchToTraveler();
+      setBackendUser(res.user);
+      setRole('TRAVELER');
+      if (res.organizer_profile) {
+        setOrganizerProfile(res.organizer_profile);
+      }
+      if (res.token) {
+        localStorage.setItem('friday_auth_token', res.token);
+        localStorage.setItem('token', res.token);
+      }
+      localStorage.setItem('backend_user', JSON.stringify(res.user));
+      toast.success('Switched to Traveler Portal!');
+      return res;
+    } catch (err) {
+      console.error('Switch to traveler error:', err);
+      toast.error(err.message || 'Failed to switch to Traveler.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const switchRole = async (targetRole) => {
+    if (targetRole === 'ORGANIZER') {
+      return await upgradeToOrganizer();
+    } else {
+      return await switchToTraveler();
     }
   };
 
@@ -268,6 +305,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('friday_session');
       localStorage.removeItem('friday_auth_token');
       localStorage.removeItem('token');
+      localStorage.removeItem('backend_user');
       localStorage.removeItem('auth_user');
       toast.success('Signed out successfully.');
     } catch (error) {
@@ -298,10 +336,22 @@ export const AuthProvider = ({ children }) => {
     closeAuthModal,
     signIn,
     loginWithEmail,
-    signOut,
+    registerWithEmail: loginWithEmail,
     upgradeToOrganizer,
+    switchToOrganizer: upgradeToOrganizer,
+    switchToTraveler,
+    switchRole,
+    signOut,
     refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

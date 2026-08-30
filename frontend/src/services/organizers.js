@@ -59,6 +59,11 @@ export const organizersService = {
       rejection_reason,
     });
   },
+
+  // Authenticated Organizer: Delete booking reservation
+  async deleteBooking(bookingId) {
+    return await api.delete(`/organizers/me/bookings/${bookingId}`);
+  },
 };
 
 export default organizersService;

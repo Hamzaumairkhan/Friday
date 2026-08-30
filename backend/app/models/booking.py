@@ -46,7 +46,7 @@ class Booking(Base, IDMixin, TimestampMixin):
 
     # Payment Proof Fields
     payment_status = Column(SAEnum(PaymentStatus), default=PaymentStatus.PENDING)
-    payment_proof_url = Column(String, nullable=True)
+    payment_proof_url = Column(Text, nullable=True)
     payment_uploaded_at = Column(DateTime(timezone=True), nullable=True)
     payment_verified_at = Column(DateTime(timezone=True), nullable=True)
     payment_verified_by = Column(String, nullable=True)

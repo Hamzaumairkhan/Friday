@@ -21,9 +21,25 @@ class Package(Base, IDMixin, TimestampMixin):
     transportation_type = Column(String, nullable=True)
     activities = Column(JSON, default=list)  # list of activity names
     is_active = Column(Boolean, default=True)
+    # Dates and contact transparency
+    start_date = Column(String, nullable=True)
+    end_date = Column(String, nullable=True)
+    contact_phone = Column(String, nullable=True)
+    organizer_name = Column(String, nullable=True)
+    rating = Column(Float, default=0.0)
+    reviews_count = Column(Integer, default=0)
+    views_count = Column(Integer, default=0)
 
     # Cloudinary image support
     image_url = Column(String, nullable=True)
     gallery_urls = Column(JSON, default=list)
 
     organizer = relationship("Organizer", back_populates="packages")
+
+
+class PackageView(Base, IDMixin, TimestampMixin):
+    __tablename__ = "package_views"
+
+    package_id = Column(String, ForeignKey("packages.id"), nullable=False, index=True)
+    visitor_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, nullable=True, index=True)

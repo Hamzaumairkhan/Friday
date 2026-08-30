@@ -18,6 +18,8 @@ import {
   Sparkles,
   Utensils,
   Footprints,
+  Phone,
+  Eye,
 } from 'lucide-react';
 import { packagesService } from '../../services/packages';
 import { organizersService } from '../../services/organizers';
@@ -25,21 +27,39 @@ import { bookingsService } from '../../services/bookings';
 import { tripsService } from '../../services/trips';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 
 export default function PackageDetailPage() {
   const { packageId } = useParams();
   const navigate = useNavigate();
+  const { backendUser } = useAuth();
   const [pkg, setPkg] = useState(null);
   const [organizer, setOrganizer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ITINERARY');
+
+  // Reviews State
+  const [reviews, setReviews] = useState([]);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [newRating, setNewRating] = useState(5);
+  const [newReviewTitle, setNewReviewTitle] = useState('');
+  const [newReviewContent, setNewReviewContent] = useState('');
 
   // Booking Dialog State
   const [bookDialogOpen, setBookDialogOpen] = useState(false);
   const [travelersCount, setTravelersCount] = useState(2);
   const [bookingNotes, setBookingNotes] = useState('');
   const [isBooking, setIsBooking] = useState(false);
+
+  const fetchPackageReviews = async (pid) => {
+    try {
+      const revs = await packagesService.getReviews(pid || packageId);
+      setReviews(revs || []);
+    } catch (e) {
+      console.error('Error fetching reviews:', e);
+    }
+  };
 
   useEffect(() => {
     const fetchPackageDetails = async () => {
@@ -52,6 +72,14 @@ export default function PackageDetailPage() {
           const orgData = await organizersService.getOrganizer(pkgData.organizer_id);
           setOrganizer(orgData);
         }
+        fetchPackageReviews(packageId);
+
+        // Record 1 unique view for this visitor
+        packagesService.recordView(packageId).then((res) => {
+          if (res && res.views_count !== undefined) {
+            setPkg((prev) => prev ? { ...prev, views_count: res.views_count } : prev);
+          }
+        }).catch(() => {});
       } catch (err) {
         console.error('Error fetching package details:', err);
         toast.error('Failed to load package details.');
@@ -63,21 +91,44 @@ export default function PackageDetailPage() {
     fetchPackageDetails();
   }, [packageId]);
 
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!newReviewContent.trim()) {
+      toast.error('Please enter review comments.');
+      return;
+    }
+    setSubmittingReview(true);
+    try {
+      await packagesService.createReview(packageId, {
+        rating: Number(newRating),
+        title: newReviewTitle.trim() || undefined,
+        content: newReviewContent.trim(),
+      });
+      toast.success('Thank you! Your review has been posted.');
+      setNewReviewTitle('');
+      setNewReviewContent('');
+      setNewRating(5);
+      fetchPackageReviews(packageId);
+      const updatedPkg = await packagesService.getPackage(packageId);
+      setPkg(updatedPkg);
+    } catch (err) {
+      console.error('Failed to submit review:', err);
+      toast.error(err.message || 'Failed to submit review. Please log in first.');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   const handleCreateBooking = async () => {
     if (!pkg) return;
+    if (!backendUser) {
+      toast.error('Please log in as a Traveler to book this tour.');
+      navigate('/auth/login?redirect=' + encodeURIComponent(`/packages/${pkg.id}`));
+      return;
+    }
     setIsBooking(true);
     try {
-      const trip = await tripsService.createTrip({
-        destination: pkg.destination,
-        duration: pkg.duration_days,
-        travelers: Number(travelersCount),
-        budget_per_person: pkg.price_per_person,
-        budget_total: pkg.price_per_person * Number(travelersCount),
-        title: `${pkg.title} (Booking)`,
-      });
-
       const booking = await bookingsService.createBooking({
-        trip_id: trip.id,
         package_id: pkg.id,
         travelers: Number(travelersCount),
         notes: bookingNotes,
@@ -113,7 +164,23 @@ export default function PackageDetailPage() {
 
   const defaultHero = '/images/stitch/stitch_asset_6.jpg';
   const heroImage = pkg.image_url || defaultHero;
-  const itinerary = Array.isArray(pkg.itinerary) ? pkg.itinerary : [];
+
+  let itinerary = [];
+  if (Array.isArray(pkg.activities) && pkg.activities.length > 0 && typeof pkg.activities[0] === 'object') {
+    itinerary = pkg.activities.map((d, i) => ({
+      day: d.day_number || i + 1,
+      title: d.title || `Day ${i + 1}`,
+      description: d.summary || '',
+      activities: (d.activities || []).map((a) =>
+        typeof a === 'string'
+          ? a
+          : `${a.start_time ? `${a.start_time}: ` : ''}${a.title || a.location || ''}`
+      ),
+    }));
+  } else if (Array.isArray(pkg.itinerary)) {
+    itinerary = pkg.itinerary;
+  }
+
   const totalCalculated = (pkg.price_per_person || 0) * travelersCount;
 
   return (
@@ -143,14 +210,25 @@ export default function PackageDetailPage() {
 
           {/* Hero Content */}
           <div className="absolute bottom-0 left-0 w-full p-6 md:p-10 flex flex-col justify-end text-white">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
               <span className="bg-white/95 backdrop-blur-md text-[#00261D] px-3.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest">
                 {pkg.duration_days || 5} DAYS / {Math.max(1, (pkg.duration_days || 5) - 1)} NIGHTS
               </span>
-              <span className="bg-[#FFDBD0] text-[#420E00] px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1">
-                <Star className="w-3 h-3 fill-[#420E00]" />
-                {organizer?.rating || '4.9'}
+              <span className="bg-black/50 backdrop-blur-md text-white px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5">
+                <Eye className="w-3.5 h-3.5 text-[#BBEAD5]" />
+                <span>{pkg.views_count || 0} {pkg.views_count === 1 ? 'view' : 'views'}</span>
               </span>
+              {(pkg.rating > 0 || organizer?.rating > 0) && (pkg.reviews_count > 0 || organizer?.reviews_count > 0) ? (
+                <span className="bg-[#FFDBD0] text-[#420E00] px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1">
+                  <Star className="w-3 h-3 fill-[#420E00]" />
+                  {(pkg.rating || organizer?.rating || 0).toFixed(1)} ({pkg.reviews_count || organizer?.reviews_count || 0} reviews)
+                </span>
+              ) : (
+                <span className="bg-white/95 backdrop-blur-md text-[#00261D] px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-emerald-800" />
+                  New Tour Package
+                </span>
+              )}
             </div>
 
             <h1
@@ -172,7 +250,7 @@ export default function PackageDetailPage() {
           <div className="flex gap-6 border-b border-black/10 pb-4 overflow-x-auto no-scrollbar text-xs font-bold uppercase tracking-wider">
             <button
               onClick={() => setActiveTab('ITINERARY')}
-              className={`pb-4 -mb-[18px] transition-colors cursor-pointer ${
+              className={`pb-4 -mb-[18px] transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'ITINERARY'
                   ? 'text-[#00261D] border-b-2 border-[#420E00]'
                   : 'text-[#717975] hover:text-[#00261D]'
@@ -182,7 +260,7 @@ export default function PackageDetailPage() {
             </button>
             <button
               onClick={() => setActiveTab('DETAILS')}
-              className={`pb-4 -mb-[18px] transition-colors cursor-pointer ${
+              className={`pb-4 -mb-[18px] transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'DETAILS'
                   ? 'text-[#00261D] border-b-2 border-[#420E00]'
                   : 'text-[#717975] hover:text-[#00261D]'
@@ -191,8 +269,21 @@ export default function PackageDetailPage() {
               DETAILS & INCLUSIONS
             </button>
             <button
+              onClick={() => setActiveTab('REVIEWS')}
+              className={`pb-4 -mb-[18px] transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'REVIEWS'
+                  ? 'text-[#00261D] border-b-2 border-[#420E00]'
+                  : 'text-[#717975] hover:text-[#00261D]'
+              }`}
+            >
+              <span>REVIEWS</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-black/5 font-bold">
+                {reviews.length}
+              </span>
+            </button>
+            <button
               onClick={() => setActiveTab('POLICIES')}
-              className={`pb-4 -mb-[18px] transition-colors cursor-pointer ${
+              className={`pb-4 -mb-[18px] transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'POLICIES'
                   ? 'text-[#00261D] border-b-2 border-[#420E00]'
                   : 'text-[#717975] hover:text-[#00261D]'
@@ -303,7 +394,177 @@ export default function PackageDetailPage() {
             </section>
           )}
 
-          {/* Tab 3: Policies */}
+          {/* Tab 3: Reviews & Ratings */}
+          {activeTab === 'REVIEWS' && (
+            <section className="space-y-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/10 pb-6">
+                <div>
+                  <h2 className="text-3xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+                    Traveler Reviews & Ratings
+                  </h2>
+                  <p className="text-xs text-[#717975] mt-1">
+                    Authentic feedback from verified travelers who completed this expedition.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-black/10 shadow-2xs">
+                  <div className="w-12 h-12 rounded-xl bg-[#FFDBD0] flex items-center justify-center text-[#420E00] font-black text-xl">
+                    {(pkg.rating || organizer?.rating || 0) > 0 ? (pkg.rating || organizer?.rating).toFixed(1) : '–'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`w-4 h-4 ${
+                            star <= Math.round(pkg.rating || organizer?.rating || 0)
+                              ? 'text-amber-500 fill-amber-500'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-[11px] font-bold text-[#717975] mt-0.5">
+                      Based on {reviews.length} genuine {reviews.length === 1 ? 'review' : 'reviews'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit a Review Form */}
+              <div className="bg-white p-6 sm:p-7 rounded-3xl border border-black/10 shadow-xs space-y-4">
+                <h3 className="text-xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+                  Leave Your Experience Review
+                </h3>
+                <form onSubmit={handleSubmitReview} className="space-y-4">
+                  {/* Rating Stars Picker */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#414845] block">
+                      Select Rating Score
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          type="button"
+                          key={star}
+                          onClick={() => setNewRating(star)}
+                          className="p-1 text-2xl transition-transform hover:scale-125 cursor-pointer focus:outline-none"
+                        >
+                          <Star
+                            className={`w-6 h-6 ${
+                              star <= newRating ? 'text-amber-500 fill-amber-500' : 'text-gray-300 hover:text-amber-400'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                      <span className="text-xs font-bold text-[#00261D] ml-2">
+                        {newRating} of 5 Stars
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Review Title */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#414845] block">
+                      Review Headline (Optional)
+                    </label>
+                    <input
+                      value={newReviewTitle}
+                      onChange={(e) => setNewReviewTitle(e.target.value)}
+                      placeholder="e.g. Unforgettable Karakoram scenery & wonderful guide!"
+                      className="w-full bg-[#F8FAF6] border border-black/10 rounded-xl px-4 py-2.5 text-xs text-[#00261D] focus:outline-none focus:border-[#00261D]"
+                    />
+                  </div>
+
+                  {/* Review Comments */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#414845] block">
+                      Your Comments & Experience Details
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={newReviewContent}
+                      onChange={(e) => setNewReviewContent(e.target.value)}
+                      placeholder="Share what you liked about the itinerary, vehicle comfort, hotels, tour guide, and overall journey..."
+                      className="w-full bg-[#F8FAF6] border border-black/10 rounded-xl px-4 py-2.5 text-xs text-[#00261D] focus:outline-none focus:border-[#00261D] resize-none"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={submittingReview}
+                      className="px-6 py-2.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {submittingReview ? <Loader2 className="w-3.5 h-3.5 animate-spin text-white" /> : <Star className="w-3.5 h-3.5 text-[#BBEAD5]" />}
+                      <span>{submittingReview ? 'Posting Review...' : 'Post Traveler Review'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Reviews List */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-bold text-[#00261D]">
+                  All Traveler Reviews ({reviews.length})
+                </h4>
+
+                {reviews.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {reviews.map((rev) => (
+                      <div key={rev.id} className="p-5 rounded-2xl bg-white border border-black/10 shadow-2xs space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-[#00261D] text-white flex items-center justify-center text-xs font-bold">
+                              {(rev.reviewer_name || 'T').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-[#00261D]">
+                                {rev.reviewer_name || 'Verified Traveler'}
+                              </p>
+                              <p className="text-[10px] text-[#717975]">
+                                {rev.created_at ? new Date(rev.created_at).toLocaleDateString() : 'Recent'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                className={`w-3.5 h-3.5 ${
+                                  s <= Math.round(rev.rating) ? 'text-amber-500 fill-amber-500' : 'text-gray-200'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {rev.title && (
+                          <h5 className="text-xs font-bold text-[#00261D]">
+                            {rev.title}
+                          </h5>
+                        )}
+
+                        <p className="text-xs text-[#414845] leading-relaxed">
+                          {rev.content}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 rounded-3xl bg-white border border-black/10 text-center space-y-2">
+                    <p className="text-sm font-bold text-[#00261D]">No reviews yet for this expedition</p>
+                    <p className="text-xs text-[#717975] max-w-md mx-auto">
+                      Be the first traveler to rate this tour package and share your experience with the community!
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Tab 4: Policies */}
           {activeTab === 'POLICIES' && (
             <section className="space-y-4 p-6 rounded-2xl bg-white border border-black/10">
               <h2 className="text-2xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
@@ -441,19 +702,37 @@ export default function PackageDetailPage() {
         </div>
 
         {/* Host Badge */}
-        <div className="flex items-center gap-3.5 bg-white p-4 rounded-2xl border border-black/10 shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-slate-100 border border-black/10 flex items-center justify-center text-lg font-bold text-black shrink-0">
-            {organizer?.name?.charAt(0) || 'H'}
+        <div className="bg-white p-5 rounded-2xl border border-black/10 shadow-xs space-y-3">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-full bg-[#00261D] border border-black/10 flex items-center justify-center text-lg font-bold text-white shrink-0">
+              {(organizer?.name || pkg.organizer_name || 'H').charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold text-[#00261D] flex items-center gap-1 mb-0.5 tracking-wider uppercase">
+                VERIFIED HOST
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+              </p>
+              <p className="text-xs font-bold text-[#191C1A] truncate" title={organizer?.name || pkg.organizer_name}>
+                {organizer?.name || pkg.organizer_name || 'Verified Tour Host'}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-[10px] font-bold text-[#00261D] flex items-center gap-1 mb-0.5 tracking-wider uppercase">
-              VERIFIED HOST
-              <ShieldCheck className="w-3.5 h-3.5 text-[#420E00]" />
-            </p>
-            <p className="text-xs font-bold text-[#191C1A] truncate max-w-[180px]">
-              {organizer?.name || 'Alpine Escapes Pakistan'}
-            </p>
-          </div>
+          {(organizer?.contact_phone || pkg.contact_phone) && (
+            <div className="pt-2.5 border-t border-black/5 flex items-center justify-between text-xs text-[#00261D]">
+              <span className="text-[#717975] flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5 text-emerald-700" /> WhatsApp:
+              </span>
+              <a
+                href={`https://wa.me/${(organizer?.contact_phone || pkg.contact_phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${organizer?.name || pkg.organizer_name}, I am interested in your '${pkg.title}' tour package on Friday!`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono font-bold text-[#00261D] hover:text-emerald-800 hover:underline flex items-center gap-1 cursor-pointer"
+                title="Chat directly on WhatsApp"
+              >
+                <span>{organizer?.contact_phone || pkg.contact_phone}</span>
+              </a>
+            </div>
+          )}
         </div>
       </aside>
 

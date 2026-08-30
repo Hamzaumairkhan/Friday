@@ -42,23 +42,23 @@ def resolve_activity_image(
     elif "saidpur" in title_l:
         return "/images/stitch/discover_village.jpg"
     elif "rawal lake" in title_l or "rawal dam" in title_l or "lake view" in title_l:
-        return "/images/stitch/panoramic_lake.jpg"
+        return "/images/stitch/stitch_asset_4.jpg"
     elif "shah allah ditta" in title_l or "buddhist caves" in title_l:
         return "/images/stitch/stitch_asset_8.jpg"
     elif "shangrila" in title_l or "lower kachura" in title_l:
-        return "/images/stitch/stitch_asset_11.jpg"
+        return "/images/stitch/hero_mountains.jpg"
     elif "upper kachura" in title_l:
-        return "/images/stitch/panoramic_lake.jpg"
+        return "/images/stitch/hero_mountains.jpg"
     elif "deosai" in title_l or "sheosar" in title_l:
         return "/images/stitch/stitch_batch4_2.jpg"
     elif "katpana" in title_l or "cold desert" in title_l or "sarfaranga" in title_l:
-        return "/images/stitch/stitch_asset_11.jpg"
+        return "/images/stitch/hero_mountains.jpg"
     elif "altit" in title_l or "baltit" in title_l or "karimabad" in title_l:
-        return "/images/stitch/stitch_asset_6.jpg"
+        return "/images/stitch/stitch_asset_1.jpg"
     elif "attabad" in title_l or "jet ski" in title_l:
-        return "/images/stitch/panoramic_lake.jpg"
+        return "/images/stitch/stitch_asset_1.jpg"
     elif "passu" in title_l or "cathedral cones" in title_l or "bumburet" in title_l or "kalash" in title_l:
-        return "/images/stitch/stitch_asset_6.jpg"
+        return "/images/stitch/stitch_asset_1.jpg"
     elif "saif-ul-malook" in title_l or "saiful" in title_l or "lulusar" in title_l or "babusar" in title_l or "siri paye" in title_l:
         return "/images/stitch/stitch_asset_9.jpg"
     elif "malam jabba" in title_l or "mahodand" in title_l or "kalam" in title_l:

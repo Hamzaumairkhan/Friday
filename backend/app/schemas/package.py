@@ -1,6 +1,6 @@
 """Package schemas."""
 
-from typing import Optional, List
+from typing import Optional, List, Any
 from pydantic import BaseModel, Field
 
 
@@ -15,7 +15,13 @@ class PackageCreate(BaseModel):
     exclusions: Optional[List[str]] = None
     accommodation_type: Optional[str] = None
     transportation_type: Optional[str] = None
-    activities: Optional[List[str]] = None
+    activities: Optional[List[Any]] = None
+    image_url: Optional[str] = None
+    gallery_urls: Optional[List[str]] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    contact_phone: Optional[str] = None
+    organizer_name: Optional[str] = None
 
 
 class PackageResponse(BaseModel):

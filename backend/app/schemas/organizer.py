@@ -15,6 +15,9 @@ class OrganizerResponse(BaseModel):
     reviews_count: int
     location: Optional[str] = None
     website: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_email: Optional[str] = None
+    phone: Optional[str] = None
 
     # Business & Capacity
     cnic: Optional[str] = None

@@ -8,6 +8,10 @@ from app.services.email_template_service import (
     render_booking_confirmation_email,
     render_new_booking_alert_for_organizer,
     render_itinerary_email,
+    render_trip_planned_notification_email,
+    render_organizer_package_published_email,
+    render_organizer_payment_uploaded_email,
+    render_traveler_booking_approved_email,
     _get_base_layout,
 )
 
@@ -196,6 +200,165 @@ class EmailService:
             dashboard_url=f"http://localhost:5173/trips/{trip_id}",
         )
 
+        return await self.email_tool.send_email(
+            to=traveler_email,
+            subject=subject,
+            body=plain_body,
+            html=html_body,
+        )
+
+    async def send_trip_planned_notification(
+        self,
+        trip_id: str,
+        traveler_email: str,
+        traveler_name: str,
+        trip_title: str,
+        destination: str,
+        travelers_count: int,
+        budget_total: float,
+    ) -> Dict[str, Any]:
+        """Send clean minimal trip planned notification with title, travelers count, budget, and direct link."""
+        trip_url = f"http://localhost:5173/trips/{trip_id}"
+        subject = f"Your Trip Has Been Planned — {trip_title}"
+        plain_body = (
+            f"Dear {traveler_name},\n\n"
+            f"Your trip '{trip_title}' to {destination} has been planned!\n"
+            f"• Number of Travelers: {travelers_count}\n"
+            f"• Estimated Budget: Rs. {budget_total:,.0f}\n\n"
+            f"View your trip details: {trip_url}\n\n"
+            f"Safe travels,\n"
+            f"Friday Travel Copilot"
+        )
+        html_body = render_trip_planned_notification_email(
+            trip_id=trip_id,
+            traveler_name=traveler_name,
+            trip_title=trip_title,
+            destination=destination,
+            travelers_count=travelers_count,
+            budget_total=budget_total,
+            trip_url=trip_url,
+        )
+        return await self.email_tool.send_email(
+            to=traveler_email,
+            subject=subject,
+            body=plain_body,
+            html=html_body,
+        )
+
+    async def send_organizer_package_published_email(
+        self,
+        organizer_email: str,
+        organizer_name: str,
+        package_id: str,
+        package_title: str,
+        destination: str,
+        duration_days: int,
+        price_per_person: float,
+    ) -> Dict[str, Any]:
+        """Send confirmation email to Organizer when they publish a tour package."""
+        package_url = f"http://localhost:5173/packages/{package_id}"
+        subject = f"Your Tour Package Has Been Published — {package_title}"
+        plain_body = (
+            f"Dear {organizer_name},\n\n"
+            f"Your tour package '{package_title}' for {destination} has been published!\n"
+            f"• Duration: {duration_days} Days\n"
+            f"• Price per Person: Rs. {price_per_person:,.0f}\n\n"
+            f"View your live package on the marketplace: {package_url}\n\n"
+            f"Best regards,\n"
+            f"Friday Travel Marketplace"
+        )
+        html_body = render_organizer_package_published_email(
+            package_id=package_id,
+            organizer_name=organizer_name,
+            package_title=package_title,
+            destination=destination,
+            duration_days=duration_days,
+            price_per_person=price_per_person,
+            package_url=package_url,
+        )
+        return await self.email_tool.send_email(
+            to=organizer_email,
+            subject=subject,
+            body=plain_body,
+            html=html_body,
+        )
+
+    async def send_organizer_payment_uploaded_email(
+        self,
+        organizer_email: str,
+        organizer_name: str,
+        booking_id: str,
+        traveler_name: str,
+        traveler_phone: str,
+        package_title: str,
+        destination: str,
+        travelers: int,
+        total_price: float,
+    ) -> Dict[str, Any]:
+        """Alert organizer that a traveler uploaded bank payment proof."""
+        review_url = "http://localhost:5173/organizer/bookings"
+        subject = f"Payment Proof Uploaded — #{booking_id[:8].upper()} ({package_title})"
+        plain_body = (
+            f"Hello {organizer_name},\n\n"
+            f"Traveler {traveler_name} ({traveler_phone}) has uploaded payment proof for '{package_title}'.\n"
+            f"• Reserved Seats: {travelers}\n"
+            f"• Total Amount: Rs. {total_price:,.0f}\n\n"
+            f"Please verify the payment proof: {review_url}\n\n"
+            f"Best regards,\n"
+            f"Friday Travel Marketplace"
+        )
+        html_body = render_organizer_payment_uploaded_email(
+            booking_id=booking_id,
+            organizer_name=organizer_name,
+            traveler_name=traveler_name,
+            traveler_phone=traveler_phone,
+            package_title=package_title,
+            destination=destination,
+            travelers=travelers,
+            total_price=total_price,
+            review_url=review_url,
+        )
+        return await self.email_tool.send_email(
+            to=organizer_email,
+            subject=subject,
+            body=plain_body,
+            html=html_body,
+        )
+
+    async def send_traveler_booking_approved_email(
+        self,
+        traveler_email: str,
+        traveler_name: str,
+        booking_id: str,
+        package_id: str,
+        package_title: str,
+        destination: str,
+        travelers: int,
+        total_price: float,
+        organizer_name: str,
+    ) -> Dict[str, Any]:
+        """Notify traveler that organizer approved their booking and invite to Group Chat."""
+        group_chat_url = f"http://localhost:5173/trips/{package_id}/group"
+        subject = f"Booking Verified & Confirmed — {package_title}"
+        plain_body = (
+            f"Dear {traveler_name},\n\n"
+            f"Your booking for '{package_title}' in {destination} has been verified and confirmed by {organizer_name}!\n"
+            f"• Number of Travelers: {travelers}\n"
+            f"• Total Paid: Rs. {total_price:,.0f}\n\n"
+            f"Join your private expedition group chat: {group_chat_url}\n\n"
+            f"Safe travels,\n"
+            f"Friday Travel Marketplace"
+        )
+        html_body = render_traveler_booking_approved_email(
+            booking_id=booking_id,
+            traveler_name=traveler_name,
+            package_title=package_title,
+            destination=destination,
+            travelers=travelers,
+            total_price=total_price,
+            organizer_name=organizer_name,
+            group_chat_url=group_chat_url,
+        )
         return await self.email_tool.send_email(
             to=traveler_email,
             subject=subject,

@@ -41,3 +41,8 @@ class BookingRepository:
     async def update(self, booking: Booking) -> Booking:
         await self.db.flush()
         return booking
+
+    async def delete(self, booking: Booking) -> bool:
+        await self.db.delete(booking)
+        await self.db.flush()
+        return True

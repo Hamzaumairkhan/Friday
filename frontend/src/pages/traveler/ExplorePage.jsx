@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -12,6 +12,8 @@ import {
   Users,
   Briefcase,
   Bookmark,
+  SlidersHorizontal,
+  Eye,
 } from 'lucide-react';
 import { packagesService } from '../../services/packages';
 import { organizersService } from '../../services/organizers';
@@ -30,6 +32,21 @@ export default function ExplorePage() {
   const [selectedBudget, setSelectedBudget] = useState('ALL');
   const [feedSource, setFeedSource] = useState('ALL'); // 'ALL', 'ORGANIZER', 'PUBLIC', 'SAVED'
   const [savedPackages, setSavedPackages] = useState({});
+  const [saveCounts, setSaveCounts] = useState({});
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const filterRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (filterRef.current && !filterRef.current.contains(event.target)) {
+        setIsFilterOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const hasActiveFilters = selectedDuration !== 'ALL' || selectedBudget !== 'ALL';
 
   const fetchMarketplaceData = async () => {
     setLoading(true);
@@ -48,16 +65,19 @@ export default function ExplorePage() {
 
         const getDestinationFallback = (dest) => {
           const d = (dest || '').toLowerCase();
+          if (d.includes('pine') || d.includes('nathia') || d.includes('murree') || d.includes('galyat') || d.includes('ayubia') || d.includes('bhurban') || d.includes('patriata') || d.includes('dunga')) return '/images/stitch/stitch_asset_11.jpg';
           if (d.includes('islamabad') || d.includes('margalla') || d.includes('faisal') || d.includes('rawalpindi')) return '/images/stitch/stitch_asset_4.jpg';
           if (d.includes('lahore') || d.includes('badshahi') || d.includes('punjab') || d.includes('faisalabad') || d.includes('multan')) return '/images/stitch/stitch_asset_2.jpg';
           if (d.includes('karachi') || d.includes('gwadar') || d.includes('ormara') || d.includes('kund') || d.includes('sindh')) return '/images/stitch/stitch_asset_5.jpg';
           if (d.includes('swat') || d.includes('kalam') || d.includes('malam') || d.includes('mahudand')) return '/images/stitch/stitch_asset_10.jpg';
-          if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar')) return '/images/stitch/stitch_asset_9.jpg';
+          if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar') || d.includes('shogran')) return '/images/stitch/stitch_asset_9.jpg';
           if (d.includes('kumrat') || d.includes('jahaz') || d.includes('katora')) return '/images/stitch/stitch_asset_8.jpg';
           if (d.includes('fairy') || d.includes('nanga')) return '/images/stitch/stitch_asset_7.jpg';
-          if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila')) return '/images/stitch/hero_mountains.jpg';
-          if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit')) return '/images/stitch/stitch_asset_6.jpg';
-          return '/images/stitch/panoramic_lake.jpg';
+          if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila') || d.includes('khaplu')) return '/images/stitch/hero_mountains.jpg';
+          if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit') || d.includes('attabad')) return '/images/stitch/stitch_asset_1.jpg';
+          if (d.includes('neelum') || d.includes('kashmir') || d.includes('arang') || d.includes('sharda') || d.includes('ratti') || d.includes('taobat')) return '/images/stitch/stitch_asset_8.jpg';
+          if (d.includes('chitral') || d.includes('kalash') || d.includes('shandur')) return '/images/stitch/stitch_asset_14.jpg';
+          return '/images/stitch/hero_mountains.jpg';
         };
 
         return {
@@ -72,11 +92,35 @@ export default function ExplorePage() {
           max_group_size: travelersCount,
           difficulty: 'Flexible',
           organizer_id: null,
+          created_at: ct.created_at || ct.updated_at || null,
           creator_name: (ct.preferences && ct.preferences.lead_contact && ct.preferences.lead_contact.name) ? ct.preferences.lead_contact.name : 'Community Traveler',
         };
       });
 
-      setPackages([...(pkgs || []), ...formattedCommunity]);
+      // Combine and sort feed chronologically (latest upload/creation appears first on top)
+      const allItems = [...(pkgs || []), ...formattedCommunity];
+      allItems.sort((a, b) => {
+        const getTimestamp = (item) => {
+          if (item.created_at) {
+            const parsed = new Date(item.created_at).getTime();
+            if (!isNaN(parsed) && parsed > 0) return parsed;
+          }
+          if (item.updated_at) {
+            const parsed = new Date(item.updated_at).getTime();
+            if (!isNaN(parsed) && parsed > 0) return parsed;
+          }
+          return 0;
+        };
+
+        const timeA = getTimestamp(a);
+        const timeB = getTimestamp(b);
+        if (timeA !== timeB) {
+          return timeB - timeA; // Descending: latest first
+        }
+        return String(b.id || '').localeCompare(String(a.id || ''));
+      });
+
+      setPackages(allItems);
 
       const orgMap = {};
       (orgs || []).forEach((o) => {
@@ -84,13 +128,22 @@ export default function ExplorePage() {
       });
       setOrganizers(orgMap);
 
-      // Load saved state from localStorage
+      // Load saved state and save counts from localStorage
       const savedIds = JSON.parse(localStorage.getItem('friday_saved_packages') || '[]');
       const savedMap = {};
       savedIds.forEach((id) => {
         savedMap[id] = true;
       });
       setSavedPackages(savedMap);
+
+      const storedCounts = JSON.parse(localStorage.getItem('friday_packages_save_counts') || '{}');
+      const initialCounts = { ...storedCounts };
+      savedIds.forEach((id) => {
+        if (!initialCounts[id] || initialCounts[id] < 1) {
+          initialCounts[id] = 1;
+        }
+      });
+      setSaveCounts(initialCounts);
     } catch (err) {
       console.error('Error fetching marketplace packages:', err);
     } finally {
@@ -107,17 +160,28 @@ export default function ExplorePage() {
     e.stopPropagation();
 
     const savedIds = JSON.parse(localStorage.getItem('friday_saved_packages') || '[]');
+    const storedCounts = JSON.parse(localStorage.getItem('friday_packages_save_counts') || '{}');
     let updated;
+    let newCount;
+
     if (savedIds.includes(pkgId)) {
       updated = savedIds.filter((id) => id !== pkgId);
+      newCount = Math.max(0, (storedCounts[pkgId] || saveCounts[pkgId] || 1) - 1);
+      storedCounts[pkgId] = newCount;
       setSavedPackages((prev) => ({ ...prev, [pkgId]: false }));
+      setSaveCounts((prev) => ({ ...prev, [pkgId]: newCount }));
       toast.success('Removed from Saved collection.');
     } else {
       updated = [...savedIds, pkgId];
+      newCount = (storedCounts[pkgId] || saveCounts[pkgId] || 0) + 1;
+      storedCounts[pkgId] = newCount;
       setSavedPackages((prev) => ({ ...prev, [pkgId]: true }));
+      setSaveCounts((prev) => ({ ...prev, [pkgId]: newCount }));
       toast.success('Added to Saved collection!');
     }
+
     localStorage.setItem('friday_saved_packages', JSON.stringify(updated));
+    localStorage.setItem('friday_packages_save_counts', JSON.stringify(storedCounts));
   };
 
   const filteredPackages = packages.filter((pkg) => {
@@ -158,9 +222,9 @@ export default function ExplorePage() {
     <div className="w-full flex-1 flex justify-between min-h-screen">
       {/* ─── CENTER FEED (Max width 800px, centered) ───────────────── */}
       <div className="flex-1 flex justify-center px-3 sm:px-6 lg:px-12 py-6 w-full max-w-full overflow-hidden">
-        <div className="w-full max-w-[760px] flex flex-col gap-8 overflow-hidden">
-          {/* Sticky Search & Filters Header */}
-          <header className="sticky top-0 bg-[#F8FAF6]/95 backdrop-blur-md z-30 py-3 space-y-3">
+        <div className="w-full max-w-[760px] flex flex-col gap-5 overflow-hidden">
+          {/* Sticky Search Header */}
+          <header className="sticky top-0 bg-[#F8FAF6]/95 backdrop-blur-md z-30 pt-1 pb-1">
             <div className="relative w-full">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717975]" />
               <input
@@ -172,104 +236,157 @@ export default function ExplorePage() {
                 style={{ fontFamily: 'Inter, sans-serif' }}
               />
             </div>
-
-            {/* Sub-Filters: Duration & Budget Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              <div className="flex items-center gap-1.5 bg-[#E7E9E5] p-1 rounded-full text-xs shrink-0">
-                <span className="px-2 font-medium text-[#717975] uppercase text-[10px]">Duration:</span>
-                {['ALL', 'SHORT', 'MEDIUM', 'LONG'].map((dur) => (
-                  <button
-                    key={dur}
-                    onClick={() => setSelectedDuration(dur)}
-                    className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
-                      selectedDuration === dur ? 'bg-[#00261D] text-white shadow-xs' : 'text-[#414845] hover:text-[#00261D]'
-                    }`}
-                  >
-                    {dur === 'ALL' ? 'All' : dur === 'SHORT' ? '1-3 Days' : dur === 'MEDIUM' ? '4-6 Days' : '7+ Days'}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-[#E7E9E5] p-1 rounded-full text-xs shrink-0">
-                <span className="px-2 font-medium text-[#717975] uppercase text-[10px]">Budget:</span>
-                {['ALL', 'BUDGET', 'MID', 'PREMIUM'].map((b) => (
-                  <button
-                    key={b}
-                    onClick={() => setSelectedBudget(b)}
-                    className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
-                      selectedBudget === b ? 'bg-[#00261D] text-white shadow-xs' : 'text-[#414845] hover:text-[#00261D]'
-                    }`}
-                  >
-                    {b === 'ALL' ? 'All' : b === 'BUDGET' ? '< 35k' : b === 'MID' ? '35k-60k' : '60k+'}
-                  </button>
-                ))}
-              </div>
-            </div>
           </header>
 
-          {/* Editorial Headline & Filter Buttons */}
-          <div className="space-y-4">
+          {/* Editorial Headline & Filter Row */}
+          <div className="space-y-3 -mt-1">
             <h2
-              className="text-4xl sm:text-5xl font-normal italic  leading-tight"
-              style={{ fontFamily: "'Instrument Serif', serif", color:"#00261D" }}
+              className="text-4xl sm:text-5xl font-normal italic leading-tight"
+              style={{ fontFamily: "'Instrument Serif', serif", color: "#00261D" }}
             >
               Find somewhere worth getting lost in
             </h2>
 
-            {/* ─── ALL / BY ORGANIZER / BY PUBLIC / SAVED (Icon Only) ──────────── */}
-            <div className="flex items-center gap-2.5 pt-1 overflow-x-auto pb-1 scrollbar-hide">
-              <button
-                onClick={() => setFeedSource('ALL')}
-                className={`px-4 sm:px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                  feedSource === 'ALL'
-                    ? 'bg-[#00261D] text-white shadow-xs scale-105'
-                    : 'bg-[#E7E9E5] text-[#414845] hover:bg-[#DCDFD9] hover:text-[#00261D]'
-                }`}
-                style={{ fontFamily: 'Inter, sans-serif' }}
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>All</span>
-              </button>
+            {/* ─── ALL / BY ORGANIZER / BY PUBLIC / SAVED (Left) & FILTER DROPDOWN (Right) ──────────── */}
+            <div className="flex items-center justify-between gap-1 sm:gap-2 relative w-full">
+              {/* Left Feed Source Tabs */}
+              <div className="flex items-center gap-1 sm:gap-1.5 flex-nowrap shrink">
+                <button
+                  onClick={() => setFeedSource('ALL')}
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                    feedSource === 'ALL'
+                      ? 'bg-[#00261D] text-white shadow-xs'
+                      : 'bg-[#E7E9E5] text-[#414845] hover:bg-[#DCDFD9] hover:text-[#00261D]'
+                  }`}
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>All</span>
+                </button>
 
-              <button
-                onClick={() => setFeedSource('ORGANIZER')}
-                className={`px-4 sm:px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                  feedSource === 'ORGANIZER'
-                    ? 'bg-[#00261D] text-white shadow-xs scale-105'
-                    : 'bg-[#E7E9E5] text-[#414845] hover:bg-[#DCDFD9] hover:text-[#00261D]'
-                }`}
-                style={{ fontFamily: 'Inter, sans-serif' }}
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>By Organizer</span>
-              </button>
+                <button
+                  onClick={() => setFeedSource('ORGANIZER')}
+                  className={`px-2 sm:px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                    feedSource === 'ORGANIZER'
+                      ? 'bg-[#00261D] text-white shadow-xs'
+                      : 'bg-[#E7E9E5] text-[#414845] hover:bg-[#DCDFD9] hover:text-[#00261D]'
+                  }`}
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                >
+                  <ShieldCheck className="w-3 h-3" />
+                  <span className="hidden sm:inline">By </span>
+                  <span>Organizer</span>
+                </button>
 
-              <button
-                onClick={() => setFeedSource('PUBLIC')}
-                className={`px-4 sm:px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                  feedSource === 'PUBLIC'
-                    ? 'bg-[#00261D] text-white shadow-xs scale-105'
-                    : 'bg-[#E7E9E5] text-[#414845] hover:bg-[#DCDFD9] hover:text-[#00261D]'
-                }`}
-                style={{ fontFamily: 'Inter, sans-serif' }}
-              >
-                <Users className="w-4 h-4" />
-                <span>By Public</span>
-              </button>
+                <button
+                  onClick={() => setFeedSource('PUBLIC')}
+                  className={`px-2 sm:px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                    feedSource === 'PUBLIC'
+                      ? 'bg-[#00261D] text-white shadow-xs'
+                      : 'bg-[#E7E9E5] text-[#414845] hover:bg-[#DCDFD9] hover:text-[#00261D]'
+                  }`}
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                >
+                  <Users className="w-3 h-3" />
+                  <span className="hidden sm:inline">By </span>
+                  <span>Public</span>
+                </button>
 
-              <button
-                onClick={() => setFeedSource('SAVED')}
-                className={`p-2.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center justify-center shrink-0 ${
-                  feedSource === 'SAVED'
-                    ? 'bg-[#00261D] text-white shadow-xs scale-105'
-                    : 'bg-[#E7E9E5] text-[#414845] hover:bg-[#DCDFD9] hover:text-[#00261D]'
-                }`}
-                style={{ fontFamily: 'Inter, sans-serif' }}
-                title="View Saved Trips"
-                aria-label="View Saved Trips"
-              >
-                <Bookmark className={`w-4 h-4 ${feedSource === 'SAVED' ? 'fill-white' : ''}`} />
-              </button>
+                <button
+                  onClick={() => setFeedSource('SAVED')}
+                  className={`p-1.5 rounded-full text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center shrink-0 ${
+                    feedSource === 'SAVED'
+                      ? 'bg-[#00261D] text-white shadow-xs'
+                      : 'bg-[#E7E9E5] text-[#414845] hover:bg-[#DCDFD9] hover:text-[#00261D]'
+                  }`}
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                  title="View Saved Trips"
+                  aria-label="View Saved Trips"
+                >
+                  <Bookmark className={`w-3 h-3 ${feedSource === 'SAVED' ? 'fill-white' : ''}`} />
+                </button>
+              </div>
+
+              {/* Right Filter Button & Dropdown */}
+              <div className="relative shrink-0" ref={filterRef}>
+                <button
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  className={`p-1.5 sm:px-3 sm:py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 shrink-0 ${
+                    isFilterOpen || hasActiveFilters
+                      ? 'bg-[#00261D] text-white shadow-xs'
+                      : 'bg-[#E7E9E5] text-[#414845] hover:bg-[#DCDFD9] hover:text-[#00261D]'
+                  }`}
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                  title="Filter options"
+                  aria-label="Filter options"
+                >
+                  <span className="hidden sm:inline">Filter</span>
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  {hasActiveFilters && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#BBEAD5]" />
+                  )}
+                </button>
+
+                {/* Filter Popover Dropdown */}
+                {isFilterOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-[300px] sm:w-[330px] bg-white border border-black/10 rounded-2xl shadow-xl p-4 z-40 space-y-3.5 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between pb-2 border-b border-black/5">
+                      <span className="text-xs font-bold text-[#191C1A] uppercase tracking-wider">Filters</span>
+                      {hasActiveFilters && (
+                        <button
+                          onClick={() => {
+                            setSelectedDuration('ALL');
+                            setSelectedBudget('ALL');
+                          }}
+                          className="text-[11px] font-semibold text-[#00261D] hover:underline cursor-pointer"
+                        >
+                          Reset All
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Duration Pills */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-[#717975] uppercase tracking-wider block">Duration</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['ALL', 'SHORT', 'MEDIUM', 'LONG'].map((dur) => (
+                          <button
+                            key={dur}
+                            onClick={() => setSelectedDuration(dur)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                              selectedDuration === dur
+                                ? 'bg-[#00261D] text-white shadow-xs'
+                                : 'bg-[#F3F4F0] text-[#414845] hover:bg-[#E7E9E5]'
+                            }`}
+                          >
+                            {dur === 'ALL' ? 'All' : dur === 'SHORT' ? '1-3 Days' : dur === 'MEDIUM' ? '4-6 Days' : '7+ Days'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Budget Pills */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-[#717975] uppercase tracking-wider block">Budget</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['ALL', 'BUDGET', 'MID', 'PREMIUM'].map((b) => (
+                          <button
+                            key={b}
+                            onClick={() => setSelectedBudget(b)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                              selectedBudget === b
+                                ? 'bg-[#00261D] text-white shadow-xs'
+                                : 'bg-[#F3F4F0] text-[#414845] hover:bg-[#E7E9E5]'
+                            }`}
+                          >
+                            {b === 'ALL' ? 'All' : b === 'BUDGET' ? '< 35k' : b === 'MID' ? '35k-60k' : '60k+'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -295,10 +412,11 @@ export default function ExplorePage() {
                 return (
                   <article
                     key={pkg.id}
-                    className="group bg-white rounded-2xl border border-black/10 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300"
+                    onClick={() => navigate(targetLink)}
+                    className="group bg-white rounded-3xl border border-black/10 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col justify-between cursor-pointer"
                   >
                     {/* 400px Image Container with Film Matte Overlay */}
-                    <div className="relative h-[360px] sm:h-[400px] w-full overflow-hidden bg-slate-100">
+                    <div className="relative h-72 sm:h-96 w-full overflow-hidden bg-[#00261D]">
                       <img
                         src={pkg.image_url || '/images/stitch/stitch_asset_1.jpg'}
                         alt={pkg.title}
@@ -309,33 +427,57 @@ export default function ExplorePage() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
 
-                      {/* Verified / Community Badge */}
+                      {/* Badge: Public vs Organizer (Top-Left) */}
                       <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md text-[#00261D] px-3.5 py-1.5 rounded-full flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase shadow-xs">
                         {isCommunity ? (
                           <>
                             <Users className="w-3.5 h-3.5 text-emerald-800" />
-                            Community Shared Trip
+                            Public
                           </>
                         ) : (
                           <>
                             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                            Verified Expedition
+                            Organizer
                           </>
                         )}
                       </div>
 
-                      {/* Save / Bookmark Button */}
+                      {/* Views Count Overlay Badge (Bottom-Right of Image) */}
+                      <div className="absolute bottom-4 right-4 bg-black/65 backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1.5 text-white shadow-2xs">
+                        <Eye className="w-3.5 h-3.5 text-[#BBEAD5]" />
+                        <span className="text-[11px] font-bold">
+                          {pkg.views_count || 0} {pkg.views_count === 1 ? 'view' : 'views'}
+                        </span>
+                      </div>
+
+                      {/* Save / Bookmark Button with Dynamic User Save Count (Top-Right) */}
                       <button
-                        onClick={(e) => toggleSave(pkg.id, e)}
-                        className={`absolute top-4 right-4 h-10 w-10 rounded-full backdrop-blur-md flex items-center justify-center transition-all cursor-pointer shadow-sm ${
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSave(pkg.id, e);
+                        }}
+                        className={`absolute top-4 right-4 backdrop-blur-md flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-sm ${
                           isSaved
                             ? 'bg-[#00261D] text-[#BBEAD5] scale-105 shadow-md ring-2 ring-white/60'
                             : 'bg-white/90 text-[#00261D] hover:bg-white hover:scale-105'
+                        } ${
+                          (saveCounts[pkg.id] || 0) > 0
+                            ? 'min-w-[40px] px-2 py-1.5 rounded-2xl gap-0.5'
+                            : 'h-10 w-10 rounded-full'
                         }`}
                         title={isSaved ? 'Remove from Saved' : 'Save to Bookmarks'}
                         aria-label={isSaved ? 'Remove from Saved' : 'Save to Bookmarks'}
                       >
-                        <Bookmark className={`w-5 h-5 ${isSaved ? 'fill-[#BBEAD5]' : ''}`} />
+                        <Bookmark className={`w-4 h-4 transition-transform ${isSaved ? 'fill-[#BBEAD5]' : ''}`} />
+                        {(saveCounts[pkg.id] || 0) > 0 && (
+                          <span
+                            className={`text-[10px] font-extrabold leading-none tracking-tight ${
+                              isSaved ? 'text-[#BBEAD5]' : 'text-[#00261D]'
+                            }`}
+                          >
+                            {saveCounts[pkg.id]}
+                          </span>
+                        )}
                       </button>
                     </div>
 
@@ -387,10 +529,20 @@ export default function ExplorePage() {
                                 <span>Verified Community Traveler</span>
                               </span>
                             ) : (
-                              <>
-                                <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                                <span>{org?.rating || 4.9} ({org?.reviews_count || 48} reviews)</span>
-                              </>
+                              (pkg.rating > 0 || org?.rating > 0) && (pkg.reviews_count > 0 || org?.reviews_count > 0) ? (
+                                <span className="flex items-center gap-1 font-semibold text-[#00261D]">
+                                  <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                                  <span>
+                                    {(pkg.rating || org?.rating || 0).toFixed(1)} (
+                                    {pkg.reviews_count || org?.reviews_count || 0}{' '}
+                                    {(pkg.reviews_count || org?.reviews_count || 0) === 1 ? 'review' : 'reviews'})
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                  ✨ New Tour Package
+                                </span>
+                              )
                             )}
                           </p>
                         </div>
@@ -413,14 +565,26 @@ export default function ExplorePage() {
                               {isCommunity ? `${pkg.max_group_size || 2} Person(s)` : `Max ${pkg.max_group_size || 12}`}
                             </span>
                           </div>
+                          <div>
+                            <span className="text-[10px] text-[#717975] uppercase font-semibold block">Impressions</span>
+                            <span className="font-semibold text-[#00261D] flex items-center gap-1">
+                              <Eye className="w-3.5 h-3.5 text-[#717975]" />
+                              {pkg.views_count || 0}
+                            </span>
+                          </div>
                         </div>
 
-                        <Link to={targetLink} className="w-full sm:w-auto">
-                          <button className="w-full sm:w-auto bg-[#00261D] hover:bg-[#00261D]/90 text-white rounded-full px-6 py-3 text-xs uppercase font-bold tracking-widest flex items-center justify-center gap-2 group-hover:gap-3 transition-all cursor-pointer shadow-sm">
-                            <span>{isCommunity ? 'View Itinerary' : 'View Expedition'}</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
-                        </Link>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(targetLink);
+                          }}
+                          className="w-full sm:w-auto bg-[#00261D] hover:bg-[#00261D]/90 text-white rounded-full px-6 py-3 text-xs uppercase font-bold tracking-widest flex items-center justify-center gap-2 group-hover:gap-3 transition-all cursor-pointer shadow-sm"
+                        >
+                          <span>View Trip</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   </article>
@@ -486,7 +650,7 @@ export default function ExplorePage() {
           </Link>
         </div>
 
-        {/* Card 2: Popular in Pakistan (With high-res image thumbnails) */}
+        {/* Card 2: Popular in Pakistan / Top 4 Most Saved Trips */}
         <div className="space-y-4">
           <div className="flex justify-between items-center pl-1">
             <span
@@ -495,63 +659,101 @@ export default function ExplorePage() {
             >
               Popular in Pakistan
             </span>
+            <span className="text-[10px] font-bold text-[#717975] uppercase tracking-wider">Top Saved</span>
           </div>
 
           <div className="space-y-3">
-            {[
-              {
-                name: 'Fairy Meadows',
-                tag: 'Mountain Retreat',
-                image: '/images/stitch/stitch_asset_14.jpg',
-                fallback: '/images/stitch/hero_mountains.jpg',
-                query: 'Fairy Meadows',
-              },
-              {
-                name: 'Lahore Heritage',
-                tag: 'Cultural Tour',
-                image: '/images/stitch/stitch_asset_19.jpg',
-                fallback: '/images/stitch/stitch_asset_1.jpg',
-                query: 'Lahore',
-              },
-              {
-                name: 'Attabad Lake',
-                tag: 'Water Expedition',
-                image: '/images/stitch/stitch_asset_25.jpg',
-                fallback: '/images/stitch/register_hero.jpg',
-                query: 'Hunza',
-              },
-              {
-                name: 'Skardu Valley',
-                tag: 'Cold Desert Retreat',
-                image: '/images/stitch/stitch_asset_2.jpg',
-                fallback: '/images/stitch/login_hero.jpg',
-                query: 'Skardu',
-              },
-            ].map((spot, idx) => (
-              <div
-                key={idx}
-                onClick={() => setSearchDestination(spot.query)}
-                className="group flex items-center gap-3.5 p-2 rounded-2xl border border-black/10 bg-white hover:border-[#00261D] hover:shadow-xs transition-all cursor-pointer"
-              >
-                <img
-                  src={spot.image}
-                  alt={spot.name}
-                  onError={(e) => {
-                    e.currentTarget.src = spot.fallback;
-                  }}
-                  className="w-14 h-14 rounded-xl object-cover shrink-0 shadow-2xs"
-                />
-                <div className="flex-1 min-w-0">
-                  <h5
-                    className="text-sm font-bold text-[#00261D] group-hover:underline truncate"
-                    style={{ fontFamily: 'Inter, sans-serif' }}
-                  >
-                    {spot.name}
-                  </h5>
-                  <p className="text-xs text-[#717975] truncate mt-0.5">{spot.tag}</p>
+            {loading ? (
+              [1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3.5 p-2 rounded-2xl border border-black/10 bg-white">
+                  <Skeleton className="w-14 h-14 rounded-xl shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (() => {
+              const qualifiedItems = [...packages]
+                .map((pkg) => ({
+                  ...pkg,
+                  saves: saveCounts[pkg.id] || 0,
+                }))
+                .filter((pkg) => pkg.saves >= 3)
+                .sort((a, b) => {
+                  if (b.saves !== a.saves) {
+                    return b.saves - a.saves; // Highest saves first (e.g. 10, 7, 5, 4, 3)
+                  }
+                  const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                  const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                  if (timeA !== timeB) return timeB - timeA;
+                  return String(b.id || '').localeCompare(String(a.id || ''));
+                })
+                .slice(0, 4);
+
+              if (qualifiedItems.length === 0) {
+                return (
+                  <div className="p-5 rounded-2xl border border-dashed border-black/15 bg-white/60 text-center space-y-2">
+                    <div className="w-8 h-8 rounded-full bg-[#E7F7EE] flex items-center justify-center mx-auto text-emerald-800">
+                      <Bookmark className="w-4 h-4 fill-emerald-800" />
+                    </div>
+                    <p className="text-xs font-bold text-[#00261D]">No Trending Trips Yet</p>
+                    <p className="text-[11px] text-[#717975] leading-relaxed">
+                      Trips require a minimum of <strong className="text-[#00261D]">3 saves</strong> from travelers to enter Popular in Pakistan.
+                    </p>
+                  </div>
+                );
+              }
+
+              return qualifiedItems.map((item) => {
+                const isCommunity = item.is_public_community === true;
+                const targetLink = isCommunity ? `/trips/${item.id}` : `/explore/${item.id}`;
+                const saves = item.saves;
+
+                return (
+                  <Link
+                    key={item.id}
+                    to={targetLink}
+                    className="group flex items-center gap-3.5 p-2.5 rounded-2xl border border-black/10 bg-white hover:border-[#00261D] hover:shadow-md transition-all cursor-pointer block"
+                  >
+                    <div className="relative shrink-0">
+                      <img
+                        src={item.image_url || '/images/stitch/stitch_asset_1.jpg'}
+                        alt={item.title}
+                        onError={(e) => {
+                          e.currentTarget.src = '/images/stitch/stitch_asset_1.jpg';
+                        }}
+                        className="w-14 h-14 rounded-xl object-cover shadow-2xs group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <h5
+                          className="text-sm font-bold text-[#00261D] group-hover:underline truncate"
+                          style={{ fontFamily: 'Inter, sans-serif' }}
+                        >
+                          {item.title}
+                        </h5>
+                      </div>
+                      <p className="text-xs text-[#717975] truncate mt-0.5 flex items-center gap-1.5">
+                        <span>{item.destination}</span>
+                        <span className="text-black/30">•</span>
+                        <span>{item.duration_days} Days</span>
+                      </p>
+                      <div className="flex items-center justify-between mt-1 text-[11px]">
+                        <span className="font-semibold text-[#00261D]">
+                          PKR {Number(item.price_per_person || 0).toLocaleString()}
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-[#E7F7EE] px-2 py-0.5 rounded-full">
+                          <Bookmark className="w-2.5 h-2.5 fill-emerald-800" />
+                          {saves} saves
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              });
+            })()}
           </div>
         </div>
       </aside>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   ShieldCheck,
@@ -23,6 +23,7 @@ import toast from 'react-hot-toast';
 
 export default function BookingDetailPage() {
   const { bookingId } = useParams();
+  const navigate = useNavigate();
   const [booking, setBooking] = useState(null);
   const [paymentInfo, setPaymentInfo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -71,8 +72,9 @@ export default function BookingDetailPage() {
     try {
       const updated = await bookingsService.submitPaymentProof(bookingId, screenshotUrl);
       setBooking(updated);
-      toast.success('Payment proof submitted successfully! The organizer will verify shortly.');
-      await fetchBookingData();
+      toast.success('Payment proof submitted successfully! Your reservation is now pending organizer verification.', { duration: 4000 });
+      // Redirect traveler to My Trips / Bookings where pending status is displayed
+      navigate('/my-trips?tab=bookings');
     } catch (err) {
       console.error('Payment proof submission error:', err);
       toast.error(err.message || 'Failed to submit payment proof.');
@@ -181,78 +183,89 @@ export default function BookingDetailPage() {
 
           {/* Payment Methods Section */}
           <div className="space-y-6">
-            <h3 className="text-2xl font-normal text-black" style={{ fontFamily: "'Instrument Serif', serif" }}>
-              Organizer Payment Details
-            </h3>
-
-            {/* Bank Transfer (IBAN) */}
-            <div className="bg-white rounded-3xl p-6 border border-black/10 space-y-3 shadow-xs">
-              <div className="flex items-center gap-3">
-                <Building className="w-5 h-5 text-black" />
-                <h4 className="text-base font-semibold text-black">Direct Bank Transfer</h4>
-              </div>
-
-              <div className="bg-[#F8FAF6] p-4 rounded-2xl border border-black/10 flex justify-between items-center">
-                <div className="space-y-1 text-xs">
-                  <span className="text-[10px] uppercase font-bold text-[#6F6F6F]">Account Title / IBAN</span>
-                  <p className="font-mono font-bold text-black text-sm">
-                    {orgPayment?.payment_account_number || 'PK34 HABB 0000 1234 5678 9012'}
-                  </p>
-                  <p className="text-[#6F6F6F]">
-                    {orgPayment?.payment_bank_name || 'Habib Bank Limited'} • Title: {orgPayment?.payment_account_title || orgPayment?.name || 'Friday Host'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => copyToClipboard(orgPayment?.payment_account_number || 'PK34 HABB 0000 1234 5678 9012', 'iban')}
-                  className="p-2.5 rounded-full hover:bg-slate-200 text-black transition-colors cursor-pointer"
-                  title="Copy Account Number"
-                >
-                  {copiedKey === 'iban' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                </button>
-              </div>
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+                Organizer Payment Details
+              </h3>
+              {orgPayment?.contact_phone && (
+                <span className="text-xs text-[#717975] flex items-center gap-1.5 font-medium">
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-800" /> Host WhatsApp: <strong className="text-[#00261D]">{orgPayment.contact_phone}</strong>
+                </span>
+              )}
             </div>
 
-            {/* Mobile Wallets: JazzCash & EasyPaisa */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* JazzCash */}
-              <div className="bg-white rounded-3xl p-5 border border-black/10 space-y-2 shadow-xs">
-                <div className="flex items-center gap-2">
-                  <Smartphone className="w-4 h-4 text-black" />
-                  <h4 className="text-sm font-semibold text-black">JazzCash</h4>
-                </div>
-                <div className="bg-[#F8FAF6] p-3 rounded-xl border border-black/10 flex justify-between items-center">
-                  <div className="text-xs">
-                    <p className="font-mono font-bold text-black">0300 1234567</p>
-                    <p className="text-[11px] text-[#6F6F6F]">Title: {orgPayment?.name || 'Friday Host'}</p>
+            {/* Dynamic Receiving Account Card */}
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-black/10 space-y-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-center">
+                    <Building className="w-5 h-5" />
                   </div>
-                  <button
-                    onClick={() => copyToClipboard('0300 1234567', 'jazz')}
-                    className="p-1.5 rounded-full hover:bg-slate-200 text-black"
-                  >
-                    {copiedKey === 'jazz' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
+                  <div>
+                    <h4 className="text-base font-bold text-[#00261D]">
+                      {orgPayment?.payment_bank_name || orgPayment?.payment_wallet_type || 'Direct Bank / Mobile Wallet Transfer'}
+                    </h4>
+                    <p className="text-xs text-[#717975]">
+                      Official receiving account registered by <strong className="text-[#00261D]">{orgPayment?.name || booking.organizer_name || 'Tour Operator'}</strong>
+                    </p>
+                  </div>
                 </div>
+
+                <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-100/80 text-emerald-900 border border-emerald-200">
+                  {orgPayment?.payment_wallet_type || 'VERIFIED ACCOUNT'}
+                </span>
               </div>
 
-              {/* EasyPaisa */}
-              <div className="bg-white rounded-3xl p-5 border border-black/10 space-y-2 shadow-xs">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-black" />
-                  <h4 className="text-sm font-semibold text-black">EasyPaisa</h4>
-                </div>
-                <div className="bg-[#F8FAF6] p-3 rounded-xl border border-black/10 flex justify-between items-center">
-                  <div className="text-xs">
-                    <p className="font-mono font-bold text-black">0345 7654321</p>
-                    <p className="text-[11px] text-[#6F6F6F]">Title: {orgPayment?.name || 'Friday Host'}</p>
+              <div className="bg-[#FAFBF9] p-5 rounded-2xl border border-black/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#717975]">
+                      ACCOUNT TITLE:
+                    </span>
+                    <span className="font-bold text-[#00261D] text-sm tracking-wide">
+                      {orgPayment?.payment_account_title || orgPayment?.name || booking.organizer_name || 'Organizer'}
+                    </span>
                   </div>
-                  <button
-                    onClick={() => copyToClipboard('0345 7654321', 'easy')}
-                    className="p-1.5 rounded-full hover:bg-slate-200 text-black"
-                  >
-                    {copiedKey === 'easy' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#717975]">
+                      ACCOUNT NO / IBAN:
+                    </span>
+                    <span className="font-mono font-bold text-[#00261D] text-base sm:text-lg">
+                      {orgPayment?.payment_account_number || orgPayment?.contact_phone || 'Account info upon request'}
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-[#717975] pt-1">
+                    Bank / Provider: <strong className="text-[#00261D]">{orgPayment?.payment_bank_name || orgPayment?.payment_wallet_type || 'Bank / Wallet Transfer'}</strong>
+                  </p>
                 </div>
+
+                <button
+                  onClick={() => copyToClipboard(orgPayment?.payment_account_number || orgPayment?.contact_phone || '', 'acc_num')}
+                  className="px-4 py-2.5 rounded-full bg-[#00261D] text-white hover:bg-[#00261D]/90 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                  title="Copy Account Number"
+                >
+                  {copiedKey === 'acc_num' ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-400" /> Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" /> Copy Number
+                    </>
+                  )}
+                </button>
               </div>
+
+              {orgPayment?.instructions && (
+                <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-amber-900 space-y-0.5">
+                  <span className="font-bold block uppercase text-[10px] tracking-wider text-amber-800">
+                    Organizer Instructions:
+                  </span>
+                  <p>{orgPayment.instructions}</p>
+                </div>
+              )}
             </div>
           </div>
 

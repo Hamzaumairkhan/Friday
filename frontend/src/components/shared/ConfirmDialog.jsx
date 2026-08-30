@@ -3,21 +3,28 @@ import { Button } from '../ui/button';
 
 export default function ConfirmDialog({
   open,
+  isOpen,
   onOpenChange,
+  onCancel,
   title = 'Are you sure?',
-  description = 'This action cannot be undone.',
+  description,
+  message,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   onConfirm,
   variant = 'default',
   loading = false,
 }) {
+  const isModalOpen = open !== undefined ? open : isOpen;
+  const handleClose = onOpenChange || onCancel || (() => {});
+  const modalDescription = description || message || 'This action cannot be undone.';
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isModalOpen} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogDescription>{modalDescription}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button

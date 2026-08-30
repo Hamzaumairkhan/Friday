@@ -36,6 +36,16 @@ export const authService = {
     return await api.post('/auth/upgrade-to-organizer');
   },
 
+  // Switch an existing Organizer account view to Traveler
+  async switchToTraveler() {
+    return await api.post('/auth/switch-to-traveler');
+  },
+
+  // Unified role switcher
+  async switchRole(targetRole) {
+    return await api.post('/auth/switch-role', { target_role: targetRole });
+  },
+
   // Sign out from Firebase
   async signOut() {
     await fbSignOut(auth);

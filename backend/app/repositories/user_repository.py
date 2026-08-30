@@ -24,6 +24,11 @@ class UserRepository:
         await self.db.flush()
         return user
 
+    async def update(self, user: User) -> User:
+        self.db.add(user)
+        await self.db.flush()
+        return user
+
     async def get_or_create_user(
         self,
         user_id: str,
