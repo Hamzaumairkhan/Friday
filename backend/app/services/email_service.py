@@ -365,3 +365,73 @@ class EmailService:
             body=plain_body,
             html=html_body,
         )
+
+    async def send_role_switch_notification(
+        self,
+        recipient_email: str,
+        user_name: str,
+        new_role: str,
+    ) -> Dict[str, Any]:
+        """Notify user via email when their account mode is switched between Traveler and Organizer."""
+        is_org = (new_role or "").upper() == "ORGANIZER"
+        role_label = "Verified Tour Operator / Organizer" if is_org else "Traveler & Explorer"
+        portal_url = "http://localhost:5173/organizer/dashboard" if is_org else "http://localhost:5173/explore"
+        portal_name = "Organizer Workshop" if is_org else "Traveler Exploration Portal"
+
+        subject = f"Account Switched to {role_label} — Friday"
+        plain_body = (
+            f"Dear {user_name},\n\n"
+            f"Your Friday account mode has been successfully switched to: {role_label}.\n\n"
+            f"You can access your {portal_name} anytime at: {portal_url}\n\n"
+            f"If you did not make this change, please contact Friday support immediately.\n\n"
+            f"Warm regards,\n"
+            f"Friday AI Travel Copilot"
+        )
+
+        badge_bg = "#00261D" if is_org else "#105A44"
+        badge_text = "#BBEAD5" if is_org else "#E7F7EE"
+        content_html = f"""
+        <div style="text-align: center; margin-bottom: 24px;">
+            <div style="display: inline-block; background-color: {badge_bg}; color: {badge_text}; padding: 6px 16px; border-radius: 9999px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em;">
+                Role Mode Updated
+            </div>
+            <h2 style="font-family: 'Instrument Serif', Georgia, serif; font-size: 30px; font-weight: normal; color: #00261D; margin: 16px 0 8px 0; font-style: italic;">
+                Switched to {role_label}
+            </h2>
+            <p style="font-size: 14px; color: #717975; margin: 0; font-family: Inter, sans-serif;">
+                Hello <strong>{user_name}</strong>, your Friday platform account view has been switched successfully.
+            </p>
+        </div>
+
+        <div style="background-color: #F8FAF6; border: 1px solid rgba(0, 38, 29, 0.1); border-radius: 16px; padding: 20px; margin-bottom: 24px; font-family: Inter, sans-serif;">
+            <table style="width: 100%; font-size: 13px; color: #191C1A;">
+                <tr>
+                    <td style="padding: 6px 0; color: #717975; width: 42%;"><strong>Active Role:</strong></td>
+                    <td style="padding: 6px 0; font-weight: bold; color: #00261D;">{role_label}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; color: #717975;"><strong>Account Email:</strong></td>
+                    <td style="padding: 6px 0; font-weight: bold; color: #00261D;">{recipient_email}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; color: #717975;"><strong>Active Portal:</strong></td>
+                    <td style="padding: 6px 0; font-weight: bold; color: #00261D;">{portal_name}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="text-align: center; margin-top: 24px;">
+            <a href="{portal_url}" style="display: inline-block; background-color: #00261D; color: #FFFFFF; font-family: Inter, sans-serif; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; padding: 14px 32px; border-radius: 9999px; text-decoration: none;">
+                Open {portal_name} &rarr;
+            </a>
+        </div>
+        """
+
+        html_body = _get_base_layout(content=content_html, preheader=f"Your Friday account was switched to {role_label}")
+
+        return await self.email_tool.send_email(
+            to=recipient_email,
+            subject=subject,
+            body=plain_body,
+            html=html_body,
+        )

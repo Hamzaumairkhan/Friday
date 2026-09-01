@@ -23,79 +23,80 @@ def resolve_activity_image(
     destination: str,
     web_images: Optional[List[str]] = None,
 ) -> str:
-    """Accurately match exact photographic assets based on attraction name and location context."""
+    """Accurately match authentic real-world web photography based on attraction name and location context."""
     title_l = activity_title.lower()
     loc_l = location.lower()
     text = f"{activity_title} {location} {description} {destination}".lower()
 
-    # 1. Exact Iconic Monuments & Places (Checking Title First)
+    # 1. If web images pool is available, try matching or rotating from web pool
+    if web_images and len(web_images) > 0:
+        for w_img in web_images:
+            if any(w in w_img.lower() for w in title_l.split() if len(w) > 3):
+                return w_img
+
+    # 2. Exact Iconic Monuments & Places Real Web Photos
     if "faisal mosque" in title_l or "faisal masjid" in title_l or "faisal" in title_l:
-        return "/images/stitch/stitch_asset_4.jpg"
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Faisal_Mosque%2C_Islamabad_III.jpg/1280px-Faisal_Mosque%2C_Islamabad_III.jpg"
     elif "pakistan monument" in title_l or "monument" in title_l or "shakarparian" in title_l:
-        return "/images/stitch/stitch_asset_2.jpg"
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Blue_Hour_at_Pakistan_Monument.jpg/1280px-Blue_Hour_at_Pakistan_Monument.jpg"
     elif "daman-e-koh" in title_l or "daman e koh" in title_l:
-        return "/images/stitch/discover_village.jpg"
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Faisal_Mosque_and_Margalla_Hills.jpg/1280px-Faisal_Mosque_and_Margalla_Hills.jpg"
     elif "monal" in title_l or "la montana" in title_l:
-        return "/images/stitch/stitch_batch3_2.jpg"
+        return "https://upload.wikimedia.org/wikipedia/commons/5/57/Islamabad_skyline.jpg"
     elif "lok virsa" in title_l or "folk heritage" in title_l or "wax museum" in title_l:
-        return "/images/stitch/stitch_batch3_1.jpg"
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Jinnah_Convention_Centre%2C_Islamabad.jpg/1280px-Jinnah_Convention_Centre%2C_Islamabad.jpg"
     elif "saidpur" in title_l:
-        return "/images/stitch/discover_village.jpg"
+        return "https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?auto=format&fit=crop&w=1200&q=80"
     elif "rawal lake" in title_l or "rawal dam" in title_l or "lake view" in title_l:
-        return "/images/stitch/stitch_asset_4.jpg"
-    elif "shah allah ditta" in title_l or "buddhist caves" in title_l:
-        return "/images/stitch/stitch_asset_8.jpg"
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Faisal_Mosque_and_Margalla_Hills.jpg/1280px-Faisal_Mosque_and_Margalla_Hills.jpg"
+    elif "rawalpindi railway" in title_l or "station" in title_l:
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Rawalpindi_railway_station_4.JPG/1280px-Rawalpindi_railway_station_4.JPG"
+    elif "saddar" in title_l or "mall of rawalpindi" in title_l or "raja bazaar" in title_l:
+        return "https://upload.wikimedia.org/wikipedia/commons/d/dc/Mall_of_Rawalpindi_in_Saddar_bazaar.png"
     elif "shangrila" in title_l or "lower kachura" in title_l:
-        return "/images/stitch/hero_mountains.jpg"
-    elif "upper kachura" in title_l:
-        return "/images/stitch/hero_mountains.jpg"
-    elif "deosai" in title_l or "sheosar" in title_l:
-        return "/images/stitch/stitch_batch4_2.jpg"
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Shangrila_resort_skardu.jpg/1280px-Shangrila_resort_skardu.jpg"
+    elif "upper kachura" in title_l or "kachura" in title_l:
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Aerial_view_of_the_Indus_River_in_Skardu.png/1280px-Aerial_view_of_the_Indus_River_in_Skardu.png"
     elif "katpana" in title_l or "cold desert" in title_l or "sarfaranga" in title_l:
-        return "/images/stitch/hero_mountains.jpg"
-    elif "altit" in title_l or "baltit" in title_l or "karimabad" in title_l:
-        return "/images/stitch/stitch_asset_1.jpg"
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Unexpected_Snow_in_Katpana_Skardu.jpg/1280px-Unexpected_Snow_in_Katpana_Skardu.jpg"
+    elif "kharpocho" in title_l or "skardu fort" in title_l:
+        return "https://upload.wikimedia.org/wikipedia/commons/7/7f/Kharpocho_Fort%2C_Skardu.jpg"
     elif "attabad" in title_l or "jet ski" in title_l:
-        return "/images/stitch/stitch_asset_1.jpg"
-    elif "passu" in title_l or "cathedral cones" in title_l or "bumburet" in title_l or "kalash" in title_l:
-        return "/images/stitch/stitch_asset_1.jpg"
-    elif "saif-ul-malook" in title_l or "saiful" in title_l or "lulusar" in title_l or "babusar" in title_l or "siri paye" in title_l:
-        return "/images/stitch/stitch_asset_9.jpg"
-    elif "malam jabba" in title_l or "mahodand" in title_l or "kalam" in title_l:
-        return "/images/stitch/stitch_asset_10.jpg"
-    elif "fairy meadows" in title_l or "nanga parbat" in title_l or "beyal" in title_l:
-        return "/images/stitch/stitch_asset_7.jpg"
-    elif "badshahi" in title_l or "lahore fort" in title_l or "shahi qila" in title_l or "wazir khan" in title_l or "derawar" in title_l or "noor mahal" in title_l:
-        return "/images/stitch/stitch_asset_2.jpg"
-    elif "sea view" in title_l or "clifton" in title_l or "gwadar" in title_l or "port grand" in title_l or "turtle beach" in title_l or "hingol" in title_l:
-        return "/images/stitch/stitch_asset_5.jpg"
-    elif "patriata" in title_l or "nathia gali" in title_l or "ayubia" in title_l or "mukshpuri" in title_l:
-        return "/images/stitch/hero_mountains.jpg"
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Attabad.jpg/1280px-Attabad.jpg"
+    elif "baltit" in title_l or "karimabad" in title_l or "altit" in title_l:
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Baltit_Fort%2C_Karimabad%2C_Hunza%2C_Gilgit_Baltistan.jpg/1280px-Baltit_Fort%2C_Karimabad%2C_Hunza%2C_Gilgit_Baltistan.jpg"
+    elif "hussaini" in title_l or "passu" in title_l:
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Hussaini_Village%2C_Gojal%2C_Upper_Hunza%2C_Gilgit-Baltistan.jpg/1280px-Hussaini_Village%2C_Gojal%2C_Upper_Hunza%2C_Gilgit-Baltistan.jpg"
+    elif "mahodand" in title_l or "kalam" in title_l or "swat" in title_l or "malam jabba" in title_l:
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Mahodand_l.jpg/1280px-Mahodand_l.jpg"
+    elif "badshahi" in title_l or "lahore fort" in title_l or "shahi qila" in title_l:
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Badshahi_Mosquee%2C_Lahore.jpg/1280px-Badshahi_Mosquee%2C_Lahore.jpg"
+    elif "minar" in title_l:
+        return "https://upload.wikimedia.org/wikipedia/commons/4/42/Minar_e_Pakistan_2021.jpg"
+    elif "clifton" in title_l or "sea view" in title_l or "karachi" in title_l:
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Clifton_Karachi_View.jpg/1280px-Clifton_Karachi_View.jpg"
+    elif "keran" in title_l or "neelum" in title_l or "sharda" in title_l:
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Neelum_Valley%2C_Azad_Jammu_%26_Kashmir%2C_Pakistan.jpg/1280px-Neelum_Valley%2C_Azad_Jammu_%26_Kashmir%2C_Pakistan.jpg"
+    elif "mall road" in title_l or "murree" in title_l or "patriata" in title_l or "gpo" in title_l:
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/GPO_Mall_Road_Murree.jpg/1280px-GPO_Mall_Road_Murree.jpg"
 
-    # Secondary text matches
-    if "faisal" in loc_l:
-        return "/images/stitch/stitch_asset_4.jpg"
-    elif "monument" in loc_l or "shakarparian" in loc_l:
-        return "/images/stitch/stitch_asset_2.jpg"
-    elif "daman" in loc_l or "margalla" in loc_l:
-        return "/images/stitch/discover_village.jpg"
+    # 3. If web_images pool exists, pick by hash
+    if web_images and len(web_images) > 0:
+        hash_idx = sum(ord(c) for c in activity_title) % len(web_images)
+        return web_images[hash_idx]
 
-    # 2. Categories fallback
+    # 4. Categories dynamic web fallbacks
     cat = (category or "").upper()
-    if cat in ["SHOPPING", "MARKET"] or any(w in text for w in ["bazaar", "market", "souvenir", "dry fruit", "shawl", "handicraft", "jinnah super", "super market", "raja bazaar"]):
-        return "/images/stitch/stitch_batch2_7.jpg"
-    elif cat == "FOOD" or any(w in text for w in ["breakfast", "lunch", "dinner", "brunch", "trout", "kebab", "pulao", "bbq", "chai", "tea", "dining", "restaurant", "cafe", "food street"]):
-        return "/images/stitch/stitch_batch3_1.jpg"
-    elif cat == "ACCOMMODATION" or any(w in text for w in ["hotel", "resort", "lodge", "check-in", "cottage"]):
-        return "/images/stitch/stitch_batch4_3.jpg"
-    elif cat == "TRANSPORT" or any(w in text for w in ["drive", "highway", "transit", "departure", "return journey", "jeep"]):
-        return "/images/stitch/hero_mountains.jpg"
-    elif cat == "SIGHTSEEING":
-        return "/images/stitch/discover_village.jpg"
-    elif cat == "ADVENTURE":
-        return "/images/stitch/hero_mountains.jpg"
+    if cat in ["SHOPPING", "MARKET"] or any(w in text for w in ["bazaar", "market", "souvenir", "dry fruit", "shawl", "handicraft"]):
+        return "https://upload.wikimedia.org/wikipedia/commons/d/dc/Mall_of_Rawalpindi_in_Saddar_bazaar.png"
+    elif cat == "FOOD" or any(w in text for w in ["breakfast", "lunch", "dinner", "brunch", "trout", "kebab", "pulao", "bbq", "chai", "tea", "dining"]):
+        return "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80"
+    elif cat == "ACCOMMODATION" or any(w in text for w in ["hotel", "resort", "lodge", "check-in"]):
+        return "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
+    elif cat == "TRANSPORT" or any(w in text for w in ["drive", "highway", "transit", "departure", "return journey"]):
+        return "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80"
 
-    return "/images/stitch/stitch_asset_11.jpg"
+    return "https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?auto=format&fit=crop&w=1200&q=80"
 
 
 DESTINATION_PROFILES: Dict[str, Dict[str, Any]] = {

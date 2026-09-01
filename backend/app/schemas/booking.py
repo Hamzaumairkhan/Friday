@@ -9,6 +9,9 @@ class BookingCreate(BaseModel):
     package_id: str
     travelers: int
     notes: Optional[str] = None
+    traveler_name: Optional[str] = None
+    traveler_email: Optional[str] = None
+    traveler_phone: Optional[str] = None
 
 
 class BookingResponse(BaseModel):
@@ -27,6 +30,8 @@ class BookingResponse(BaseModel):
     price_per_person: Optional[float] = None
     organizer_name: Optional[str] = None
     traveler_name: Optional[str] = None
+    traveler_email: Optional[str] = None
+    traveler_phone: Optional[str] = None
     payment_status: Optional[str] = None
     payment_proof_url: Optional[str] = None
     created_at: str

@@ -11,7 +11,10 @@ settings = get_settings()
 
 
 import httpx
+import random
+import time
 _PHOTO_CACHE: Dict[str, Optional[str]] = {}
+_PHOTO_MULTI_CACHE: Dict[str, List[str]] = {}
 
 
 FOREIGN_KEYWORDS = [
@@ -24,15 +27,101 @@ FOREIGN_KEYWORDS = [
     "brazil", "argentina", "chile", "peru", "colombia", "bolivia", "japan", "korea", "china"
 ]
 
+BAD_TOKENS = [
+    "flag", "map", "coat_of_arms", "emblem", "icon", "stub", "symbol", "logo", 
+    "signature", "seal", "location_in", "insignia", "portrait", "diagram", 
+    "chart", "npg_", "drawing", "sketch", "cemetery", "hospital", "crash", 
+    "bombing", "election", "campaign", "attack", "casualty", "airways", "boeing"
+]
+
+SCENIC_KEYWORDS = [
+    "mosque", "masjid", "fort", "valley", "lake", "river", "mountain", "hills", 
+    "resort", "monument", "pass", "glacier", "desert", "bazaar", "skyline", 
+    "park", "garden", "street", "bridge", "station", "view", "sunset", "temple", 
+    "plateau", "waterfall", "village", "panorama", "heritage", "mall", "tower",
+    "road", "scenic", "nature", "landscape", "bazaar", "food", "hotel"
+]
+
+# Curated High-Definition Pakistan Web Photo Bank (Diverse Dynamic URLs per Destination)
+CURATED_DESTINATION_WEB_PHOTOS: Dict[str, List[str]] = {
+    "rawalpindi": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Rawalpindi_railway_station_4.JPG/1280px-Rawalpindi_railway_station_4.JPG",
+        "https://upload.wikimedia.org/wikipedia/commons/d/dc/Mall_of_Rawalpindi_in_Saddar_bazaar.png",
+        "https://upload.wikimedia.org/wikipedia/en/thumb/f/ff/Rawalpindi_Cricket_Stadium_2025.jpg/1280px-Rawalpindi_Cricket_Stadium_2025.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Dharmarajika.jpg/1280px-Dharmarajika.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Murree_Road_isb.jpg/1280px-Murree_Road_isb.jpg",
+        "https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?auto=format&fit=crop&w=1200&q=80",
+    ],
+    "islamabad": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Faisal_Mosque%2C_Islamabad_III.jpg/1280px-Faisal_Mosque%2C_Islamabad_III.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Blue_Hour_at_Pakistan_Monument.jpg/1280px-Blue_Hour_at_Pakistan_Monument.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Faisal_Mosque_and_Margalla_Hills.jpg/1280px-Faisal_Mosque_and_Margalla_Hills.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Jinnah_Convention_Centre%2C_Islamabad.jpg/1280px-Jinnah_Convention_Centre%2C_Islamabad.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/5/57/Islamabad_skyline.jpg",
+        "https://images.unsplash.com/photo-1598887142487-3c854d51d2c7?auto=format&fit=crop&w=1200&q=80",
+    ],
+    "murree": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Sunset_in_hills_-_Holy_Trinity_Church%2C_Murree.jpg/1280px-Sunset_in_hills_-_Holy_Trinity_Church%2C_Murree.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/GPO_Mall_Road_Murree.jpg/1280px-GPO_Mall_Road_Murree.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Murree_Road_isb.jpg/1280px-Murree_Road_isb.jpg",
+        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80",
+    ],
+    "skardu": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Shangrila_resort_skardu.jpg/1280px-Shangrila_resort_skardu.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Unexpected_Snow_in_Katpana_Skardu.jpg/1280px-Unexpected_Snow_in_Katpana_Skardu.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Aerial_view_of_the_Indus_River_in_Skardu.png/1280px-Aerial_view_of_the_Indus_River_in_Skardu.png",
+        "https://upload.wikimedia.org/wikipedia/commons/7/7f/Kharpocho_Fort%2C_Skardu.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Trekkers_along_with_porters_towards_Snow_Lake%2C_over_Biafo_Glacier_61Km.jpg/1280px-Trekkers_along_with_porters_towards_Snow_Lake%2C_over_Biafo_Glacier_61Km.jpg",
+        "https://images.unsplash.com/photo-1571216332002-282dce467b32?auto=format&fit=crop&w=1200&q=80",
+    ],
+    "hunza": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Attabad.jpg/1280px-Attabad.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Hunza_Valley_HDR.jpg/1280px-Hunza_Valley_HDR.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Baltit_Fort%2C_Karimabad%2C_Hunza%2C_Gilgit_Baltistan.jpg/1280px-Baltit_Fort%2C_Karimabad%2C_Hunza%2C_Gilgit_Baltistan.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Hussaini_Village%2C_Gojal%2C_Upper_Hunza%2C_Gilgit-Baltistan.jpg/1280px-Hussaini_Village%2C_Gojal%2C_Upper_Hunza%2C_Gilgit-Baltistan.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Hunza_River_near_Gulmit_Hunza.jpg/1280px-Hunza_River_near_Gulmit_Hunza.jpg",
+        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80",
+    ],
+    "swat": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Mahodand_l.jpg/1280px-Mahodand_l.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/River_Swat_Pakistan_3.jpg/1280px-River_Swat_Pakistan_3.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Kabal_Swat_valley.JPG/1280px-Kabal_Swat_valley.JPG",
+        "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80",
+    ],
+    "lahore": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Lahore_Fort_view_from_Baradari.jpg/1280px-Lahore_Fort_view_from_Baradari.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Badshahi_Mosquee%2C_Lahore.jpg/1280px-Badshahi_Mosquee%2C_Lahore.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/4/42/Minar_e_Pakistan_2021.jpg",
+        "https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?auto=format&fit=crop&w=1200&q=80",
+    ],
+    "karachi": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Clifton_Karachi_View.jpg/1280px-Clifton_Karachi_View.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/PK_Karachi_asv2020-02_img06_Bagh_Ibne_Qasim.jpg/1280px-PK_Karachi_asv2020-02_img06_Bagh_Ibne_Qasim.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Karachi_Seaport.jpg/1280px-Karachi_Seaport.jpg",
+        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+    ],
+    "neelum": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Neelum_Valley%2C_Azad_Jammu_%26_Kashmir%2C_Pakistan.jpg/1280px-Neelum_Valley%2C_Azad_Jammu_%26_Kashmir%2C_Pakistan.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Keran_-_Neelum_Valley%2C_Azad_Kashmir.JPG/1280px-Keran_-_Neelum_Valley%2C_Azad_Kashmir.JPG",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Dhani_Waterfall.jpg/1280px-Dhani_Waterfall.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/View_From_Sharda_Fort%2C_Azad_Jammu_%26_Kashmir%2C_Pakistan.jpg/1280px-View_From_Sharda_Fort%2C_Azad_Jammu_%26_Kashmir%2C_Pakistan.jpg",
+    ],
+}
+
 
 def _is_valid_pakistan_photo(data: dict, img_url: str) -> bool:
     if not img_url or not isinstance(img_url, str):
         return False
-    if img_url.endswith(".svg"):
+    if img_url.endswith(".svg") or ".svg" in img_url.lower():
         return False
     url_lower = img_url.lower()
     for kw in FOREIGN_KEYWORDS:
         if kw in url_lower:
+            return False
+    for bt in BAD_TOKENS:
+        if bt in url_lower:
             return False
     text_content = f"{data.get('title', '')} {data.get('description', '')} {data.get('extract', '')}".lower()
     for kw in FOREIGN_KEYWORDS:
@@ -49,145 +138,142 @@ def _is_valid_pakistan_photo(data: dict, img_url: str) -> bool:
     return any(sig in text_content or sig in url_lower for sig in pak_signals)
 
 
-async def fetch_real_web_photo_async(query: str, destination: str = "") -> Optional[str]:
-    """Asynchronously fetch verified high-resolution photograph for any Pakistan destination or POI."""
+async def fetch_real_web_photos_multi(query: str, destination: str = "", limit: int = 15) -> List[str]:
+    """Fetch an entire pool of distinct, high-definition real web photographs for a destination or POI."""
     cache_key = f"{query.strip().lower()}:{destination.strip().lower()}"
-    if cache_key in _PHOTO_CACHE:
-        return _PHOTO_CACHE[cache_key]
+    if cache_key in _PHOTO_MULTI_CACHE and _PHOTO_MULTI_CACHE[cache_key]:
+        return _PHOTO_MULTI_CACHE[cache_key]
 
     headers = {
-        "User-Agent": "FridayTravelAI/1.0 (https://fridaytravel.pk; travel@friday.pk)",
+        "User-Agent": "FridayTravelAI/2.0 (https://friday.pk; travel@friday.pk)",
         "Accept": "application/json",
     }
 
-    search_terms = []
     clean_q = query.strip()
     clean_d = destination.strip()
+    
+    search_queries = []
     if clean_d and clean_d.lower() not in clean_q.lower():
-        search_terms.append(f"{clean_q} {clean_d} Pakistan")
-        search_terms.append(f"{clean_q} {clean_d}")
+        search_queries.append(f"{clean_q} {clean_d} Pakistan")
+        search_queries.append(f"{clean_q} {clean_d}")
     else:
-        search_terms.append(f"{clean_q} Pakistan")
-        search_terms.append(clean_q)
+        search_queries.append(f"{clean_q} Pakistan")
+        search_queries.append(clean_q)
 
+    found_urls: List[str] = []
+    seen = set()
+
+    # Step 1: Query Wikipedia Generator Search API
     try:
-        async with httpx.AsyncClient(timeout=2.5, headers=headers) as client:
-            for term in search_terms:
-                # Step 1: Direct summary search if exact title
+        async with httpx.AsyncClient(timeout=3.5, headers=headers, follow_redirects=True) as client:
+            for sq in search_queries:
+                if len(found_urls) >= limit:
+                    break
                 try:
-                    clean_term = term.strip().replace(" ", "_")
-                    url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean_term)}"
+                    url = (
+                        f"https://en.wikipedia.org/w/api.php?action=query&generator=search"
+                        f"&gsrsearch={urllib.parse.quote(sq)}"
+                        f"&gsrlimit={limit}&prop=pageimages&piprop=thumbnail&pithumbsize=1200&format=json"
+                    )
                     resp = await client.get(url)
                     if resp.status_code == 200:
                         data = resp.json()
-                        img = data.get("originalimage", {}).get("source") or data.get("thumbnail", {}).get("source")
-                        if img and _is_valid_pakistan_photo(data, img):
-                            _PHOTO_CACHE[cache_key] = img
-                            return img
+                        pages = data.get("query", {}).get("pages", {})
+                        for pid, p in pages.items():
+                            thumb = p.get("thumbnail", {}).get("source")
+                            title = p.get("title", "")
+                            if thumb and thumb not in seen:
+                                u_low = thumb.lower()
+                                t_low = title.lower()
+                                if not any(bt in u_low or bt in t_low for bt in BAD_TOKENS) and not u_low.endswith(".svg"):
+                                    seen.add(thumb)
+                                    found_urls.append(thumb)
                 except Exception:
                     pass
 
-                # Step 2: Wikipedia Search API to find top matching page title
+                # Also check direct summary for main topic
                 try:
-                    search_url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={urllib.parse.quote(term)}&format=json&srlimit=3"
-                    resp = await client.get(search_url)
-                    if resp.status_code == 200:
-                        s_data = resp.json()
-                        results = s_data.get("query", {}).get("search", [])
-                        for r in results:
-                            page_title = r.get("title", "")
-                            if page_title:
-                                sum_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(page_title)}"
-                                sum_resp = await client.get(sum_url)
-                                if sum_resp.status_code == 200:
-                                    sum_data = sum_resp.json()
-                                    img = sum_data.get("originalimage", {}).get("source") or sum_data.get("thumbnail", {}).get("source")
-                                    if img and _is_valid_pakistan_photo(sum_data, img):
-                                        _PHOTO_CACHE[cache_key] = img
-                                        return img
+                    clean_term = sq.strip().replace(" ", "_")
+                    sum_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean_term)}"
+                    sum_resp = await client.get(sum_url)
+                    if sum_resp.status_code == 200:
+                        s_data = sum_resp.json()
+                        img = s_data.get("originalimage", {}).get("source") or s_data.get("thumbnail", {}).get("source")
+                        title = s_data.get("title", "")
+                        if img and img not in seen:
+                            u_low = img.lower()
+                            t_low = title.lower()
+                            if not any(bt in u_low or bt in t_low for bt in BAD_TOKENS) and not u_low.endswith(".svg"):
+                                seen.add(img)
+                                found_urls.append(img)
                 except Exception:
                     pass
     except Exception:
         pass
 
-    _PHOTO_CACHE[cache_key] = None
+    # Step 2: Combine with Curated Destination Web Photo Bank if matched
+    dest_key = (destination or query).lower().strip()
+    for key, curated_list in CURATED_DESTINATION_WEB_PHOTOS.items():
+        if key in dest_key:
+            for c_url in curated_list:
+                if c_url not in seen:
+                    seen.add(c_url)
+                    found_urls.append(c_url)
+
+    if found_urls:
+        _PHOTO_MULTI_CACHE[cache_key] = found_urls
+    return found_urls
+
+
+async def fetch_real_web_photo_async(query: str, destination: str = "", variation_seed: Optional[int] = None) -> Optional[str]:
+    """Asynchronously fetch verified high-resolution photograph with rotation so multiple queries get distinct URLs."""
+    photos = await fetch_real_web_photos_multi(query, destination, limit=12)
+    if photos:
+        if variation_seed is not None:
+            idx = variation_seed % len(photos)
+        else:
+            idx = random.randint(0, len(photos) - 1)
+        return photos[idx]
     return None
 
 
-def fetch_real_web_photo(query: str, destination: str = "") -> Optional[str]:
-    """Synchronous cache-aware photo lookup with strict geographic validation."""
+def fetch_real_web_photo(query: str, destination: str = "", variation_seed: Optional[int] = None) -> Optional[str]:
+    """Synchronous cache-aware photo lookup with dynamic rotation."""
     cache_key = f"{query.strip().lower()}:{destination.strip().lower()}"
-    if cache_key in _PHOTO_CACHE and _PHOTO_CACHE[cache_key]:
-        return _PHOTO_CACHE[cache_key]
+    
+    # Check if multi cache is already populated
+    if cache_key in _PHOTO_MULTI_CACHE and _PHOTO_MULTI_CACHE[cache_key]:
+        photos = _PHOTO_MULTI_CACHE[cache_key]
+        idx = (variation_seed if variation_seed is not None else random.randint(0, len(photos) - 1)) % len(photos)
+        return photos[idx]
 
-    headers = {
-        "User-Agent": "FridayTravelAI/1.0 (https://fridaytravel.pk; travel@friday.pk)",
-        "Accept": "application/json",
-    }
-
-    search_terms = []
-    clean_q = query.strip()
-    clean_d = destination.strip()
-    if clean_d and clean_d.lower() not in clean_q.lower():
-        search_terms.append(f"{clean_q} {clean_d} Pakistan")
-        search_terms.append(f"{clean_q} {clean_d}")
-    else:
-        search_terms.append(f"{clean_q} Pakistan")
-        search_terms.append(clean_q)
-
-    for term in search_terms:
-        try:
-            clean_term = term.strip().replace(" ", "_")
-            url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean_term)}"
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=1.5) as response:
-                data = json.loads(response.read().decode("utf-8"))
-                img = data.get("originalimage", {}).get("source") or data.get("thumbnail", {}).get("source")
-                if img and _is_valid_pakistan_photo(data, img):
-                    _PHOTO_CACHE[cache_key] = img
-                    return img
-        except Exception:
-            pass
+    # Check curated bank
+    dest_key = (destination or query).lower().strip()
+    for key, curated_list in CURATED_DESTINATION_WEB_PHOTOS.items():
+        if key in dest_key and curated_list:
+            idx = (variation_seed if variation_seed is not None else random.randint(0, len(curated_list) - 1)) % len(curated_list)
+            return curated_list[idx]
 
     return None
 
 
-def resolve_regional_fallback_image(destination: str) -> str:
-    """Return an authentic high-definition regional photo according to the Pakistan destination geography."""
-    d = (destination or "").lower()
-    if "pine" in d or "murree" in d or "galyat" in d or "nathia" in d or "bhurban" in d or "patriata" in d or "ayubia" in d or "dunga" in d or "changla" in d:
-        return "/images/stitch/stitch_asset_11.jpg"
-    elif "hunza" in d or "passu" in d or "altit" in d or "baltit" in d or "attabad" in d or "karimabad" in d or "gulmit" in d or "shimshal" in d:
-        return "/images/stitch/stitch_asset_1.jpg"
-    elif "skardu" in d or "deosai" in d or "shangrila" in d or "khaplu" in d or "shigar" in d or "katpana" in d or "basho" in d:
-        return "/images/stitch/hero_mountains.jpg"
-    elif "swat" in d or "kalam" in d or "malam" in d or "mahudand" in d or "fizagat" in d or "bahrain" in d or "saidu" in d:
-        return "/images/stitch/stitch_asset_10.jpg"
-    elif "naran" in d or "kaghan" in d or "saif" in d or "babusar" in d or "lulusar" in d or "shogran" in d or "siri" in d:
-        return "/images/stitch/stitch_asset_9.jpg"
-    elif "fairy" in d or "nanga" in d or "beyal" in d:
-        return "/images/stitch/stitch_asset_7.jpg"
-    elif "kumrat" in d or "jahaz" in d or "katora" in d or "thal" in d:
-        return "/images/stitch/stitch_asset_8.jpg"
-    elif "neelum" in d or "arang" in d or "ratti" in d or "sharda" in d or "kashmir" in d or "keran" in d or "taobat" in d:
-        return "/images/stitch/stitch_asset_8.jpg"
-    elif "chitral" in d or "kalash" in d or "shandur" in d or "tirich" in d or "bumburet" in d:
-        return "/images/stitch/stitch_asset_14.jpg"
-    elif "gwadar" in d or "ormara" in d or "makran" in d or "kund" in d or "pasni" in d or "astola" in d:
-        return "/images/stitch/stitch_asset_5.jpg"
-    elif "gorakh" in d or "sehwan" in d or "ranikot" in d or "dadu" in d:
-        return "/images/stitch/stitch_batch4_7.jpg"
-    elif "bahawalpur" in d or "cholistan" in d or "derawar" in d or "noor mahal" in d:
-        return "/images/stitch/stitch_batch4_2.jpg"
-    elif "lahore" in d or "badshahi" in d or "punjab" in d or "multan" in d or "faisalabad" in d or "shalimar" in d:
-        return "/images/stitch/stitch_asset_2.jpg"
-    elif "islamabad" in d or "margalla" in d or "faisal mosque" in d or "monal" in d or "rawalpindi" in d or "daman" in d:
-        return "/images/stitch/stitch_asset_4.jpg"
-    elif "peshawar" in d or "khyber" in d or "qissa" in d:
-        return "/images/stitch/stitch_asset_3.jpg"
-    elif "quetta" in d or "ziarat" in d or "hannah" in d:
-        return "/images/stitch/stitch_asset_18.jpg"
-    return "/images/stitch/hero_mountains.jpg"
+def resolve_regional_fallback_image(destination: str, variation_seed: Optional[int] = None) -> str:
+    """Return an authentic high-definition web photo according to the Pakistan destination geography with rotation."""
+    d = (destination or "").lower().strip()
+    for key, curated_list in CURATED_DESTINATION_WEB_PHOTOS.items():
+        if key in d and curated_list:
+            idx = (variation_seed if variation_seed is not None else random.randint(0, len(curated_list) - 1)) % len(curated_list)
+            return curated_list[idx]
+
+    # Fallback to general Pakistan travel photo
+    fallback_pool = [
+        "https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1598887142487-3c854d51d2c7?auto=format&fit=crop&w=1200&q=80",
+    ]
+    idx = (variation_seed if variation_seed is not None else random.randint(0, len(fallback_pool) - 1)) % len(fallback_pool)
+    return fallback_pool[idx]
 
 
 def make_maps_url(location_name: str, destination: str) -> str:
@@ -447,11 +533,22 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
         duration_days: int,
         budget_total: float,
         accommodation_preference: str = "comfortable",
+        variation_seed: Optional[int] = None,
     ) -> Tuple[List[Dict[str, Any]], str]:
         """Generate a complete day-by-day itinerary with dynamically researched POIs and targeted per-POI images."""
-        # 1. Live Dynamic Research
+        # 1. Live Dynamic Research & Web Photo Pool
+        multi_photos = await fetch_real_web_photos_multi(destination, destination, limit=15)
+        
+        # Pick rotated hero image
+        if multi_photos:
+            idx = (variation_seed if variation_seed is not None else random.randint(0, len(multi_photos) - 1)) % len(multi_photos)
+            hero_img = multi_photos[idx]
+        else:
+            hero_img = resolve_regional_fallback_image(destination, variation_seed=variation_seed)
+
         research = await cls.research_destination_pois(destination, origin)
-        hero_img = research.get("hero_image") or "/images/stitch/stitch_asset_11.jpg"
+        if not hero_img and research.get("hero_image"):
+            hero_img = research.get("hero_image")
 
         attractions = research.get("attractions", [])
         food_spots = research.get("food_spots", [])
@@ -505,7 +602,7 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                         "duration_minutes": 330,
                         "estimated_cost": round(budget_total * 0.12),
                         "category": "TRANSPORT",
-                        "image_url": "/images/stitch/hero_mountains.jpg",
+                        "image_url": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80",
                     },
                     {
                         "order": 2,
@@ -518,7 +615,7 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                         "duration_minutes": 90,
                         "estimated_cost": round(budget_total * 0.04),
                         "category": "FOOD",
-                        "image_url": "/images/stitch/stitch_batch3_1.jpg",
+                        "image_url": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80",
                     },
                     {
                         "order": 3,
@@ -531,7 +628,7 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                         "duration_minutes": 105,
                         "estimated_cost": round(budget_total * 0.12) if accommodation_preference != "none" else 0,
                         "category": "ACCOMMODATION",
-                        "image_url": "/images/stitch/stitch_batch4_3.jpg",
+                        "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80",
                     },
                     {
                         "order": 4,
@@ -557,7 +654,7 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                         "duration_minutes": 120,
                         "estimated_cost": round(budget_total * 0.05),
                         "category": "FOOD",
-                        "image_url": "/images/stitch/stitch_batch3_1.jpg",
+                        "image_url": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80",
                     },
                 ]
 
@@ -580,7 +677,7 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                         "duration_minutes": 90,
                         "estimated_cost": round(budget_total * 0.03),
                         "category": "FOOD",
-                        "image_url": "/images/stitch/stitch_batch3_1.jpg",
+                        "image_url": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80",
                     },
                     {
                         "order": 2,
@@ -593,7 +690,7 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                         "duration_minutes": 120,
                         "estimated_cost": round(budget_total * 0.04),
                         "category": "SHOPPING",
-                        "image_url": bazaar_img or "/images/stitch/stitch_batch2_7.jpg",
+                        "image_url": bazaar_img or "https://upload.wikimedia.org/wikipedia/commons/d/dc/Mall_of_Rawalpindi_in_Saddar_bazaar.png",
                     },
                     {
                         "order": 3,
@@ -606,7 +703,7 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                         "duration_minutes": 390,
                         "estimated_cost": round(budget_total * 0.10),
                         "category": "TRANSPORT",
-                        "image_url": "/images/stitch/hero_mountains.jpg",
+                        "image_url": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80",
                     },
                 ]
 
@@ -665,17 +762,17 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                         "description": morning_poi["description"],
                         "location": morning_poi["location"],
                         "map_url": make_maps_url(morning_poi["location"], destination),
-                        "start_time": "08:30 AM",
+                        "start_time": "09:00 AM",
                         "end_time": "12:00 PM",
-                        "duration_minutes": 210,
-                        "estimated_cost": round(budget_total * 0.06),
+                        "duration_minutes": 180,
+                        "estimated_cost": round(budget_total * 0.03),
                         "category": morning_poi.get("category", "CULTURE"),
                         "image_url": morning_img or hero_img,
                     },
                     {
                         "order": 2,
                         "title": lunch_spot["title"],
-                        "description": f"Freshly prepared regional lunch featuring authentic local flavors and refreshing beverages in {destination}.",
+                        "description": f"Traditional lunch with fresh regional flavors in {destination}.",
                         "location": lunch_spot["location"],
                         "map_url": make_maps_url(lunch_spot["location"], destination),
                         "start_time": "12:30 PM",
@@ -683,7 +780,7 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                         "duration_minutes": 90,
                         "estimated_cost": round(budget_total * 0.04),
                         "category": "FOOD",
-                        "image_url": "/images/stitch/stitch_batch3_1.jpg",
+                        "image_url": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80",
                     },
                     {
                         "order": 3,
@@ -694,7 +791,7 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                         "start_time": "02:30 PM",
                         "end_time": "05:00 PM",
                         "duration_minutes": 150,
-                        "estimated_cost": round(budget_total * 0.04),
+                        "estimated_cost": round(budget_total * 0.02),
                         "category": afternoon_poi.get("category", "SIGHTSEEING"),
                         "image_url": afternoon_img or hero_img,
                     },
@@ -705,8 +802,8 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                         "location": evening_poi["location"],
                         "map_url": make_maps_url(evening_poi["location"], destination),
                         "start_time": "05:30 PM",
-                        "end_time": "07:00 PM",
-                        "duration_minutes": 90,
+                        "end_time": "07:30 PM",
+                        "duration_minutes": 120,
                         "estimated_cost": 0,
                         "category": evening_poi.get("category", "SIGHTSEEING"),
                         "image_url": evening_img or hero_img,
@@ -714,15 +811,15 @@ Return at least 6 distinct attractions and at least 3 distinct food spots. Do NO
                     {
                         "order": 5,
                         "title": dinner_spot["title"],
-                        "description": f"Evening dinner gathering and warm chai under the night sky in {destination}.",
+                        "description": f"Dinner featuring regional BBQ, Karahi, or trout in {destination}.",
                         "location": dinner_spot["location"],
                         "map_url": make_maps_url(dinner_spot["location"], destination),
-                        "start_time": "07:30 PM",
-                        "end_time": "09:30 PM",
+                        "start_time": "08:00 PM",
+                        "end_time": "10:00 PM",
                         "duration_minutes": 120,
                         "estimated_cost": round(budget_total * 0.05),
                         "category": "FOOD",
-                        "image_url": "/images/stitch/stitch_batch3_1.jpg",
+                        "image_url": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80",
                     },
                 ]
 

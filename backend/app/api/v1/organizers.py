@@ -109,6 +109,8 @@ def _format_booking(b: Booking) -> BookingResponse:
         price_per_person=b.price_per_person,
         organizer_name=b.organizer_name,
         traveler_name=b.traveler_name,
+        traveler_email=getattr(b, 'traveler_email', None),
+        traveler_phone=getattr(b, 'traveler_phone', None),
         payment_status=b.payment_status.value if hasattr(b.payment_status, 'value') else (b.payment_status or "PENDING"),
         payment_proof_url=b.payment_proof_url,
         created_at=b.created_at.isoformat() if b.created_at else "",
@@ -383,6 +385,56 @@ async def update_my_package(
     return _format_pkg(pkg)
 
 
+@router.post("/me/packages/{package_id}/clone", status_code=status.HTTP_201_CREATED)
+async def clone_package_for_organizer(
+    package_id: str,
+    current_organizer: Organizer = Depends(get_current_organizer),
+    db: AsyncSession = Depends(get_db),
+):
+    """Clone an existing tour package into the authenticated organizer's workspace as a new package."""
+    from app.api.v1.trips import _resolve_destination_image
+    pkg_repo = PackageRepository(db)
+    orig_pkg = await pkg_repo.get_by_id(package_id)
+    if not orig_pkg:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour package not found.")
+
+    pkg_id = f"pkg-{uuid.uuid4().hex[:12]}"
+    
+    # Resolve authoritative organizer profile & contacts
+    from app.repositories.user_repository import UserRepository
+    user_repo = UserRepository(db)
+    linked_user = await user_repo.get_by_id(current_organizer.user_id) if current_organizer.user_id else None
+
+    org_name = current_organizer.name or (linked_user.name if linked_user else None) or "Verified Tour Host"
+    org_phone = current_organizer.contact_phone or getattr(current_organizer, 'phone', None) or ""
+
+    cloned_pkg = Package(
+        id=pkg_id,
+        organizer_id=current_organizer.id,
+        title=f"Copy of {orig_pkg.title}" if orig_pkg.title else f"{orig_pkg.destination} Expedition",
+        destination=orig_pkg.destination,
+        duration_days=orig_pkg.duration_days,
+        price_per_person=orig_pkg.price_per_person,
+        max_travelers=orig_pkg.max_travelers,
+        description=orig_pkg.description,
+        inclusions=list(orig_pkg.inclusions) if isinstance(orig_pkg.inclusions, list) else [],
+        exclusions=list(orig_pkg.exclusions) if isinstance(orig_pkg.exclusions, list) else [],
+        accommodation_type=orig_pkg.accommodation_type,
+        transportation_type=orig_pkg.transportation_type,
+        activities=list(orig_pkg.activities) if isinstance(orig_pkg.activities, list) else [],
+        start_date=orig_pkg.start_date,
+        end_date=orig_pkg.end_date,
+        contact_phone=org_phone,
+        organizer_name=org_name,
+        is_active=True,
+        image_url=orig_pkg.image_url or _resolve_destination_image(orig_pkg.destination),
+        gallery_urls=list(orig_pkg.gallery_urls) if isinstance(orig_pkg.gallery_urls, list) else [],
+    )
+    saved_pkg = await pkg_repo.create(cloned_pkg)
+    await db.commit()
+    return _format_pkg(saved_pkg)
+
+
 @router.delete("/me/packages/{package_id}")
 async def delete_my_package(
     package_id: str,
@@ -432,10 +484,48 @@ async def list_my_organizer_bookings(
     current_organizer: Organizer = Depends(get_current_organizer),
     db: AsyncSession = Depends(get_db),
 ):
-    """View all traveler booking requests made for this organizer's packages."""
+    """View all traveler booking requests made for this organizer's packages with full traveler identities."""
     booking_repo = BookingRepository(db)
     bookings = await booking_repo.get_by_organizer(current_organizer.id)
-    return [_format_booking(b) for b in bookings]
+    
+    # Collect unique user IDs to lookup actual names & emails
+    user_ids = list({b.user_id for b in bookings if b.user_id})
+    user_map = {}
+    if user_ids:
+        user_res = await db.execute(select(User).where(User.id.in_(user_ids)))
+        for u in user_res.scalars().all():
+            user_map[u.id] = u
+
+    enriched = []
+    placeholder_names = {"traveler", "friday traveler", "anonymous traveler", "anonymous", "user", "guest", "none", "null", "undefined", ""}
+    import re
+
+    for b in bookings:
+        formatted = _format_booking(b)
+        u = user_map.get(b.user_id)
+        
+        curr_name = (formatted.traveler_name or "").strip()
+        is_ph = not curr_name or curr_name.lower() in placeholder_names
+        
+        if is_ph:
+            real_name = u.name.strip() if u and u.name else ""
+            if not real_name or real_name.lower() in placeholder_names:
+                email_target = (u.email if u and u.email else getattr(b, 'traveler_email', None)) or ""
+                if email_target:
+                    uname = email_target.split("@")[0]
+                    clean = re.sub(r'[^a-zA-Z\s]', ' ', uname).strip()
+                    real_name = clean.title() if clean else uname.title()
+            formatted.traveler_name = real_name or "Verified Traveler"
+
+        if not formatted.traveler_email:
+            formatted.traveler_email = u.email if u and u.email else "traveler@friday.pk"
+
+        if not formatted.traveler_phone and u and getattr(u, 'phone', None):
+            formatted.traveler_phone = u.phone
+
+        enriched.append(formatted)
+
+    return enriched
 
 
 @router.patch("/me/bookings/{booking_id}/status", response_model=BookingResponse)

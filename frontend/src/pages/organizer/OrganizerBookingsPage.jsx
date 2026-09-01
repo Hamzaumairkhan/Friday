@@ -109,18 +109,32 @@ export default function OrganizerBookingsPage() {
     }
   };
 
+  const [selectedPackageId, setSelectedPackageId] = useState('ALL');
+
+  // Extract unique packages from bookings list
+  const uniquePackagesMap = {};
+  bookings.forEach((b) => {
+    if (b.package_id && !uniquePackagesMap[b.package_id]) {
+      uniquePackagesMap[b.package_id] = b.package_title || `Tour Package #${b.package_id.slice(0, 6)}`;
+    }
+  });
+  const uniquePackageList = Object.entries(uniquePackagesMap).map(([id, title]) => ({ id, title }));
+
   const filteredBookings = bookings.filter((b) => {
-    if (filter === 'PENDING') return b.payment_status === 'PROOF_UPLOADED' || b.payment_status === 'PENDING';
-    if (filter === 'VERIFIED') return b.payment_status === 'VERIFIED';
-    if (filter === 'REJECTED') return b.payment_status === 'REJECTED';
+    // Status filter
+    if (filter === 'PENDING' && !(b.payment_status === 'PROOF_UPLOADED' || b.payment_status === 'PENDING')) return false;
+    if (filter === 'VERIFIED' && b.payment_status !== 'VERIFIED') return false;
+    if (filter === 'REJECTED' && b.payment_status !== 'REJECTED') return false;
+    // Package filter
+    if (selectedPackageId !== 'ALL' && b.package_id !== selectedPackageId) return false;
     return true;
   });
 
-  const verifiedTotal = bookings
+  const verifiedTotal = filteredBookings
     .filter((b) => b.payment_status === 'VERIFIED')
     .reduce((sum, b) => sum + Number(b.total_price || 0), 0);
 
-  const pendingProofCount = bookings.filter((b) => b.payment_status === 'PROOF_UPLOADED').length;
+  const pendingProofCount = filteredBookings.filter((b) => b.payment_status === 'PROOF_UPLOADED').length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
@@ -157,46 +171,77 @@ export default function OrganizerBookingsPage() {
         </div>
       </header>
 
-      {/* ─── Filter Pills ─────────────────────────────────────────────── */}
-      <div className="flex gap-2.5 overflow-x-auto pb-2">
-        <button
-          onClick={() => setFilter('ALL')}
-          className={`px-5 py-2 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
-            filter === 'ALL'
-              ? 'bg-[#00261D] text-white shadow-2xs'
-              : 'bg-white text-[#717975] border border-black/10 hover:border-black/30'
-          }`}
-        >
-          All ({bookings.length})
-        </button>
-        <button
-          onClick={() => setFilter('PENDING')}
-          className={`px-5 py-2 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
-            filter === 'PENDING'
-              ? 'bg-[#00261D] text-white shadow-2xs'
-              : 'bg-white text-[#717975] border border-black/10 hover:border-black/30'
-          }`}
-        >
-          Pending Review ({pendingProofCount})
-        </button>
-        <button
-          onClick={() => setFilter('VERIFIED')}
-          className={`px-5 py-2 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
-            filter === 'VERIFIED'
-              ? 'bg-[#00261D] text-white shadow-2xs'
-              : 'bg-white text-[#717975] border border-black/10 hover:border-black/30'
-          }`}
-        >
-          Verified ({bookings.filter((b) => b.payment_status === 'VERIFIED').length})
-        </button>
+      {/* ─── Filter Pills & Tour Package Filter ─────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex gap-2.5 overflow-x-auto pb-1">
+          <button
+            onClick={() => setFilter('ALL')}
+            className={`px-5 py-2 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
+              filter === 'ALL'
+                ? 'bg-[#00261D] text-white shadow-2xs'
+                : 'bg-white text-[#717975] border border-black/10 hover:border-black/30'
+            }`}
+          >
+            All ({bookings.length})
+          </button>
+          <button
+            onClick={() => setFilter('PENDING')}
+            className={`px-5 py-2 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
+              filter === 'PENDING'
+                ? 'bg-[#00261D] text-white shadow-2xs'
+                : 'bg-white text-[#717975] border border-black/10 hover:border-black/30'
+            }`}
+          >
+            Pending Review ({bookings.filter((b) => b.payment_status === 'PROOF_UPLOADED').length})
+          </button>
+          <button
+            onClick={() => setFilter('VERIFIED')}
+            className={`px-5 py-2 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
+              filter === 'VERIFIED'
+                ? 'bg-[#00261D] text-white shadow-2xs'
+                : 'bg-white text-[#717975] border border-black/10 hover:border-black/30'
+            }`}
+          >
+            Verified ({bookings.filter((b) => b.payment_status === 'VERIFIED').length})
+          </button>
+          <button
+            onClick={() => setFilter('REJECTED')}
+            className={`px-5 py-2 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
+              filter === 'REJECTED'
+                ? 'bg-[#00261D] text-white shadow-2xs'
+                : 'bg-white text-[#717975] border border-black/10 hover:border-black/30'
+            }`}
+          >
+            Rejected ({bookings.filter((b) => b.payment_status === 'REJECTED').length})
+          </button>
+        </div>
+
+        {/* Tour Package Filter Dropdown */}
+        {uniquePackageList.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-[#717975] uppercase whitespace-nowrap">Filter Trip:</span>
+            <select
+              value={selectedPackageId}
+              onChange={(e) => setSelectedPackageId(e.target.value)}
+              className="bg-white border border-black/10 text-xs font-bold text-[#00261D] px-3.5 py-2 rounded-full shadow-2xs cursor-pointer focus:outline-none focus:border-[#00261D] max-w-xs truncate"
+            >
+              <option value="ALL">All Tour Packages ({uniquePackageList.length})</option>
+              {uniquePackageList.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      {/* ─── Bookings Table / List ────────────────────────────────────── */}
+      {/* ─── Bookings Table ───────────────────────────────────────────── */}
       {loading ? (
         <LoadingSpinner text="Fetching bookings and payment slips..." />
       ) : filteredBookings.length === 0 ? (
         <EmptyState
-          title="No bookings in this category"
+          title="No Bookings Found"
           description="When travelers reserve your tour packages and submit payment receipts, they will appear here for verification."
         />
       ) : (
@@ -215,84 +260,105 @@ export default function OrganizerBookingsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/5 text-xs text-[#191C1A]">
-                {filteredBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-[#F8FAF6] transition-colors">
-                    <td className="py-4 px-6 font-bold text-[#00261D]">
-                      {b.user_name || 'Anonymous Traveler'}
-                    </td>
-                    <td className="py-4 px-6 max-w-xs truncate font-medium text-[#00261D]">
-                      {b.package_title}
-                    </td>
-                    <td className="py-4 px-6 text-[#717975]">{b.travelers} Seats</td>
-                    <td className="py-4 px-6 font-bold font-mono text-[#00261D]">
-                      PKR {Number(b.total_price || 0).toLocaleString()}
-                    </td>
-                    <td className="py-4 px-6">
-                      {b.payment_proof_url ? (
+                {filteredBookings.map((b) => {
+                  const placeholderNames = ['traveler', 'friday traveler', 'anonymous traveler', 'anonymous', 'user', 'guest', 'none', 'null', 'undefined', ''];
+                  const rawName = (b.traveler_name || b.user_name || '').trim();
+                  const isPlaceholder = !rawName || placeholderNames.includes(rawName.toLowerCase());
+                  let emailDerived = '';
+                  if (b.traveler_email) {
+                    const uname = b.traveler_email.split('@')[0];
+                    const clean = uname.replace(/[._\-+]/g, ' ').replace(/[0-9]/g, '').trim();
+                    if (clean) {
+                      emailDerived = clean.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                    } else {
+                      emailDerived = uname.charAt(0).toUpperCase() + uname.slice(1);
+                    }
+                  }
+                  const travelerName = (!isPlaceholder && rawName) ? rawName : (emailDerived || 'Verified Traveler');
+                  return (
+                    <tr key={b.id} className="hover:bg-[#F8FAF6] transition-colors">
+                      <td className="py-4 px-6 font-bold text-[#00261D]">
+                        <div>
+                          <p className="font-bold text-[#00261D]">{travelerName}</p>
+                          {b.traveler_email && (
+                            <p className="text-[10px] text-[#717975] font-normal">{b.traveler_email}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 max-w-xs truncate font-medium text-[#00261D]">
+                        {b.package_title}
+                      </td>
+                      <td className="py-4 px-6 text-[#717975]">{b.travelers} Seats</td>
+                      <td className="py-4 px-6 font-bold font-mono text-[#00261D]">
+                        PKR {Number(b.total_price || 0).toLocaleString()}
+                      </td>
+                      <td className="py-4 px-6">
+                        {b.payment_proof_url ? (
+                          <button
+                            onClick={() => {
+                              setSelectedBooking(b);
+                              setProofModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#E7E9E5] text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all cursor-pointer shadow-2xs"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> View Slip
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-[#717975]">No slip uploaded</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6">
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            b.payment_status === 'VERIFIED'
+                              ? 'bg-emerald-100 text-emerald-900'
+                              : b.payment_status === 'PROOF_UPLOADED'
+                              ? 'bg-amber-100 text-amber-900 animate-pulse'
+                              : b.payment_status === 'REJECTED'
+                              ? 'bg-red-100 text-red-900'
+                              : 'bg-slate-100 text-[#717975]'
+                          }`}
+                        >
+                          {b.payment_status || 'PENDING'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-right space-x-2 whitespace-nowrap">
+                        {b.payment_status !== 'VERIFIED' && (
+                          <button
+                            onClick={() => handleVerifyPayment(b.id)}
+                            disabled={processingAction}
+                            className="px-4 py-1.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
+                          >
+                            Verify & Confirm
+                          </button>
+                        )}
+                        {b.payment_status !== 'REJECTED' && b.payment_status !== 'VERIFIED' && (
+                          <button
+                            onClick={() => {
+                              setSelectedBooking(b);
+                              setRejectModalOpen(true);
+                            }}
+                            disabled={processingAction}
+                            className="px-3 py-1.5 rounded-full border border-red-200 text-red-700 text-[11px] font-bold uppercase tracking-wider hover:bg-red-50 transition-colors cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                        )}
                         <button
                           onClick={() => {
-                            setSelectedBooking(b);
-                            setProofModalOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#E7E9E5] text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all cursor-pointer shadow-2xs"
-                        >
-                          <Eye className="w-3.5 h-3.5" /> View Slip
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-[#717975]">No slip uploaded</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-6">
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          b.payment_status === 'VERIFIED'
-                            ? 'bg-emerald-100 text-emerald-900'
-                            : b.payment_status === 'PROOF_UPLOADED'
-                            ? 'bg-amber-100 text-amber-900 animate-pulse'
-                            : b.payment_status === 'REJECTED'
-                            ? 'bg-red-100 text-red-900'
-                            : 'bg-slate-100 text-[#717975]'
-                        }`}
-                      >
-                        {b.payment_status || 'PENDING'}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-right space-x-2 whitespace-nowrap">
-                      {b.payment_status !== 'VERIFIED' && (
-                        <button
-                          onClick={() => handleVerifyPayment(b.id)}
-                          disabled={processingAction}
-                          className="px-4 py-1.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
-                        >
-                          Verify & Confirm
-                        </button>
-                      )}
-                      {b.payment_status !== 'REJECTED' && b.payment_status !== 'VERIFIED' && (
-                        <button
-                          onClick={() => {
-                            setSelectedBooking(b);
-                            setRejectModalOpen(true);
+                            setBookingToDelete(b);
+                            setDeleteModalOpen(true);
                           }}
                           disabled={processingAction}
-                          className="px-3 py-1.5 rounded-full border border-red-200 text-red-700 text-[11px] font-bold uppercase tracking-wider hover:bg-red-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-full text-red-600 hover:bg-red-50 hover:text-red-800 transition-colors cursor-pointer inline-flex items-center justify-center align-middle"
+                          title="Delete Reservation"
                         >
-                          Reject
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          setBookingToDelete(b);
-                          setDeleteModalOpen(true);
-                        }}
-                        disabled={processingAction}
-                        className="p-1.5 rounded-full text-red-600 hover:bg-red-50 hover:text-red-800 transition-colors cursor-pointer inline-flex items-center justify-center align-middle"
-                        title="Delete Reservation"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

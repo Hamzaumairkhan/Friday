@@ -155,7 +155,7 @@ export default function TravelerProfilePage() {
               </p>
 
               <p className="text-xs text-[#414845] max-w-md pt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
-                Exploring the peaks and valleys of Pakistan with Friday AI Travel Copilot.
+                Exploring the peaks and valleys of Pakistan with Friday Travel Marketplace.
               </p>
             </div>
 

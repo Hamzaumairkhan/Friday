@@ -31,14 +31,20 @@ export const tripsService = {
     return await api.patch(`/trips/${tripId}`, data);
   },
 
-  // Toggle Private / Public Visibility
-  async toggleVisibility(tripId, isPublic) {
-    return await api.post(`/trips/${tripId}/visibility?is_public=${isPublic}`);
+  // Toggle Private / Public Visibility & Allow Cloning Permission
+  async toggleVisibility(tripId, isPublic, allowCloning = null) {
+    const params = new URLSearchParams();
+    if (isPublic !== undefined && isPublic !== null) params.append('is_public', isPublic);
+    if (allowCloning !== undefined && allowCloning !== null) params.append('allow_cloning', allowCloning);
+    return await api.post(`/trips/${tripId}/visibility?${params.toString()}`);
   },
 
   // Copy/Clone a public community trip into private account
   async copyTrip(tripId) {
-    return await api.post(`/trips/${tripId}/copy`);
+    return await api.post(`/trips/${tripId}/clone`);
+  },
+  async cloneTrip(tripId) {
+    return await api.post(`/trips/${tripId}/clone`);
   },
 
   // Dynamic replan

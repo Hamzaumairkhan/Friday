@@ -80,6 +80,19 @@ export default function OrganizerTripsPage() {
     }
   };
 
+  const handleClonePackage = async (e, pkgId) => {
+    e.stopPropagation();
+    try {
+      toast.loading('Cloning tour package into workspace...', { id: 'clone-pkg-toast' });
+      const cloned = await organizersService.clonePackage(pkgId);
+      toast.success('Tour package cloned! Opening editor...', { id: 'clone-pkg-toast' });
+      navigate(`/organizer/trips/${cloned.id}/edit`);
+    } catch (err) {
+      console.error('Failed to clone tour package:', err);
+      toast.error(err.response?.data?.detail || err.message || 'Failed to duplicate tour package.', { id: 'clone-pkg-toast' });
+    }
+  };
+
   const filteredPackages = packages.filter((pkg) => {
     if (filter === 'PUBLISHED') return pkg.is_active;
     if (filter === 'DRAFTS') return !pkg.is_active;
@@ -325,6 +338,15 @@ export default function OrganizerTripsPage() {
                     >
                       {pkg.is_active ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-emerald-700" />}
                       <span>{pkg.is_active ? 'Unpublish' : 'Publish'}</span>
+                    </button>
+
+                    {/* Clone / Duplicate Package */}
+                    <button
+                      onClick={(e) => handleClonePackage(e, pkg.id)}
+                      className="p-2 rounded-full hover:bg-emerald-50 text-[#717975] hover:text-[#00261D] transition-colors cursor-pointer"
+                      title="Clone / Duplicate Tour Package"
+                    >
+                      <Copy className="w-4 h-4 text-[#00261D]" />
                     </button>
 
                     <button

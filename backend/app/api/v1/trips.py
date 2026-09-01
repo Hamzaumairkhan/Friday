@@ -30,6 +30,8 @@ from app.services.dynamic_research_service import (
     DynamicDestinationResearchService,
     make_maps_url,
     fetch_real_web_photo,
+    fetch_real_web_photo_async,
+    fetch_real_web_photos_multi,
     resolve_regional_fallback_image,
 )
 from app.agents.replanner_agent import ReplannerAgent
@@ -52,33 +54,34 @@ def _is_renderable_web_image(url: str) -> bool:
         return False
     if not (url.startswith("http://") or url.startswith("https://") or url.startswith("/images/")):
         return False
-    if url.endswith(".svg"):
+    if url.endswith(".svg") or ".svg" in url.lower():
         return False
     u_low = url.lower()
     return not any(bd in u_low for bd in BLOCKED_IMAGE_DOMAINS)
 
 
-def _resolve_destination_image(destination: Optional[str]) -> str:
+def _resolve_destination_image(destination: Optional[str], variation_seed: Optional[int] = None) -> str:
     if not destination:
-        return "/images/stitch/hero_mountains.jpg"
+        return "https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?auto=format&fit=crop&w=1200&q=80"
     
-    # 1. Try real web photo
-    real_photo = fetch_real_web_photo(destination)
+    # 1. Try real web photo with dynamic rotation
+    real_photo = fetch_real_web_photo(destination, destination, variation_seed=variation_seed)
     if real_photo and _is_renderable_web_image(real_photo):
         return real_photo
 
     # 2. Regional fallback (clean, genuine photography)
-    return resolve_regional_fallback_image(destination)
+    return resolve_regional_fallback_image(destination, variation_seed=variation_seed)
 
 
-async def _fetch_web_images_and_research(destination: str, origin: str) -> tuple[str, list[str]]:
-    """Live web search to find real photography and scenic web images for the exact destination."""
+async def _fetch_web_images_and_research(destination: str, origin: str, variation_seed: Optional[int] = None) -> tuple[str, list[str]]:
+    """Live web search to find real photography and scenic web images for the exact destination with rotation."""
     real_images: list[str] = []
 
-    # 1. Primary: High-definition real web photo of destination
-    direct_photo = fetch_real_web_photo(destination, destination)
-    if direct_photo and _is_renderable_web_image(direct_photo):
-        real_images.append(direct_photo)
+    # 1. Primary: Fetch real web photo pool from Wikipedia & Curated Travel collections
+    multi_photos = await fetch_real_web_photos_multi(destination, destination, limit=12)
+    for p in multi_photos:
+        if _is_renderable_web_image(p) and p not in real_images:
+            real_images.append(p)
 
     # 2. Secondary: Tavily Search if active
     settings = get_settings()
@@ -101,15 +104,37 @@ async def _fetch_web_images_and_research(destination: str, origin: str) -> tuple
 
     # 3. Fallback to authentic scenic regional photography
     if not real_images:
-        fallback_hero = resolve_regional_fallback_image(destination)
+        fallback_hero = resolve_regional_fallback_image(destination, variation_seed=variation_seed)
         real_images = [fallback_hero]
 
-    hero_img = real_images[0]
+    # Pick rotated hero image
+    if variation_seed is not None:
+        hero_idx = variation_seed % len(real_images)
+    else:
+        hero_idx = 0
+    hero_img = real_images[hero_idx]
     return hero_img, real_images
 
 
+@router.get("/images/search")
+async def search_destination_images(
+    query: str,
+    destination: Optional[str] = None,
+    limit: int = 12,
+):
+    """Dynamically search and return authentic real-world web photographs for any destination in Pakistan."""
+    photos = await fetch_real_web_photos_multi(query, destination or query, limit=limit)
+    return {
+        "query": query,
+        "destination": destination or query,
+        "count": len(photos),
+        "images": photos,
+    }
+
+
 def _format_trip_response(t, members_override=None) -> TripResponse:
-    img = getattr(t, 'image_url', None) or _resolve_destination_image(t.destination)
+    trip_seed = sum(ord(c) for c in str(getattr(t, 'id', '') or t.destination or ''))
+    img = getattr(t, 'image_url', None) or _resolve_destination_image(t.destination, variation_seed=trip_seed)
     prefs = t.preferences if isinstance(t.preferences, dict) else {}
     
     members = []
@@ -166,6 +191,7 @@ def _format_trip_response(t, members_override=None) -> TripResponse:
         version=t.version or 1,
         is_public=bool(t.is_public) if hasattr(t, 'is_public') else False,
         show_members_publicly=bool(getattr(t, 'show_members_publicly', 0)),
+        allow_cloning=bool(getattr(t, 'allow_cloning', 1)),
         copied_from_trip_id=t.copied_from_trip_id if hasattr(t, 'copied_from_trip_id') else None,
         image_url=img,
         advisories=t.advisories or [] if hasattr(t, 'advisories') else [],
@@ -433,8 +459,10 @@ async def generate_guided_trip_plan(
         budget_total = raw_budget
         budget_pp = raw_budget / travelers
 
-    # 3. Dynamic destination real web image resolution via Tavily / Web Search
-    img_url, web_images = await _fetch_web_images_and_research(dest, origin)
+    # 3. Dynamic destination real web image resolution via Tavily / Web Search & Wikipedia rotation
+    import random
+    gen_seed = random.randint(0, 100000)
+    img_url, web_images = await _fetch_web_images_and_research(dest, origin, variation_seed=gen_seed)
     title = f"{dest}, at your pace"
 
     # 4. Generate Friday AI Research Advisories
@@ -544,6 +572,7 @@ async def generate_guided_trip_plan(
         version=1,
         is_public=0,
         show_members_publicly=1 if req.show_members_publicly else 0,
+        allow_cloning=1 if req.allow_cloning else 0,
         image_url=img_url,
         advisories=advisories,
     )
@@ -653,6 +682,8 @@ async def publish_trip(
     trip.is_public = 1 if is_pub else 0
     if payload and "show_members_publicly" in payload:
         trip.show_members_publicly = 1 if payload["show_members_publicly"] else 0
+    if payload and "allow_cloning" in payload:
+        trip.allow_cloning = 1 if payload["allow_cloning"] else 0
     trip.status = TripStatus.PLANNED
 
     # Load days and activities for high-fidelity rendering
@@ -707,6 +738,199 @@ async def publish_trip(
         "budget_summary": budget_summary,
         "message": f"Expedition published successfully as {'Public (Shared with Community)' if is_pub else 'Private (Expedition Vault)'}! Itinerary dispatched to lead and co-travelers.",
         "is_public": bool(trip.is_public),
+    }
+
+
+# ─── TOGGLE VISIBILITY & CLONING PERMISSION ────────────────────────────────
+@router.post("/{trip_id}/visibility")
+async def toggle_trip_visibility(
+    trip_id: str,
+    is_public: Optional[bool] = None,
+    allow_cloning: Optional[bool] = None,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle whether a trip is public on community feed and whether other travelers can clone it."""
+    service = TripService(db)
+    trip = await service.get_trip(trip_id=trip_id, user_id=user_id)
+    if trip.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="Security Alert: Only trip owner can adjust visibility.")
+
+    if is_public is not None:
+        trip.is_public = 1 if is_public else 0
+    if allow_cloning is not None:
+        trip.allow_cloning = 1 if allow_cloning else 0
+    await db.commit()
+    await db.refresh(trip)
+    return {"message": "Trip visibility updated.", "is_public": bool(trip.is_public), "allow_cloning": bool(trip.allow_cloning)}
+
+
+# ─── CLONE / COPY TRIP FOR TRAVELER ───────────────────────────────────────
+@router.post("/{trip_id}/copy", status_code=status.HTTP_201_CREATED)
+@router.post("/{trip_id}/clone", status_code=status.HTTP_201_CREATED)
+async def copy_or_clone_trip(
+    trip_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Clone an existing public or accessible trip into a brand new private Draft for the current user."""
+    # 1. Fetch original trip with its itinerary, days, activities, and budget
+    result = await db.execute(
+        select(Trip)
+        .where(Trip.id == trip_id)
+        .options(
+            selectinload(Trip.itinerary).selectinload(Itinerary.days).selectinload(Day.activities),
+            selectinload(Trip.budgets),
+        )
+    )
+    orig_trip = result.scalar_one_or_none()
+    if not orig_trip:
+        raise HTTPException(status_code=404, detail="Trip plan not found.")
+
+    # 2. Check Permissions: Organizers are prohibited from copying traveler trips
+    cur_user = await db.get(User, user_id)
+    if cur_user:
+        user_role = cur_user.role.value if hasattr(cur_user.role, 'value') else str(cur_user.role)
+        if user_role == "ORGANIZER":
+            raise HTTPException(
+                status_code=403,
+                detail="Organizers cannot copy traveler trip itineraries. Only traveler accounts can clone community trips."
+            )
+
+    # 3. Check Permissions: owner can always clone; other users can clone ONLY if trip is public and allow_cloning is true
+    if orig_trip.owner_id != user_id:
+        if not bool(orig_trip.is_public):
+            raise HTTPException(status_code=403, detail="This trip is private and cannot be copied.")
+        if not bool(getattr(orig_trip, 'allow_cloning', 1)):
+            raise HTTPException(status_code=403, detail="The creator has disabled copying for this itinerary.")
+
+    cur_name = cur_user.name if cur_user else "Lead Traveler"
+    cur_email = cur_user.email if cur_user else f"{user_id}@friday.local"
+    cur_phone = getattr(cur_user, "phone", "") or ""
+
+    # 4. Clone preferences with fresh lead traveler & empty companion slots
+    new_prefs = dict(orig_trip.preferences) if isinstance(orig_trip.preferences, dict) else {}
+    new_prefs["lead_contact"] = {
+        "name": cur_name,
+        "email": cur_email,
+        "phone": cur_phone,
+    }
+    new_prefs["companions"] = []  # Reset companions so new user adds their own group members
+
+    # 5. Create New Cloned Trip Record
+    new_trip = Trip(
+        owner_id=user_id,
+        title=f"Copy of {orig_trip.title}" if orig_trip.title else f"{orig_trip.destination} Expedition",
+        destination=orig_trip.destination,
+        origin=orig_trip.origin,
+        duration=orig_trip.duration,
+        travelers=1,
+        budget_total=orig_trip.budget_total,
+        budget_per_person=orig_trip.budget_per_person,
+        start_date=orig_trip.start_date,
+        end_date=orig_trip.end_date,
+        status=TripStatus.DRAFT,
+        preferences=new_prefs,
+        constraints=list(orig_trip.constraints) if isinstance(orig_trip.constraints, list) else [],
+        version=1,
+        is_public=0,  # Cloned trips start as private drafts
+        show_members_publicly=0,
+        allow_cloning=1,
+        copied_from_trip_id=orig_trip.id,
+        image_url=orig_trip.image_url,
+        advisories=list(orig_trip.advisories) if isinstance(orig_trip.advisories, list) else [],
+    )
+    db.add(new_trip)
+    await db.flush()
+
+    # 6. Add Current User as Owner
+    new_member = TripMember(
+        trip_id=new_trip.id,
+        user_id=user_id,
+        role=MemberRole.OWNER,
+        invitation_status="ACCEPTED",
+    )
+    db.add(new_member)
+
+    # 7. Deep Copy Itinerary, Days & Activities
+    days_summary = []
+    if orig_trip.itinerary:
+        new_itin = Itinerary(
+            trip_id=new_trip.id,
+            version=1,
+            notes=orig_trip.itinerary.notes or "Cloned expedition itinerary.",
+        )
+        db.add(new_itin)
+        await db.flush()
+
+        if orig_trip.itinerary.days:
+            for d in orig_trip.itinerary.days:
+                new_day = Day(
+                    itinerary_id=new_itin.id,
+                    day_number=d.day_number,
+                    title=d.title,
+                    summary=d.summary,
+                )
+                db.add(new_day)
+                await db.flush()
+
+                acts_list = []
+                for a in d.activities:
+                    new_act = Activity(
+                        day_id=new_day.id,
+                        order=a.order,
+                        title=a.title,
+                        description=a.description,
+                        location=a.location,
+                        start_time=a.start_time,
+                        end_time=a.end_time,
+                        duration_minutes=a.duration_minutes,
+                        estimated_cost=a.estimated_cost,
+                        category=a.category,
+                        image_url=a.image_url,
+                        notes=a.notes,
+                    )
+                    db.add(new_act)
+                    acts_list.append({
+                        "id": new_act.id,
+                        "title": new_act.title,
+                        "description": new_act.description,
+                        "location": new_act.location,
+                        "start_time": new_act.start_time,
+                        "end_time": new_act.end_time,
+                        "category": new_act.category.value if hasattr(new_act.category, 'value') else str(new_act.category),
+                        "map_url": new_act.notes,
+                    })
+
+                days_summary.append({
+                    "id": new_day.id,
+                    "day_number": new_day.day_number,
+                    "title": new_day.title,
+                    "summary": new_day.summary,
+                    "activities": acts_list,
+                })
+
+    # 8. Deep Copy Budgets
+    if orig_trip.budgets:
+        for b in orig_trip.budgets:
+            new_b = Budget(
+                trip_id=new_trip.id,
+                category=b.category,
+                estimated_amount=b.estimated_amount,
+                actual_amount=0.0,
+                currency=b.currency,
+                version="1",
+            )
+            db.add(new_b)
+
+    await db.commit()
+    await db.refresh(new_trip)
+
+    return {
+        "id": new_trip.id,
+        "trip": _format_trip_response(new_trip),
+        "days": days_summary,
+        "message": f"Successfully cloned itinerary for {new_trip.destination}! You can now customize your group members and schedule in your draft.",
     }
 
 

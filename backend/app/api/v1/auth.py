@@ -245,6 +245,19 @@ async def upgrade_to_organizer(
     await db.commit()
     logger.info(f"User {current_user.email} switched to ORGANIZER")
 
+    # Dispatch confirmation email to user
+    try:
+        if current_user.email:
+            from app.services.email_service import EmailService
+            email_svc = EmailService()
+            await email_svc.send_role_switch_notification(
+                recipient_email=current_user.email,
+                user_name=current_user.name or "Partner",
+                new_role="ORGANIZER",
+            )
+    except Exception as e:
+        logger.warning(f"Failed to dispatch role switch email to {current_user.email}: {e}")
+
     return AuthResponse(
         user=_format_user(current_user, "ORGANIZER"),
         organizer_profile=_format_organizer(org),
@@ -268,6 +281,19 @@ async def switch_to_traveler(
 
     await db.commit()
     logger.info(f"User {current_user.email} switched to TRAVELER")
+
+    # Dispatch confirmation email to user
+    try:
+        if current_user.email:
+            from app.services.email_service import EmailService
+            email_svc = EmailService()
+            await email_svc.send_role_switch_notification(
+                recipient_email=current_user.email,
+                user_name=current_user.name or "Traveler",
+                new_role="TRAVELER",
+            )
+    except Exception as e:
+        logger.warning(f"Failed to dispatch role switch email to {current_user.email}: {e}")
 
     return AuthResponse(
         user=_format_user(current_user, "TRAVELER"),

@@ -9,43 +9,49 @@ if (rawBase.endsWith('/')) rawBase = rawBase.slice(0, -1);
 const API_BASE = rawBase.endsWith('/api/v1') ? rawBase : `${rawBase}/api/v1`;
 
 async function getAuthHeaders() {
+  const headers = {};
   const user = auth?.currentUser;
   if (user) {
     try {
       const token = await user.getIdToken();
-      if (token) return { Authorization: `Bearer ${token}` };
-    } catch {
-      // fallback to cached session
-    }
+      if (token) headers.Authorization = `Bearer ${token}`;
+    } catch {}
+    if (user.uid) headers['X-User-Id'] = user.uid;
   }
 
   try {
     const fToken = localStorage.getItem('friday_auth_token') || localStorage.getItem('token');
-    if (fToken) {
-      return { Authorization: `Bearer ${fToken}`, 'X-User-Id': fToken };
+    if (fToken && !headers.Authorization) {
+      headers.Authorization = `Bearer ${fToken}`;
+    }
+    if (fToken && !headers['X-User-Id']) {
+      headers['X-User-Id'] = fToken;
     }
 
     const cached = localStorage.getItem('friday_session');
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (parsed?.token) {
-        return { Authorization: `Bearer ${parsed.token}`, 'X-User-Id': parsed.user?.id || parsed.token };
+      if (parsed?.token && !headers.Authorization) {
+        headers.Authorization = `Bearer ${parsed.token}`;
       }
-      if (parsed?.user?.id) {
-        return { 'X-User-Id': parsed.user.id, Authorization: `Bearer ${parsed.user.id}` };
+      if (parsed?.user?.id && !headers['X-User-Id']) {
+        headers['X-User-Id'] = parsed.user.id;
       }
     }
 
     const bUser = localStorage.getItem('backend_user') || localStorage.getItem('auth_user') || localStorage.getItem('friday_user');
     if (bUser) {
       const parsed = JSON.parse(bUser);
-      if (parsed?.id) {
-        return { 'X-User-Id': parsed.id, Authorization: `Bearer ${parsed.id}` };
+      if (parsed?.id && !headers['X-User-Id']) {
+        headers['X-User-Id'] = parsed.id;
+      }
+      if (parsed?.id && !headers.Authorization) {
+        headers.Authorization = `Bearer ${parsed.id}`;
       }
     }
   } catch {}
 
-  return {};
+  return headers;
 }
 
 async function request(endpoint, options = {}) {

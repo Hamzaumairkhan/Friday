@@ -13,18 +13,21 @@ import {
   Plus,
   LogOut,
   Briefcase,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import AuthModal from '../components/auth/AuthModal';
 import NotificationBell from '../components/shared/NotificationBell';
 import UserAvatar from '../components/shared/UserAvatar';
+import ScrollToTop from '../components/shared/ScrollToTop';
 import { notificationsService } from '../services/notifications';
 
 export default function TravelerLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, backendUser, organizerProfile, role, signOut } = useAuth();
+  const { user, backendUser, organizerProfile, role, signOut, upgradeToOrganizer, switchToTraveler } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   const fetchUnread = async () => {
     try {
@@ -39,7 +42,8 @@ export default function TravelerLayout() {
     return () => clearInterval(interval);
   }, []);
 
-  const isOrganizer = role === 'ORGANIZER' || backendUser?.role === 'ORGANIZER' || Boolean(organizerProfile);
+  // Strict check against currently active role in context
+  const isOrganizer = (role || backendUser?.role) === 'ORGANIZER';
 
   const isActive = (path) => {
     if (path === '/explore' && location.pathname.startsWith('/explore')) return true;
@@ -48,6 +52,30 @@ export default function TravelerLayout() {
     if (path === '/organizer/profile' && location.pathname.startsWith('/organizer/profile')) return true;
     if (path === '/organizer/groups' && location.pathname.startsWith('/organizer/groups')) return true;
     return location.pathname === path;
+  };
+
+  const handleSwitchToOrganizer = async () => {
+    setIsSwitching(true);
+    try {
+      await upgradeToOrganizer();
+    } catch (err) {
+      console.error('Failed to switch to organizer:', err);
+    } finally {
+      setIsSwitching(false);
+      navigate('/organizer/dashboard', { replace: true });
+    }
+  };
+
+  const handleSwitchToTraveler = async () => {
+    setIsSwitching(true);
+    try {
+      await switchToTraveler();
+    } catch (err) {
+      console.error('Failed to switch to traveler:', err);
+    } finally {
+      setIsSwitching(false);
+      navigate('/explore', { replace: true });
+    }
   };
 
   const handleSignOut = async () => {
@@ -62,6 +90,7 @@ export default function TravelerLayout() {
 
   return (
     <div className="min-h-screen w-full bg-[#F8FAF6] text-[#191C1A] flex flex-col lg:flex-row antialiased selection:bg-[#00261D] selection:text-white">
+      <ScrollToTop />
       {/* ─── DESKTOP LEFT SIDEBAR (Fixed Left w-64) ──────────────────── */}
       <aside className="hidden lg:flex flex-col w-64 p-6 shrink-0 fixed left-0 top-0 h-screen border-r border-black/10 justify-between bg-[#F8FAF6] z-40">
         <div className="space-y-6">
@@ -75,7 +104,7 @@ export default function TravelerLayout() {
                 Friday®
               </h1>
               <p className="text-xs text-[#717975]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                AI Travel Copilot
+                Travel Marketplace
               </p>
             </Link>
             <NotificationBell align="left" />
@@ -91,7 +120,7 @@ export default function TravelerLayout() {
             </Link>
           ) : (
             <Link to="/plan-trip" className="block">
-              <button className="w-full bg-[green] text-white py-3 px-4 rounded-full text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#00261D]/90 transition-all shadow-xs cursor-pointer">
+              <button className="w-full bg-[green] text-white py-3 px-4 rounded-full text-xs font-bold uppercase tracking-wider flex items-center  justify-center gap-2 hover:bg-[#00261D]/90 transition-all shadow-xs cursor-pointer">
                 <Plus className="w-4 h-4 text-[#BBEAD5]" />
                 <span>New Trip</span>
               </button>
@@ -217,6 +246,35 @@ export default function TravelerLayout() {
               />
               <span className="truncate">{user?.displayName || backendUser?.name || (isOrganizer ? 'Company Profile' : 'Profile')}</span>
             </Link>
+
+            {/* One-Click Portal Switcher */}
+            {isOrganizer ? (
+              <button
+                onClick={handleSwitchToTraveler}
+                disabled={isSwitching}
+                className="flex items-center justify-between px-3.5 py-2.5 my-1 rounded-xl text-xs font-bold text-emerald-900 bg-emerald-100/80 hover:bg-emerald-200 transition-all border border-emerald-300 shadow-2xs w-full text-left cursor-pointer"
+                title="Switch to Traveler Account"
+              >
+                <div className="flex items-center gap-2">
+                  <Compass className="w-3.5 h-3.5 text-emerald-800" />
+                  <span>Switch to Traveler</span>
+                </div>
+                <ArrowRightLeft className="w-3 h-3 text-emerald-700" />
+              </button>
+            ) : (
+              <button
+                onClick={handleSwitchToOrganizer}
+                disabled={isSwitching}
+                className="flex items-center justify-between px-3.5 py-2.5 my-1 rounded-xl text-xs font-bold text-emerald-900 bg-emerald-100/80 hover:bg-emerald-200 transition-all border border-emerald-300 shadow-2xs w-full text-left cursor-pointer"
+                title="Switch to Organizer Account"
+              >
+                <div className="flex items-center gap-2">
+                  <Briefcase className="w-3.5 h-3.5 text-emerald-800" />
+                  <span>Switch to Organizer</span>
+                </div>
+                <ArrowRightLeft className="w-3 h-3 text-emerald-700" />
+              </button>
+            )}
 
             <button
               onClick={handleSignOut}

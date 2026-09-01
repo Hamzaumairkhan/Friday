@@ -42,6 +42,11 @@ export const organizersService = {
     return await api.delete(`/organizers/me/packages/${packageId}`);
   },
 
+  // Authenticated Organizer: Clone/Duplicate a tour package
+  async clonePackage(packageId) {
+    return await api.post(`/organizers/me/packages/${packageId}/clone`);
+  },
+
   // Authenticated Organizer: List bookings for own packages
   async listMyBookings() {
     return await api.get('/organizers/me/bookings');

@@ -41,6 +41,7 @@ class Trip(Base, IDMixin, TimestampMixin):
     version = Column(Integer, default=1, nullable=False)
     is_public = Column(Integer, default=0, nullable=False)  # 0: private, 1: public
     show_members_publicly = Column(Integer, default=0, nullable=False)  # 0: hide traveler roster on public feed, 1: show profiles
+    allow_cloning = Column(Integer, default=1, nullable=False)  # 0: no, 1: allow other travelers to clone & customize
     copied_from_trip_id = Column(String, nullable=True)
     image_url = Column(Text, nullable=True)
     advisories = Column(JSON, default=list)

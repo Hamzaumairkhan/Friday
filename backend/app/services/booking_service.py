@@ -58,6 +58,7 @@ class BookingService:
 
         # 2. Ensure traveler user record exists in users table
         from app.models.user import UserRole
+        import re
         user_res = await self.db.execute(select(User).where(User.id == user_id))
         traveler_user = user_res.scalar_one_or_none()
         if not traveler_user:
@@ -70,8 +71,24 @@ class BookingService:
             self.db.add(traveler_user)
             await self.db.flush()
 
-        traveler_name = traveler_user.name if traveler_user and traveler_user.name else "Friday Traveler"
-        traveler_email = traveler_user.email if traveler_user and traveler_user.email else "traveler@friday.pk"
+        candidate_name = getattr(data, 'traveler_name', None) if data else None
+        if not candidate_name and traveler_user and traveler_user.name and traveler_user.name not in ["Traveler", "Friday Traveler", "Anonymous Traveler"]:
+            candidate_name = traveler_user.name
+        if not candidate_name and traveler_user and traveler_user.email:
+            username = traveler_user.email.split("@")[0]
+            clean = re.sub(r'[^a-zA-Z\s]', ' ', username).strip().title()
+            candidate_name = clean if clean else username
+        traveler_name = candidate_name or "Verified Traveler"
+
+        candidate_email = getattr(data, 'traveler_email', None) if data else None
+        if not candidate_email and traveler_user and traveler_user.email:
+            candidate_email = traveler_user.email
+        traveler_email = candidate_email or "traveler@friday.pk"
+
+        candidate_phone = getattr(data, 'traveler_phone', None) if data else None
+        if not candidate_phone and traveler_user and getattr(traveler_user, 'phone', None):
+            candidate_phone = traveler_user.phone
+        traveler_phone = candidate_phone or "+92 300 1234567"
 
         # 3. Validate or auto-provision trip & membership
         if trip_id:
@@ -147,6 +164,7 @@ class BookingService:
             organizer_name=organizer.name,
             traveler_name=traveler_name,
             traveler_email=traveler_email,
+            traveler_phone=traveler_phone,
         )
 
         created_booking = await self.booking_repo.create(booking)

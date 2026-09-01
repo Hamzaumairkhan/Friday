@@ -33,6 +33,7 @@ class TripUpdate(BaseModel):
     status: Optional[str] = None
     is_public: Optional[bool] = None
     show_members_publicly: Optional[bool] = None
+    allow_cloning: Optional[bool] = None
     image_url: Optional[str] = None
     advisories: Optional[list] = None
 
@@ -55,6 +56,7 @@ class TripResponse(BaseModel):
     version: int
     is_public: bool = False
     show_members_publicly: bool = False
+    allow_cloning: bool = True
     copied_from_trip_id: Optional[str] = None
     image_url: Optional[str] = None
     advisories: list = Field(default_factory=list)
@@ -87,6 +89,7 @@ class GuidedPlanRequest(BaseModel):
     lead_contact: Optional[dict] = None  # {"name": "...", "email": "...", "phone": "..."}
     companions: Optional[list[dict]] = Field(default_factory=list)  # [{"name": "...", "email": "...", "phone": "..."}, ...]
     show_members_publicly: bool = False
+    allow_cloning: bool = True
 
 
 

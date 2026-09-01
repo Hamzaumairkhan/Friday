@@ -40,6 +40,8 @@ def _format_booking(b) -> BookingResponse:
         price_per_person=b.price_per_person,
         organizer_name=b.organizer_name,
         traveler_name=b.traveler_name,
+        traveler_email=getattr(b, 'traveler_email', None),
+        traveler_phone=getattr(b, 'traveler_phone', None),
         payment_status=b.payment_status.value if hasattr(b.payment_status, 'value') else (b.payment_status or "PENDING"),
         payment_proof_url=b.payment_proof_url,
         created_at=b.created_at.isoformat() if b.created_at else "",

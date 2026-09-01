@@ -14,16 +14,21 @@ import {
   Bookmark,
   SlidersHorizontal,
   Eye,
+  Copy,
 } from 'lucide-react';
 import { packagesService } from '../../services/packages';
 import { organizersService } from '../../services/organizers';
 import { tripsService } from '../../services/trips';
+import { useAuth } from '../../context/AuthContext';
+import { getDestinationFallback } from '../../utils/imageService';
 import EmptyState from '../../components/shared/EmptyState';
 import { Skeleton } from '../../components/ui/skeleton';
 import toast from 'react-hot-toast';
 
 export default function ExplorePage() {
   const navigate = useNavigate();
+  const { backendUser, role } = useAuth();
+  const isOrganizer = (role || backendUser?.role) === 'ORGANIZER';
   const [packages, setPackages] = useState([]);
   const [organizers, setOrganizers] = useState({});
   const [loading, setLoading] = useState(true);
@@ -63,23 +68,6 @@ export default function ExplorePage() {
         const travelersCount = Number(ct.travelers || 1);
         const pp = ct.budget_per_person || (travelersCount > 0 ? totalBudget / travelersCount : totalBudget);
 
-        const getDestinationFallback = (dest) => {
-          const d = (dest || '').toLowerCase();
-          if (d.includes('pine') || d.includes('nathia') || d.includes('murree') || d.includes('galyat') || d.includes('ayubia') || d.includes('bhurban') || d.includes('patriata') || d.includes('dunga')) return '/images/stitch/stitch_asset_11.jpg';
-          if (d.includes('islamabad') || d.includes('margalla') || d.includes('faisal') || d.includes('rawalpindi')) return '/images/stitch/stitch_asset_4.jpg';
-          if (d.includes('lahore') || d.includes('badshahi') || d.includes('punjab') || d.includes('faisalabad') || d.includes('multan')) return '/images/stitch/stitch_asset_2.jpg';
-          if (d.includes('karachi') || d.includes('gwadar') || d.includes('ormara') || d.includes('kund') || d.includes('sindh')) return '/images/stitch/stitch_asset_5.jpg';
-          if (d.includes('swat') || d.includes('kalam') || d.includes('malam') || d.includes('mahudand')) return '/images/stitch/stitch_asset_10.jpg';
-          if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar') || d.includes('shogran')) return '/images/stitch/stitch_asset_9.jpg';
-          if (d.includes('kumrat') || d.includes('jahaz') || d.includes('katora')) return '/images/stitch/stitch_asset_8.jpg';
-          if (d.includes('fairy') || d.includes('nanga')) return '/images/stitch/stitch_asset_7.jpg';
-          if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila') || d.includes('khaplu')) return '/images/stitch/hero_mountains.jpg';
-          if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit') || d.includes('attabad')) return '/images/stitch/stitch_asset_1.jpg';
-          if (d.includes('neelum') || d.includes('kashmir') || d.includes('arang') || d.includes('sharda') || d.includes('ratti') || d.includes('taobat')) return '/images/stitch/stitch_asset_8.jpg';
-          if (d.includes('chitral') || d.includes('kalash') || d.includes('shandur')) return '/images/stitch/stitch_asset_14.jpg';
-          return '/images/stitch/hero_mountains.jpg';
-        };
-
         return {
           id: ct.id,
           title: ct.title || `Trip to ${ct.destination}`,
@@ -87,13 +75,14 @@ export default function ExplorePage() {
           duration_days: ct.duration || 4,
           price_per_person: pp,
           budget_total: totalBudget,
-          image_url: ct.image_url || getDestinationFallback(ct.destination),
+          image_url: ct.image_url || getDestinationFallback(ct.destination, ct.id),
           is_public_community: true,
           max_group_size: travelersCount,
           difficulty: 'Flexible',
           organizer_id: null,
           created_at: ct.created_at || ct.updated_at || null,
           creator_name: (ct.preferences && ct.preferences.lead_contact && ct.preferences.lead_contact.name) ? ct.preferences.lead_contact.name : 'Community Traveler',
+          allow_cloning: ct.allow_cloning !== undefined ? Boolean(ct.allow_cloning) : true,
         };
       });
 
@@ -177,11 +166,30 @@ export default function ExplorePage() {
       storedCounts[pkgId] = newCount;
       setSavedPackages((prev) => ({ ...prev, [pkgId]: true }));
       setSaveCounts((prev) => ({ ...prev, [pkgId]: newCount }));
-      toast.success('Added to Saved collection!');
+      toast.success('Saved to your collection!');
     }
 
     localStorage.setItem('friday_saved_packages', JSON.stringify(updated));
     localStorage.setItem('friday_packages_save_counts', JSON.stringify(storedCounts));
+  };
+
+  const handleCloneCommunityTrip = async (e, tripId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isOrganizer) {
+      toast.error('Organizers cannot copy traveler trip itineraries. Only traveler accounts can clone community trips.');
+      return;
+    }
+    try {
+      toast.loading('Cloning itinerary to your private workspace...', { id: 'clone-explore-toast' });
+      const res = await tripsService.cloneTrip(tripId);
+      toast.success(res.message || 'Itinerary cloned! Opening your custom draft...', { id: 'clone-explore-toast' });
+      const targetId = res.id || res.trip?.id;
+      navigate(`/plan-trip?tripId=${targetId}`);
+    } catch (err) {
+      console.error('Error cloning trip:', err);
+      toast.error(err.response?.data?.detail || err.message || 'Failed to clone trip.', { id: 'clone-explore-toast' });
+    }
   };
 
   const filteredPackages = packages.filter((pkg) => {
@@ -412,7 +420,7 @@ export default function ExplorePage() {
                 return (
                   <article
                     key={pkg.id}
-                    onClick={() => navigate(targetLink)}
+                    onClick={() => navigate(targetLink, { state: { from: 'explore' } })}
                     className="group bg-white rounded-3xl border border-black/10 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col justify-between cursor-pointer"
                   >
                     {/* 400px Image Container with Film Matte Overlay */}
@@ -574,17 +582,31 @@ export default function ExplorePage() {
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(targetLink);
-                          }}
-                          className="w-full sm:w-auto bg-[#00261D] hover:bg-[#00261D]/90 text-white rounded-full px-6 py-3 text-xs uppercase font-bold tracking-widest flex items-center justify-center gap-2 group-hover:gap-3 transition-all cursor-pointer shadow-sm"
-                        >
-                          <span>View Trip</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          {isCommunity && !isOrganizer && pkg.allow_cloning !== false && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleCloneCommunityTrip(e, pkg.id)}
+                              className="w-full sm:w-auto bg-[#E7F7EE] hover:bg-[#D4F0E2] text-[#00261D] rounded-full px-4 py-3 text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
+                              title="Clone & customize this itinerary for your group"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-emerald-800" />
+                              <span>Clone & Edit</span>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(targetLink, { state: { from: 'explore' } });
+                            }}
+                            className="w-full sm:w-auto bg-[#00261D] hover:bg-[#00261D]/90 text-white rounded-full px-6 py-3 text-xs uppercase font-bold tracking-widest flex items-center justify-center gap-2 group-hover:gap-3 transition-all cursor-pointer shadow-sm"
+                          >
+                            <span>View Trip</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </article>
@@ -714,6 +736,7 @@ export default function ExplorePage() {
                   <Link
                     key={item.id}
                     to={targetLink}
+                    state={{ from: 'explore' }}
                     className="group flex items-center gap-3.5 p-2.5 rounded-2xl border border-black/10 bg-white hover:border-[#00261D] hover:shadow-md transition-all cursor-pointer block"
                   >
                     <div className="relative shrink-0">

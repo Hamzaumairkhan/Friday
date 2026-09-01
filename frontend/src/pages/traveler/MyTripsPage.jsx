@@ -26,6 +26,7 @@ import { tripsService } from '../../services/trips';
 import StatusBadge from '../../components/shared/StatusBadge';
 import EmptyState from '../../components/shared/EmptyState';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import { getDestinationFallback } from '../../utils/imageService';
 import toast from 'react-hot-toast';
 
 export default function MyTripsPage() {
@@ -46,22 +47,7 @@ export default function MyTripsPage() {
   const [isSharing, setIsSharing] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const getDestinationFallback = (dest) => {
-    const d = (dest || '').toLowerCase();
-    if (d.includes('pine') || d.includes('nathia') || d.includes('murree') || d.includes('galyat') || d.includes('ayubia') || d.includes('bhurban') || d.includes('patriata') || d.includes('dunga')) return '/images/stitch/stitch_asset_11.jpg';
-    if (d.includes('islamabad') || d.includes('margalla') || d.includes('faisal') || d.includes('rawalpindi')) return '/images/stitch/stitch_asset_4.jpg';
-    if (d.includes('lahore') || d.includes('badshahi') || d.includes('punjab') || d.includes('faisalabad') || d.includes('multan')) return '/images/stitch/stitch_asset_2.jpg';
-    if (d.includes('karachi') || d.includes('gwadar') || d.includes('ormara') || d.includes('kund') || d.includes('sindh')) return '/images/stitch/stitch_asset_5.jpg';
-    if (d.includes('swat') || d.includes('kalam') || d.includes('malam') || d.includes('mahudand')) return '/images/stitch/stitch_asset_10.jpg';
-    if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar') || d.includes('shogran')) return '/images/stitch/stitch_asset_9.jpg';
-    if (d.includes('kumrat') || d.includes('jahaz') || d.includes('katora')) return '/images/stitch/stitch_asset_8.jpg';
-    if (d.includes('fairy') || d.includes('nanga')) return '/images/stitch/stitch_asset_7.jpg';
-    if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila') || d.includes('khaplu')) return '/images/stitch/hero_mountains.jpg';
-    if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit') || d.includes('attabad')) return '/images/stitch/stitch_asset_1.jpg';
-    if (d.includes('neelum') || d.includes('kashmir') || d.includes('arang') || d.includes('sharda') || d.includes('ratti') || d.includes('taobat')) return '/images/stitch/stitch_asset_8.jpg';
-    if (d.includes('chitral') || d.includes('kalash') || d.includes('shandur')) return '/images/stitch/stitch_asset_14.jpg';
-    return '/images/stitch/hero_mountains.jpg';
-  };
+
 
   const fetchData = async () => {
     setLoading(true);
@@ -85,20 +71,17 @@ export default function MyTripsPage() {
 
             if (!alreadyExists) {
               allTrips.unshift({
-                id: localDraft.generatedTripId || 'local-draft',
-                is_local_draft: true,
-                title: `${localDraft.destination} (Draft)`,
-                destination: localDraft.destination,
+                id: 'local-draft-autosave',
+                title: localDraft.title || `Trip to ${localDraft.destination || 'Pakistan'} (Draft)`,
+                destination: localDraft.destination || 'Pakistan',
                 origin: localDraft.origin || 'Islamabad',
-                travelers: localDraft.travelers || 2,
-                duration: parseInt(localDraft.customDays) || 3,
-                start_date: localDraft.departureDate || '',
-                end_date: localDraft.returnDate || '',
-                budget_total: Number(localDraft.budgetAmount) || 10000,
+                duration: localDraft.duration_days || 3,
+                budget_total: localDraft.budget_total || 25000,
                 status: 'DRAFT',
-                is_public: false,
-                image_url: getDestinationFallback(localDraft.destination),
-                created_at: localDraft.savedAt || new Date().toISOString(),
+                image_url: getDestinationFallback(localDraft.destination, 'draft-local'),
+                start_date: localDraft.departure_date,
+                created_at: new Date().toISOString(),
+                is_local_draft: true,
               });
             }
           }
@@ -158,19 +141,32 @@ export default function MyTripsPage() {
           prev.map((t) => (t.id === shareTripModal.id ? { ...t, is_public: true } : t))
         );
       }
-      const shareUrl = `${window.location.origin}/trips/${shareTripModal.id}`;
-      await navigator.clipboard.writeText(shareUrl);
+      const link = `${window.location.origin}/trips/${shareTripModal.id}`;
+      await navigator.clipboard.writeText(link);
       setCopiedLink(true);
-      toast.success('Itinerary link copied to clipboard!');
+      toast.success('Public itinerary link copied to clipboard!');
       setTimeout(() => {
         setShareTripModal(null);
         setCopiedLink(false);
       }, 1500);
     } catch (err) {
-      console.error('Error sharing trip:', err);
-      toast.error('Failed to copy link.');
+      console.error('Failed to share trip:', err);
+      toast.error('Failed to update trip sharing.');
     } finally {
       setIsSharing(false);
+    }
+  };
+
+  const handleCloneTrip = async (tripId) => {
+    try {
+      toast.loading('Cloning itinerary to your private workspace...', { id: 'clone-my-trip' });
+      const res = await tripsService.cloneTrip(tripId);
+      toast.success(res.message || 'Trip cloned! Opening your custom draft...', { id: 'clone-my-trip' });
+      const targetId = res.id || res.trip?.id;
+      navigate(`/plan-trip?tripId=${targetId}`);
+    } catch (err) {
+      console.error('Error cloning trip:', err);
+      toast.error(err.response?.data?.detail || err.message || 'Failed to clone trip.', { id: 'clone-my-trip' });
     }
   };
 
@@ -216,12 +212,12 @@ export default function MyTripsPage() {
               <button
                 onClick={() => setActiveTab('ai_trips')}
                 className={`pb-4 text-sm font-semibold transition-all relative cursor-pointer ${activeTab === 'ai_trips'
-                    ? 'text-[#00261D]'
-                    : 'text-[#717975] hover:text-[#00261D]'
+                  ? 'text-[#00261D]'
+                  : 'text-[#717975] hover:text-[#00261D]'
                   }`}
                 style={{ fontFamily: 'Inter, sans-serif' }}
               >
-                AI Planned Trips ({publishedTrips.length})
+                Planned Trips ({publishedTrips.length})
                 {activeTab === 'ai_trips' && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00261D]" />
                 )}
@@ -230,12 +226,12 @@ export default function MyTripsPage() {
               <button
                 onClick={() => setActiveTab('drafts')}
                 className={`pb-4 text-sm font-semibold transition-all relative cursor-pointer flex items-center gap-1.5 ${activeTab === 'drafts'
-                    ? 'text-[#00261D]'
-                    : 'text-[#717975] hover:text-[#00261D]'
+                  ? 'text-[#00261D]'
+                  : 'text-[#717975] hover:text-[#00261D]'
                   }`}
                 style={{ fontFamily: 'Inter, sans-serif' }}
               >
-                <span>Drafts & In-Progress</span>
+                <span>Drafts</span>
                 <span
                   className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'drafts' ? 'bg-amber-100 text-amber-900' : 'bg-black/5 text-[#717975]'
                     }`}
@@ -250,12 +246,12 @@ export default function MyTripsPage() {
               <button
                 onClick={() => setActiveTab('bookings')}
                 className={`pb-4 text-sm font-semibold transition-all relative cursor-pointer ${activeTab === 'bookings'
-                    ? 'text-[#00261D]'
-                    : 'text-[#717975] hover:text-[#00261D]'
+                  ? 'text-[#00261D]'
+                  : 'text-[#717975] hover:text-[#00261D]'
                   }`}
                 style={{ fontFamily: 'Inter, sans-serif' }}
               >
-                Organizer Bookings ({bookings.length})
+                bookings ({bookings.length})
                 {activeTab === 'bookings' && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00261D]" />
                 )}
@@ -281,8 +277,9 @@ export default function MyTripsPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {publishedTrips.map((trip) => {
-                  const defaultThumb = getDestinationFallback(trip.destination);
-                  const cardImage = trip.image_url || defaultThumb;
+                  const defaultThumb = getDestinationFallback(trip.destination, trip.id || trip.title);
+                  const isStitch = !trip.image_url || trip.image_url.startsWith('/images/stitch/');
+                  const cardImage = isStitch ? defaultThumb : (trip.image_url || defaultThumb);
                   return (
                     <div
                       key={trip.id}
@@ -307,16 +304,26 @@ export default function MyTripsPage() {
                         <div className="absolute top-3 left-3">
                           <span
                             className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border ${trip.is_public
-                                ? 'bg-emerald-950/70 text-emerald-300 border-emerald-500/30'
-                                : 'bg-black/60 text-white/90 border-white/20'
+                              ? 'bg-emerald-950/70 text-emerald-300 border-emerald-500/30'
+                              : 'bg-black/60 text-white/90 border-white/20'
                               }`}
                           >
                             {trip.is_public ? 'Public Feed' : 'Private'}
                           </span>
                         </div>
 
-                        {/* Top Action Icons: Share & Delete */}
+                        {/* Top Action Icons: Clone, Share & Delete */}
                         <div className="absolute top-3 right-3 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCloneTrip(trip.id);
+                            }}
+                            className="w-8 h-8 rounded-full bg-black/50 hover:bg-[#00261D] backdrop-blur-md text-white flex items-center justify-center transition-colors cursor-pointer"
+                            title="Duplicate / Clone into New Draft"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -408,8 +415,9 @@ export default function MyTripsPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {draftTrips.map((trip) => {
-                  const defaultThumb = getDestinationFallback(trip.destination);
-                  const cardImage = trip.image_url || defaultThumb;
+                  const defaultThumb = getDestinationFallback(trip.destination, trip.id || trip.title);
+                  const isStitch = !trip.image_url || trip.image_url.startsWith('/images/stitch/');
+                  const cardImage = isStitch ? defaultThumb : (trip.image_url || defaultThumb);
                   return (
                     <div
                       key={trip.id}

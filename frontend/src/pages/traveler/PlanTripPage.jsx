@@ -49,6 +49,7 @@ import {
 import { tripsService } from '../../services/trips';
 import { packagesService } from '../../services/packages';
 import { useAuth } from '../../context/AuthContext';
+import { getDestinationFallback } from '../../utils/imageService';
 import toast from 'react-hot-toast';
 
 const renderWeatherIcon = (iconName, className = 'w-5 h-5') => {
@@ -102,7 +103,7 @@ export default function PlanTripPage() {
   // 'QUESTIONS' | 'GENERATING' | 'RESULT'
   const [stage, setStage] = useState('QUESTIONS');
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 8;
+  const totalSteps = 4;
 
   // ─── Question Form State ──────────────────────────────────────────────
   const [origin, setOrigin] = useState('Islamabad');
@@ -117,6 +118,20 @@ export default function PlanTripPage() {
   const [budgetFlexibility, setBudgetFlexibility] = useState('some_flexibility'); // 'strict' | 'some_flexibility' | 'flexible'
   const [accommodation, setAccommodation] = useState('budget'); // 'none' | 'budget' | 'comfortable' | 'premium' | 'friday_decide'
   const [selectedStyles, setSelectedStyles] = useState(['Nature', 'Scenic']);
+  const travelStylesOptions = [
+    { id: 'Nature', label: '🌿 Nature & Valleys' },
+    { id: 'Scenic', label: '📸 Scenic Photography' },
+    { id: 'Adventure', label: '🧗 Trekking & Adventure' },
+    { id: 'Heritage', label: '🕌 Culture & Heritage' },
+    { id: 'Relaxed', label: '☕ Relaxed & Family' },
+    { id: 'Food', label: '🍲 Local Cuisine' },
+  ];
+
+  const handleToggleTravelStyle = (styleId) => {
+    setSelectedStyles((prev) =>
+      prev.includes(styleId) ? prev.filter((s) => s !== styleId) : [...prev, styleId]
+    );
+  };
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [showMobileSummary, setShowMobileSummary] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
@@ -365,36 +380,6 @@ export default function PlanTripPage() {
         toast.error('Please select at least 1 traveler.');
         return false;
       }
-    } else if (stepNumber === 3) {
-      if (!departureDate) {
-        toast.error('Departure date is required before proceeding.');
-        return false;
-      }
-      if (durationOption === 'custom' && (!customDays || Number(customDays) < 1)) {
-        toast.error('Please enter a valid number of days.');
-        return false;
-      }
-    } else if (stepNumber === 4) {
-      if (!budgetAmount || Number(budgetAmount) <= 0) {
-        toast.error('Please specify a valid budget amount in PKR.');
-        return false;
-      }
-    } else if (stepNumber === 5) {
-      if (!accommodation) {
-        toast.error('Please select your preferred stay / accommodation.');
-        return false;
-      }
-    } else if (stepNumber === 6) {
-      if (!selectedStyles || selectedStyles.length === 0) {
-        toast.error('Please select at least 1 travel style.');
-        return false;
-      }
-    } else if (stepNumber === 7) {
-      if (!daysSchedule || daysSchedule.length === 0) {
-        toast.error('Please configure at least 1 day in your itinerary.');
-        return false;
-      }
-    } else if (stepNumber === 8) {
       if (!leadContact.name?.trim()) {
         toast.error('Lead traveler full name is required.');
         return false;
@@ -419,10 +404,28 @@ export default function PlanTripPage() {
             return false;
           }
           if (!c.phone?.trim()) {
-            toast.error(`Please enter phone number for Companion #${i + 2}.`);
+            toast.error(`Please enter phone / WhatsApp number for Companion #${i + 2}.`);
             return false;
           }
         }
+      }
+    } else if (stepNumber === 3) {
+      if (!departureDate) {
+        toast.error('Departure date is required before proceeding.');
+        return false;
+      }
+      if (durationOption === 'custom' && (!customDays || Number(customDays) < 1)) {
+        toast.error('Please enter a valid number of days.');
+        return false;
+      }
+    } else if (stepNumber === 4) {
+      if (!budgetAmount || Number(budgetAmount) <= 0) {
+        toast.error('Please specify a valid budget amount in PKR.');
+        return false;
+      }
+      if (!accommodation) {
+        toast.error('Please select your preferred stay / accommodation.');
+        return false;
       }
     }
     return true;
@@ -507,6 +510,7 @@ export default function PlanTripPage() {
   });
 
   const [companions, setCompanions] = useState([]);
+  const [inviteCompanions, setInviteCompanions] = useState(false);
 
   // Pre-fill Lead Traveler from Auth Context
   useEffect(() => {
@@ -537,6 +541,7 @@ export default function PlanTripPage() {
   const [generatedPlan, setGeneratedPlan] = useState(null);
   const [isPublic, setIsPublic] = useState(false);
   const [showMembersPublicly, setShowMembersPublicly] = useState(false);
+  const [allowCloning, setAllowCloning] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
 
@@ -937,6 +942,26 @@ export default function PlanTripPage() {
     }
   };
 
+  const handleOptimizeBudgetAndStay = () => {
+    let daysCount = 3;
+    if (durationOption === '1_day') daysCount = 1;
+    else if (durationOption === '2-3_days') daysCount = 3;
+    else if (durationOption === '4-6_days') daysCount = 5;
+    else if (durationOption === '7+_days') daysCount = 7;
+    else if (durationOption === 'custom') daysCount = Math.max(1, parseInt(customDays) || 3);
+    else if (departureDate && returnDate) {
+      const diff = Math.ceil((new Date(returnDate) - new Date(departureDate)) / (1000 * 60 * 60 * 24)) + 1;
+      if (diff > 0) daysCount = diff;
+    }
+
+    const recPerPerson = Math.max(12000, daysCount * 4500);
+    setBudgetType('per_person');
+    setBudgetAmount(String(recPerPerson));
+    setBudgetFlexibility('some_flexibility');
+    setAccommodation('comfortable');
+    toast.success(`Friday optimized budget (PKR ${recPerPerson.toLocaleString()}/person) and comfortable stay for ${daysCount} days!`);
+  };
+
   // ─── Submission Handler with Contact Validations ───────────────────────
   const handleGeneratePlan = async () => {
     if (!destination.trim()) {
@@ -951,29 +976,32 @@ export default function PlanTripPage() {
       return;
     }
 
-    if (!departureDate) {
-      toast.error('Departure date is required.');
-      setCurrentStep(3);
-      return;
-    }
-
     // Validate Lead Contact Phone & Email
-    if (!leadContact.phone.trim()) {
-      toast.error('Your contact phone number is compulsory for trip dispatch.');
-      setCurrentStep(8);
+    if (!leadContact.name.trim() || !leadContact.email.trim() || !leadContact.phone.trim()) {
+      toast.error('Your complete contact details (Name, Email, WhatsApp) are required.');
+      setCurrentStep(2);
       return;
     }
 
-    // Validate Companions (if any)
-    if (travelers > 1) {
+    // Validate Companions (Only if user opted into inviting co-travelers)
+    if (travelers > 1 && inviteCompanions) {
       for (let i = 0; i < companions.length; i++) {
         const c = companions[i];
         if (!c.name.trim() || !c.phone.trim() || !c.email.trim()) {
-          toast.error(`Please provide complete details (Name, Email, Phone) for Companion #${i + 2}.`);
-          setCurrentStep(8);
+          toast.error(`Please provide complete details (Name, Email, WhatsApp) for Companion #${i + 2}, or click "Skip Co-Travelers".`);
           return;
         }
       }
+    }
+
+    if (!departureDate) {
+      toast.error('Departure date is required.');
+      return;
+    }
+
+    if (!budgetAmount || Number(budgetAmount) <= 0) {
+      toast.error('Please enter a valid budget.');
+      return;
     }
 
     setStage('GENERATING');
@@ -1007,35 +1035,44 @@ export default function PlanTripPage() {
       slot_preferences: slotSelections,
       days_schedule: daysSchedule,
       lead_contact: leadContact,
-      companions: companions,
+      companions: (travelers > 1 && inviteCompanions) ? companions : [],
       show_members_publicly: showMembersPublicly,
+      allow_cloning: allowCloning,
     };
 
     try {
       const response = await tripsService.guidedPlan(payload);
       setGeneratedTripId(response.id);
       setGeneratedPlan(response);
+      const bTotal = Number(response.trip?.budget_total || response.budget_breakdown?.total || budgetAmount || 10000);
+      const bTrans = response.budget_breakdown?.transport !== undefined ? Number(response.budget_breakdown.transport) : Math.round(bTotal * 0.28);
+      const bAccom = response.budget_breakdown?.accommodation !== undefined ? Number(response.budget_breakdown.accommodation) : Math.round(bTotal * 0.35);
+      const bFood = response.budget_breakdown?.food !== undefined ? Number(response.budget_breakdown.food) : Math.round(bTotal * 0.20);
+      const bActs = response.budget_breakdown?.activities !== undefined ? Number(response.budget_breakdown.activities) : Math.round(bTotal * 0.10);
+      const bOther = response.budget_breakdown?.other !== undefined ? Number(response.budget_breakdown.other) : Math.max(0, bTotal - (bTrans + bAccom + bFood + bActs));
+
       setEditableTitle(response.trip?.title || `${destination.trim()}, at your pace`);
-      setEditableBudget(response.trip?.budget_total || response.budget_breakdown?.total || 10000);
+      setEditableBudget(bTotal);
       setEditOverviewForm({
         origin: response.trip?.origin || origin.trim() || 'Islamabad',
         destination: response.trip?.destination || destination.trim(),
         travelers: response.trip?.travelers || Number(travelers) || 2,
         start_date: response.trip?.start_date || departureDate || '',
         end_date: response.trip?.end_date || returnDate || '',
-        budget_total: response.trip?.budget_total || Number(budgetAmount) || 10000,
+        budget_total: bTotal,
       });
       setEditBreakdownForm({
-        transport: response.budget_breakdown?.transport || 3000,
-        accommodation: response.budget_breakdown?.accommodation || 4000,
-        food: response.budget_breakdown?.food || 2000,
-        activities: response.budget_breakdown?.activities || 1000,
-        other: response.budget_breakdown?.other || 1000,
+        transport: bTrans,
+        accommodation: bAccom,
+        food: bFood,
+        activities: bActs,
+        other: bOther,
       });
       setEditLeadContact(leadContact);
       setEditCompanions(companions);
       setIsPublic(Boolean(response.trip?.is_public));
       setShowMembersPublicly(Boolean(response.trip?.show_members_publicly));
+      setAllowCloning(response.trip?.allow_cloning !== undefined ? Boolean(response.trip.allow_cloning) : true);
       setStage('RESULT');
       toast.success('Your bespoke Friday itinerary has been generated!');
     } catch (err) {
@@ -1053,6 +1090,7 @@ export default function PlanTripPage() {
       const res = await tripsService.publishTrip(generatedTripId, {
         is_public: isPublic,
         show_members_publicly: showMembersPublicly,
+        allow_cloning: allowCloning,
       });
       setIsPublished(true);
       localStorage.removeItem('friday_trip_draft');
@@ -1481,28 +1519,11 @@ export default function PlanTripPage() {
     const itinerary = generatedPlan.itinerary || { days: [] };
     const budgetBreakdown = generatedPlan.budget_breakdown || {};
     const advisories = generatedPlan.advisories || [];
-    
-    const getDestinationFallback = (dest) => {
-      const d = (dest || '').toLowerCase();
-      if (d.includes('pine') || d.includes('nathia') || d.includes('murree') || d.includes('galyat') || d.includes('ayubia') || d.includes('bhurban') || d.includes('patriata') || d.includes('dunga')) return '/images/stitch/stitch_asset_11.jpg';
-      if (d.includes('islamabad') || d.includes('margalla') || d.includes('faisal') || d.includes('rawalpindi')) return '/images/stitch/stitch_asset_4.jpg';
-      if (d.includes('lahore') || d.includes('badshahi') || d.includes('punjab') || d.includes('faisalabad') || d.includes('multan')) return '/images/stitch/stitch_asset_2.jpg';
-      if (d.includes('karachi') || d.includes('gwadar') || d.includes('ormara') || d.includes('kund') || d.includes('sindh')) return '/images/stitch/stitch_asset_5.jpg';
-      if (d.includes('swat') || d.includes('kalam') || d.includes('malam') || d.includes('mahudand')) return '/images/stitch/stitch_asset_10.jpg';
-      if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar') || d.includes('shogran')) return '/images/stitch/stitch_asset_9.jpg';
-      if (d.includes('kumrat') || d.includes('jahaz') || d.includes('katora')) return '/images/stitch/stitch_asset_8.jpg';
-      if (d.includes('fairy') || d.includes('nanga')) return '/images/stitch/stitch_asset_7.jpg';
-      if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila') || d.includes('khaplu')) return '/images/stitch/hero_mountains.jpg';
-      if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit') || d.includes('attabad')) return '/images/stitch/stitch_asset_1.jpg';
-      if (d.includes('neelum') || d.includes('kashmir') || d.includes('arang') || d.includes('sharda') || d.includes('ratti') || d.includes('taobat')) return '/images/stitch/stitch_asset_8.jpg';
-      if (d.includes('chitral') || d.includes('kalash') || d.includes('shandur')) return '/images/stitch/stitch_asset_14.jpg';
-      return '/images/stitch/hero_mountains.jpg';
-    };
 
     const destName = trip.destination || destination;
     const rawImage = trip.image_url;
-    const isInvalidImage = !rawImage || rawImage.includes('instagram') || rawImage.includes('fbsbx') || rawImage.includes('panoramic_lake') || rawImage.includes('stitch_asset_6');
-    const heroImage = isInvalidImage ? getDestinationFallback(destName) : rawImage;
+    const isInvalidImage = !rawImage || rawImage.includes('instagram') || rawImage.includes('fbsbx') || rawImage.includes('panoramic_lake') || rawImage.includes('stitch_asset_6') || rawImage.startsWith('/images/stitch/');
+    const heroImage = isInvalidImage ? getDestinationFallback(destName, trip.id || destName) : rawImage;
 
     return (
       <div className="w-full flex-1 flex justify-between min-h-screen bg-[#F8FAF6]">
@@ -1913,148 +1934,162 @@ export default function PlanTripPage() {
             </div>
 
             {/* ─── Budget Breakdown Section with Inline Editor ────────── */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-black/10 shadow-xs space-y-6">
-              <div className="flex justify-between items-center flex-wrap gap-3">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#717975]">
-                    ESTIMATED ALLOCATION
-                  </span>
-                  <h3 className="text-2xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
-                    Budget Breakdown
-                  </h3>
-                </div>
+            {(() => {
+              const totalEst = Number(trip.budget_total || budgetAmount || 10000);
+              const bTrans = budgetBreakdown.transport !== undefined ? Number(budgetBreakdown.transport) : Math.round(totalEst * 0.28);
+              const bAccom = budgetBreakdown.accommodation !== undefined ? Number(budgetBreakdown.accommodation) : Math.round(totalEst * 0.35);
+              const bFood = budgetBreakdown.food !== undefined ? Number(budgetBreakdown.food) : Math.round(totalEst * 0.20);
+              const bActs = budgetBreakdown.activities !== undefined ? Number(budgetBreakdown.activities) : Math.round(totalEst * 0.10);
+              const bOther = budgetBreakdown.other !== undefined
+                ? Number(budgetBreakdown.other)
+                : Math.max(0, totalEst - (bTrans + bAccom + bFood + bActs));
+              const displaySum = bTrans + bAccom + bFood + bActs + bOther;
 
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingBreakdown(!isEditingBreakdown)}
-                    className="px-3.5 py-1.5 rounded-full border border-black/15 hover:border-[#00261D] bg-[#F8FAF6] text-xs font-bold text-[#00261D] flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                    <span>{isEditingBreakdown ? 'Close' : 'Edit Allocation'}</span>
-                  </button>
+              return (
+                <div className="bg-white rounded-3xl p-6 sm:p-8 border border-black/10 shadow-xs space-y-6">
+                  <div className="flex justify-between items-center flex-wrap gap-3">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#717975]">
+                        ESTIMATED ALLOCATION
+                      </span>
+                      <h3 className="text-2xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+                        Budget Breakdown
+                      </h3>
+                    </div>
 
-                  <div className="text-right">
-                    <span className="text-xs text-[#717975] block">Total Estimate</span>
-                    <span className="text-2xl font-normal text-[#420E00]" style={{ fontFamily: "'Instrument Serif', serif" }}>
-                      PKR {Number(trip.budget_total || budgetAmount).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {isEditingBreakdown ? (
-                <form onSubmit={handleSaveBreakdown} className="space-y-4 p-5 rounded-2xl bg-[#F8FAF6] border border-black/10 animate-in fade-in duration-200">
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-                    <div>
-                      <label className="text-[10px] font-bold text-[#717975] uppercase block mb-1">Transport (PKR)</label>
-                      <input
-                        type="number"
-                        value={editBreakdownForm.transport}
-                        onChange={(e) => setEditBreakdownForm((prev) => ({ ...prev, transport: Number(e.target.value) }))}
-                        className="w-full p-2.5 bg-white border border-black/10 rounded-xl font-bold text-[#00261D] focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-[#717975] uppercase block mb-1">Accommodation</label>
-                      <input
-                        type="number"
-                        value={editBreakdownForm.accommodation}
-                        onChange={(e) => setEditBreakdownForm((prev) => ({ ...prev, accommodation: Number(e.target.value) }))}
-                        className="w-full p-2.5 bg-white border border-black/10 rounded-xl font-bold text-[#00261D] focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-[#717975] uppercase block mb-1">Food</label>
-                      <input
-                        type="number"
-                        value={editBreakdownForm.food}
-                        onChange={(e) => setEditBreakdownForm((prev) => ({ ...prev, food: Number(e.target.value) }))}
-                        className="w-full p-2.5 bg-white border border-black/10 rounded-xl font-bold text-[#00261D] focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-[#717975] uppercase block mb-1">Activities</label>
-                      <input
-                        type="number"
-                        value={editBreakdownForm.activities}
-                        onChange={(e) => setEditBreakdownForm((prev) => ({ ...prev, activities: Number(e.target.value) }))}
-                        className="w-full p-2.5 bg-white border border-black/10 rounded-xl font-bold text-[#00261D] focus:outline-none"
-                      />
-                    </div>
-                    <div className="col-span-2 sm:col-span-1">
-                      <label className="text-[10px] font-bold text-[#717975] uppercase block mb-1">Contingency</label>
-                      <input
-                        type="number"
-                        value={editBreakdownForm.other}
-                        onChange={(e) => setEditBreakdownForm((prev) => ({ ...prev, other: Number(e.target.value) }))}
-                        className="w-full p-2.5 bg-white border border-black/10 rounded-xl font-bold text-[#00261D] focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-black/5 flex-wrap gap-2">
-                    <span className="text-xs font-bold text-[#00261D]">
-                      Calculated Total: PKR {(
-                        (Number(editBreakdownForm.transport) || 0) +
-                        (Number(editBreakdownForm.accommodation) || 0) +
-                        (Number(editBreakdownForm.food) || 0) +
-                        (Number(editBreakdownForm.activities) || 0) +
-                        (Number(editBreakdownForm.other) || 0)
-                      ).toLocaleString()}
-                    </span>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        onClick={() => setIsEditingBreakdown(false)}
-                        className="px-4 py-2 rounded-full border border-black/10 bg-white text-xs font-bold text-[#717975] hover:text-black cursor-pointer"
+                        onClick={() => setIsEditingBreakdown(!isEditingBreakdown)}
+                        className="px-3.5 py-1.5 rounded-full border border-black/15 hover:border-[#00261D] bg-[#F8FAF6] text-xs font-bold text-[#00261D] flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
                       >
-                        Cancel
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>{isEditingBreakdown ? 'Close' : 'Edit Allocation'}</span>
                       </button>
-                      <button
-                        type="submit"
-                        className="px-5 py-2 rounded-full bg-[#00261D] text-white text-xs font-bold cursor-pointer shadow-2xs"
-                      >
-                        Save Breakdown
-                      </button>
+
+                      <div className="text-right">
+                        <span className="text-xs text-[#717975] block">Total Estimate</span>
+                        <span className="text-2xl font-normal text-[#420E00]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+                          PKR {displaySum.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </form>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-                  <div className="p-3 rounded-2xl bg-[#F8FAF6] border border-black/5">
-                    <span className="text-[10px] text-[#717975] uppercase font-semibold block">Transport</span>
-                    <span className="text-sm font-bold text-[#00261D]">
-                      PKR {Number(budgetBreakdown.transport || 3000).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-[#F8FAF6] border border-black/5">
-                    <span className="text-[10px] text-[#717975] uppercase font-semibold block">Accommodation</span>
-                    <span className="text-sm font-bold text-[#00261D]">
-                      PKR {Number(budgetBreakdown.accommodation || 4000).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-[#F8FAF6] border border-black/5">
-                    <span className="text-[10px] text-[#717975] uppercase font-semibold block">Food</span>
-                    <span className="text-sm font-bold text-[#00261D]">
-                      PKR {Number(budgetBreakdown.food || 2000).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-[#F8FAF6] border border-black/5">
-                    <span className="text-[10px] text-[#717975] uppercase font-semibold block">Activities</span>
-                    <span className="text-sm font-bold text-[#00261D]">
-                      PKR {Number(budgetBreakdown.activities || 1000).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-[#F8FAF6] border border-black/5 col-span-2 sm:col-span-1">
-                    <span className="text-[10px] text-[#717975] uppercase font-semibold block">Contingency</span>
-                    <span className="text-sm font-bold text-[#00261D]">
-                      PKR {Number(budgetBreakdown.other || 1000).toLocaleString()}
-                    </span>
-                  </div>
+
+                  {isEditingBreakdown ? (
+                    <form onSubmit={handleSaveBreakdown} className="space-y-4 p-5 rounded-2xl bg-[#F8FAF6] border border-black/10 animate-in fade-in duration-200">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+                        <div>
+                          <label className="text-[10px] font-bold text-[#717975] uppercase block mb-1">Transport (PKR)</label>
+                          <input
+                            type="number"
+                            value={editBreakdownForm.transport}
+                            onChange={(e) => setEditBreakdownForm((prev) => ({ ...prev, transport: Number(e.target.value) }))}
+                            className="w-full p-2.5 bg-white border border-black/10 rounded-xl font-bold text-[#00261D] focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-[#717975] uppercase block mb-1">Accommodation</label>
+                          <input
+                            type="number"
+                            value={editBreakdownForm.accommodation}
+                            onChange={(e) => setEditBreakdownForm((prev) => ({ ...prev, accommodation: Number(e.target.value) }))}
+                            className="w-full p-2.5 bg-white border border-black/10 rounded-xl font-bold text-[#00261D] focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-[#717975] uppercase block mb-1">Food</label>
+                          <input
+                            type="number"
+                            value={editBreakdownForm.food}
+                            onChange={(e) => setEditBreakdownForm((prev) => ({ ...prev, food: Number(e.target.value) }))}
+                            className="w-full p-2.5 bg-white border border-black/10 rounded-xl font-bold text-[#00261D] focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-[#717975] uppercase block mb-1">Activities</label>
+                          <input
+                            type="number"
+                            value={editBreakdownForm.activities}
+                            onChange={(e) => setEditBreakdownForm((prev) => ({ ...prev, activities: Number(e.target.value) }))}
+                            className="w-full p-2.5 bg-white border border-black/10 rounded-xl font-bold text-[#00261D] focus:outline-none"
+                          />
+                        </div>
+                        <div className="col-span-2 sm:col-span-1">
+                          <label className="text-[10px] font-bold text-[#717975] uppercase block mb-1">Contingency</label>
+                          <input
+                            type="number"
+                            value={editBreakdownForm.other}
+                            onChange={(e) => setEditBreakdownForm((prev) => ({ ...prev, other: Number(e.target.value) }))}
+                            className="w-full p-2.5 bg-white border border-black/10 rounded-xl font-bold text-[#00261D] focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-black/5 flex-wrap gap-2">
+                        <span className="text-xs font-bold text-[#00261D]">
+                          Calculated Total: PKR {(
+                            (Number(editBreakdownForm.transport) || 0) +
+                            (Number(editBreakdownForm.accommodation) || 0) +
+                            (Number(editBreakdownForm.food) || 0) +
+                            (Number(editBreakdownForm.activities) || 0) +
+                            (Number(editBreakdownForm.other) || 0)
+                          ).toLocaleString()}
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingBreakdown(false)}
+                            className="px-4 py-2 rounded-full border border-black/10 bg-white text-xs font-bold text-[#717975] hover:text-black cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            className="px-5 py-2 rounded-full bg-[#00261D] text-white text-xs font-bold cursor-pointer shadow-2xs"
+                          >
+                            Save Breakdown
+                          </button>
+                        </div>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+                      <div className="p-3 rounded-2xl bg-[#F8FAF6] border border-black/5">
+                        <span className="text-[10px] text-[#717975] uppercase font-semibold block">Transport</span>
+                        <span className="text-sm font-bold text-[#00261D]">
+                          PKR {bTrans.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-[#F8FAF6] border border-black/5">
+                        <span className="text-[10px] text-[#717975] uppercase font-semibold block">Accommodation</span>
+                        <span className="text-sm font-bold text-[#00261D]">
+                          PKR {bAccom.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-[#F8FAF6] border border-black/5">
+                        <span className="text-[10px] text-[#717975] uppercase font-semibold block">Food</span>
+                        <span className="text-sm font-bold text-[#00261D]">
+                          PKR {bFood.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-[#F8FAF6] border border-black/5">
+                        <span className="text-[10px] text-[#717975] uppercase font-semibold block">Activities</span>
+                        <span className="text-sm font-bold text-[#00261D]">
+                          PKR {bActs.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-[#F8FAF6] border border-black/5 col-span-2 sm:col-span-1">
+                        <span className="text-[10px] text-[#717975] uppercase font-semibold block">Contingency</span>
+                        <span className="text-sm font-bold text-[#00261D]">
+                          PKR {bOther.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* ─── Day-by-Day Itinerary with Real Photo Timelines ──────── */}
             <div className="space-y-6">
@@ -2703,6 +2738,65 @@ export default function PlanTripPage() {
                 </div>
               )}
 
+              {/* Community Copying & Customization Permission */}
+              <div className="bg-[#F8FAF6] rounded-3xl p-6 sm:p-7 border border-black/10 shadow-2xs space-y-4">
+                <div className="flex items-center gap-2 border-b border-black/5 pb-2.5">
+                  <Copy className="w-4 h-4 text-[#00261D]" />
+                  <span className="text-xs font-bold text-[#00261D] uppercase tracking-wider">
+                    Community Itinerary Copying & Customization *
+                  </span>
+                </div>
+                <p className="text-xs text-[#717975] leading-relaxed">
+                  Allow other travelers across Pakistan to clone this itinerary into their private draft and customize it for their own group?
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setAllowCloning(true)}
+                    className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                      allowCloning
+                        ? 'bg-[#00261D] text-white border-[#00261D] shadow-xs'
+                        : 'bg-white text-[#414845] border-black/10 hover:border-black/30'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${allowCloning ? 'bg-white/20 text-[#BBEAD5]' : 'bg-black/5 text-[#00261D]'}`}>
+                      <Check className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-xs font-bold flex items-center gap-1.5">
+                        <span>Yes, Allow Copying</span>
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${allowCloning ? 'bg-[#BBEAD5] text-[#00261D]' : 'bg-black/5 text-[#717975]'}`}>Recommended</span>
+                      </div>
+                      <p className={`text-[11px] leading-relaxed ${allowCloning ? 'text-white/80' : 'text-[#717975]'}`}>
+                        Fellow travelers can clone this itinerary, customize their own companion details, dates, and budget.
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAllowCloning(false)}
+                    className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                      !allowCloning
+                        ? 'bg-[#00261D] text-white border-[#00261D] shadow-xs'
+                        : 'bg-white text-[#414845] border border-black/10 hover:border-black/30'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${!allowCloning ? 'bg-white/20 text-[#BBEAD5]' : 'bg-black/5 text-[#00261D]'}`}>
+                      <X className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-xs font-bold">
+                        <span>No, Prevent Copying</span>
+                      </div>
+                      <p className={`text-[11px] leading-relaxed ${!allowCloning ? 'text-white/80' : 'text-[#717975]'}`}>
+                        Keep this itinerary view-only. Other travelers cannot copy or fork it to their workspace.
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               <div className="pt-2">
                 <button
                   onClick={handlePublishTrip}
@@ -2724,1368 +2818,670 @@ export default function PlanTripPage() {
     );
   }
 
-  // ─── RENDER: GUIDED TRIP QUESTIONS FLOW (PHASE A) ──────────────────────
+  // ─── RENDER: GUIDED TRIP QUESTIONS FLOW (UNIFIED SINGLE-PAGE FORM) ─────
   return (
-    <div className="w-full flex-1 flex justify-between min-h-screen bg-[#F8FAF6]">
-      <main className="flex-1 flex flex-col justify-between px-4 sm:px-8 lg:px-12 py-8 max-w-3xl mx-auto w-full">
-        {/* Step Indicator Header */}
-        <header className="flex items-center justify-between pb-6 border-b border-black/5">
-          <div className="flex items-center gap-3">
+    <div className="w-full flex-1 flex justify-between min-h-screen bg-[#F8FAF6] relative">
+      <main className="flex-1 flex flex-col justify-between px-4 sm:px-8 lg:px-12 py-8 max-w-3xl mx-auto w-full space-y-10 xl:mr-80">
+        {/* Form Header with Quick Jump Anchor Pills */}
+        <header className="space-y-4 pb-6 border-b border-black/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowExitModal(true)}
+                className="p-2 rounded-full hover:bg-slate-100 text-[#717975] hover:text-black transition-colors cursor-pointer"
+                title="Exit Planning"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#717975] block">
+                  AI TRIP PLANNER • SINGLE PAGE WORKSPACE
+                </span>
+                <h1
+                  className="text-3xl sm:text-4xl font-normal text-[#00261D]"
+                  style={{ fontFamily: "'Instrument Serif', serif" }}
+                >
+                  Plan Your Bespoke Journey
+                </h1>
+              </div>
+            </div>
+
             <button
               type="button"
-              onClick={() => {
-                if (currentStep > 1) {
-                  setCurrentStep(currentStep - 1);
-                } else {
-                  setShowExitModal(true);
-                }
-              }}
-              className="p-2 rounded-full hover:bg-slate-100 text-[#717975] hover:text-black transition-colors cursor-pointer"
-              title={currentStep > 1 ? 'Previous Step' : 'Exit Planning'}
+              onClick={() => setShowMobileSummary(true)}
+              className="flex xl:hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#00261D]/20 text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all text-xs font-bold shadow-2xs cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <Compass className="w-3.5 h-3.5" />
+              <span>Summary</span>
             </button>
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#717975]" style={{ fontFamily: 'Inter, sans-serif' }}>
-              STEP {currentStep} OF {totalSteps}
-            </span>
           </div>
 
-          <div className="flex gap-1.5">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((st) => (
-              <button
-                key={st}
-                type="button"
-                onClick={() => handleStepClick(st)}
-                className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                  st === currentStep
-                    ? 'w-8 bg-[#00261D]'
-                    : st < currentStep
-                    ? 'w-4 bg-[#00261D]/50 hover:bg-[#00261D]'
-                    : 'w-4 bg-black/10'
-                }`}
-                title={`Step ${st}`}
-              />
+          {/* Quick Jump Bar */}
+          <div className="flex flex-wrap gap-2 pt-1">
+            {[
+              { id: 'section-destination', label: '1. Destination & Route' },
+              { id: 'section-dates-group', label: '2. Dates & Group' },
+              { id: 'section-budget-stay', label: '3. Budget & Stay' },
+              { id: 'section-preferences', label: '4. Itinerary Notes' },
+            ].map((sec, idx) => (
+              <a
+                key={idx}
+                href={`#${sec.id}`}
+                className="px-3.5 py-1.5 rounded-full bg-white border border-black/10 hover:border-[#00261D] text-xs font-semibold text-[#00261D] hover:bg-[#E7F7EE] transition-all shadow-2xs flex items-center gap-1.5"
+              >
+                <span>{sec.label}</span>
+              </a>
             ))}
           </div>
         </header>
 
-        {/* Dynamic Step Content */}
-        <div className="flex-1 py-8 flex flex-col justify-center">
-          {/* ─── STEP 1: ORIGIN & DESTINATION ────────────────────────── */}
-          {currentStep === 1 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900">
-                    Destination & Route
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowMobileSummary(true)}
-                    className="flex xl:hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#00261D]/20 text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all text-xs font-bold shadow-2xs cursor-pointer"
-                  >
-                    <Compass className="w-3.5 h-3.5" />
-                    <span>Trip Summary</span>
-                  </button>
-                </div>
-                <h1
-                  className="text-4xl sm:text-5xl font-normal text-[#00261D] leading-tight"
-                  style={{ fontFamily: "'Instrument Serif', serif" }}
-                >
+        {/* Dynamic Continuous Form Sections */}
+        <div className="space-y-12">
+          {/* ─── SECTION 1: ORIGIN & DESTINATION ────────────────────────── */}
+          <section id="section-destination" className="space-y-6 pt-2 scroll-mt-6">
+            <div className="space-y-2 border-b border-black/5 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900">
+                  Section 1
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
                   Where is your journey taking you?
-                </h1>
-                <p className="text-xs sm:text-sm text-[#717975]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  Choose your departure city and destination — Friday will research live routes & photography.
-                </p>
+                </h2>
               </div>
+              <p className="text-xs text-[#717975]">
+                Choose your departure city and destination — Friday searches live destination photography and route intelligence.
+              </p>
+            </div>
 
-              {/* Origin / Starting City Input */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[#00261D] uppercase tracking-wider flex items-center gap-1.5">
-                  <Navigation className="w-3.5 h-3.5 text-[#00261D]" />
-                  <span>Starting From (Departure City)</span>
-                </label>
+            {/* Origin City Input */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[#00261D] uppercase tracking-wider flex items-center gap-1.5">
+                <Navigation className="w-3.5 h-3.5 text-[#00261D]" />
+                <span>Starting From (Departure City)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Where are you starting from? (e.g. Lahore, Karachi, Islamabad...)"
+                value={origin}
+                onChange={(e) => setOrigin(e.target.value)}
+                className="w-full bg-white border border-black/10 rounded-2xl py-3.5 px-5 text-sm font-semibold text-[#191C1A] placeholder-[#717975] focus:outline-none focus:border-[#00261D] shadow-2xs transition-all"
+              />
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {originSuggestions.map((cit, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setOrigin(cit)}
+                    className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
+                      origin.toLowerCase() === cit.toLowerCase()
+                        ? 'bg-[#00261D] text-white shadow-2xs'
+                        : 'bg-white text-[#717975] border border-black/10 hover:border-black/30'
+                    }`}
+                  >
+                    {cit}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Destination Input */}
+            <div className="space-y-2 pt-2">
+              <label className="text-xs font-bold text-[#00261D] uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-[#00261D]" />
+                <span>Destination (Where to go) *</span>
+              </label>
+              <div className="relative">
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717975]" />
                 <input
                   type="text"
-                  placeholder="Where are you starting from? (e.g. Lahore, Karachi, Islamabad...)"
-                  value={origin}
-                  onChange={(e) => setOrigin(e.target.value)}
-                  className="w-full bg-white border border-black/10 rounded-2xl py-4 px-5 text-base font-semibold text-[#191C1A] placeholder-[#717975] focus:outline-none focus:border-[#00261D] shadow-xs transition-all"
-                  style={{ fontFamily: 'Inter, sans-serif' }}
+                  placeholder="Enter any valley, lake, or city (e.g. Hunza, Skardu, Swat, Rawalpindi, Murree...)"
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                  className="w-full bg-white border border-black/10 rounded-2xl py-4 pl-12 pr-6 text-base text-[#191C1A] placeholder-[#717975] focus:outline-none focus:border-[#00261D] shadow-xs transition-all font-semibold"
                 />
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {originSuggestions.map((cit, idx) => (
+              </div>
+
+              {/* Famous Tourism Cities */}
+              <div className="space-y-2 pt-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#717975] flex items-center gap-1.5">
+                  <Landmark className="w-3.5 h-3.5 text-[#00261D]" />
+                  <span>POPULAR PAKISTANI DESTINATIONS</span>
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {famousTourismCities.map((city, idx) => (
                     <button
                       key={idx}
                       type="button"
-                      onClick={() => setOrigin(cit)}
-                      className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
-                        origin.toLowerCase() === cit.toLowerCase()
-                          ? 'bg-[#00261D] text-white shadow-2xs'
-                          : 'bg-white text-[#717975] border border-black/10 hover:border-black/30'
+                      onClick={() => setDestination(city)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wider transition-all cursor-pointer ${
+                        destination.toLowerCase() === city.toLowerCase()
+                          ? 'bg-[#00261D] text-white shadow-xs scale-105'
+                          : 'bg-white text-[#414845] border border-black/10 hover:border-[#00261D] hover:bg-[#F8FAF6]'
                       }`}
                     >
-                      {cit}
+                      {city}
                     </button>
                   ))}
                 </div>
               </div>
+            </div>
+          </section>
 
-              {/* Destination Input */}
-              <div className="space-y-2 pt-2">
-                <label className="text-xs font-bold text-[#00261D] uppercase tracking-wider flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#00261D]" />
-                  <span>Destination (Where to go)</span>
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-[#717975]" />
+          {/* ─── SECTION 2: DATES, DURATION & TRAVELERS (WITH CO-TRAVELER SKIP) ─ */}
+          <section id="section-dates-group" className="space-y-6 pt-6 border-t border-black/5 scroll-mt-6">
+            <div className="space-y-2 border-b border-black/5 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900">
+                  Section 2
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+                  When & Who is traveling?
+                </h2>
+              </div>
+              <p className="text-xs text-[#717975]">
+                Configure departure dates, group size, and co-traveler contact briefings.
+              </p>
+            </div>
+
+            {/* Dates Card */}
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-black/10 shadow-xs space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                <div className="flex flex-col justify-between">
+                  <label className="text-xs font-bold text-[#00261D] uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                    <Calendar className="w-4 h-4 text-[#00261D]" />
+                    <span>Departure Date *</span>
+                  </label>
                   <input
-                    type="text"
-                    placeholder="Enter any valley, lake, or city (e.g. Pine Valley, Swat, Hunza...)"
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && destination.trim()) setCurrentStep(2);
+                    type="date"
+                    min={(() => {
+                      const d = new Date();
+                      const yyyy = d.getFullYear();
+                      const mm = String(d.getMonth() + 1).padStart(2, '0');
+                      const dd = String(d.getDate()).padStart(2, '0');
+                      return `${yyyy}-${mm}-${dd}`;
+                    })()}
+                    value={departureDate}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setDepartureDate(val);
+                      updateDatesFromDuration(val, durationOption, customDays);
                     }}
-                    autoFocus
-                    className="w-full bg-white border border-black/10 rounded-2xl py-5 pl-15 pr-6 text-lg text-[#191C1A] placeholder-[#717975] focus:outline-none focus:border-[#00261D] shadow-xs transition-all"
-                    style={{ fontFamily: 'Inter, sans-serif' }}
+                    className="w-full p-3.5 text-xs sm:text-sm bg-[#F8FAF6] border border-[#00261D] rounded-2xl focus:outline-none font-semibold text-[#00261D]"
+                    required
                   />
-                </div>
-
-                {/* Famous Tourism Cities */}
-                <div className="space-y-2 pt-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#717975] flex items-center gap-1.5">
-                    <Landmark className="w-3.5 h-3.5 text-[#00261D]" />
-                    <span>FAMOUS TOURISM CITIES & HERITAGE HUBS</span>
+                  <span className="text-[10px] text-[#717975] mt-1 block">
+                    Select today or any upcoming departure date
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    {famousTourismCities.map((city, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setDestination(city)}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wider transition-all cursor-pointer ${
-                          destination === city
-                            ? 'bg-[#00261D] text-white shadow-xs scale-105'
-                            : 'bg-white text-[#414845] border border-black/10 hover:border-[#00261D]'
-                        }`}
-                      >
-                        {city}
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
-                {/* Iconic Valleys & Mountain Retreats */}
-                <div className="space-y-2 pt-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#717975] flex items-center gap-1.5">
-                    <Mountain className="w-3.5 h-3.5 text-[#00261D]" />
-                    <span>ICONIC VALLEYS & MOUNTAIN SIGHTS</span>
+                <div className="flex flex-col justify-between">
+                  <label className="text-xs font-bold text-[#717975] uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                    <Lock className="w-3.5 h-3.5 text-[#717975]" />
+                    <span>Return Date</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={returnDate}
+                    readOnly
+                    disabled
+                    className="w-full p-3.5 text-xs sm:text-sm bg-[#F3F4F0] border border-black/10 rounded-2xl cursor-not-allowed font-semibold text-[#555E59]"
+                  />
+                  <span className="text-[10px] text-[#717975] mt-1 block">
+                    Calculated automatically from total trip days
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    {popularValleys.map((place, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setDestination(place)}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wider transition-all cursor-pointer ${
-                          destination === place
-                            ? 'bg-[#00261D] text-white shadow-xs scale-105'
-                            : 'bg-white text-[#414845] border border-black/10 hover:border-[#00261D]'
-                        }`}
-                      >
-                        {place}
-                      </button>
-                    ))}
-                  </div>
+                </div>
+              </div>
+
+              {/* Trip Duration Stepper */}
+              <div className="p-4 rounded-2xl bg-[#F8FAF6] border border-[#00261D]/15 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-[#00261D] uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[#00261D]" />
+                    <span>Trip Duration (Total Days)</span>
+                  </label>
                 </div>
 
-                {/* ─── LET FRIDAY RECOMMEND SECTION ────────────────────────── */}
-                <div className="pt-4 border-t border-black/5 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center bg-white border border-[#00261D] rounded-xl p-1 shadow-2xs">
                     <button
                       type="button"
-                      onClick={handleLetFridayRecommend}
-                      className={`px-4 py-2.5 rounded-2xl flex items-center gap-2 text-xs font-bold transition-all cursor-pointer shadow-xs ${
-                        isFridayRecommending
-                          ? 'bg-[#00261D] text-white'
-                          : 'bg-emerald-50 text-emerald-950 border border-emerald-200 hover:bg-emerald-100/80 hover:scale-101'
-                      }`}
+                      onClick={() => {
+                        const current = parseInt(customDays) || 2;
+                        const nextVal = Math.max(1, current - 1);
+                        setCustomDays(String(nextVal));
+                        setDurationOption('custom');
+                        updateDatesFromDuration(departureDate, 'custom', String(nextVal));
+                      }}
+                      className="w-9 h-9 rounded-lg hover:bg-slate-100 text-[#00261D] font-bold text-lg flex items-center justify-center transition-colors cursor-pointer"
                     >
-                      <Sparkles className="w-4 h-4 text-[#BBEAD5]" />
-                      <span>Let Friday Recommend (AI Curates 4 Top Destinations)</span>
+                      <Minus className="w-4 h-4" />
                     </button>
 
-                    {isFridayRecommending && (
-                      <button
-                        type="button"
-                        onClick={handleLetFridayRecommend}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold text-[#00261D] bg-white border border-black/10 hover:bg-[#F8FAF6] transition-all cursor-pointer shrink-0"
-                        title="Shuffle & pick 4 different destinations"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5 text-[#00261D]" />
-                        <span>Shuffle / 4 New Places</span>
-                      </button>
-                    )}
+                    <input
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={customDays}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomDays(val);
+                        setDurationOption('custom');
+                        updateDatesFromDuration(departureDate, 'custom', val);
+                      }}
+                      className="w-14 p-1 text-center font-bold text-base text-[#00261D] focus:outline-none"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = parseInt(customDays) || 2;
+                        const nextVal = Math.min(60, current + 1);
+                        setCustomDays(String(nextVal));
+                        setDurationOption('custom');
+                        updateDatesFromDuration(departureDate, 'custom', String(nextVal));
+                      }}
+                      className="w-9 h-9 rounded-lg bg-[#00261D] hover:bg-[#00261D]/90 text-white font-bold text-lg flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
                   </div>
 
-                  {isFridayRecommending && recommendedDestinations.length > 0 && (
-                    <div className="space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <div className="flex items-center justify-between text-[11px] text-[#717975] px-1">
-                        <span className="font-semibold text-[#00261D]">Friday AI Recommends 4 Handpicked Destinations:</span>
-                        <span>Tap any destination card to choose</span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {recommendedDestinations.map((place, pIdx) => {
-                          const isSelected = destination.toLowerCase() === place.title.toLowerCase();
-
-                          return (
-                            <div
-                              key={pIdx}
-                              onClick={() => setDestination(place.title)}
-                              className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 shadow-2xs hover:scale-101 ${
-                                isSelected
-                                  ? 'bg-[#00261D] text-white border-[#00261D] shadow-xs'
-                                  : 'bg-white text-[#191C1A] border-black/10 hover:border-[#00261D]'
-                              }`}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <span
-                                    className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full block w-fit mb-1 truncate ${
-                                      isSelected
-                                        ? 'bg-white/20 text-[#BBEAD5]'
-                                        : 'bg-[#F8FAF6] text-[#00261D] border border-black/5'
-                                    }`}
-                                  >
-                                    {place.category}
-                                  </span>
-                                  <h4 className="text-sm font-bold truncate">{place.title}</h4>
-                                </div>
-                                {isSelected ? (
-                                  <div className="w-6 h-6 rounded-full bg-[#BBEAD5] text-[#00261D] flex items-center justify-center shrink-0 shadow-2xs">
-                                    <Check className="w-3.5 h-3.5" />
-                                  </div>
-                                ) : (
-                                  <span className="text-[10px] font-bold text-[#717975] uppercase px-2 py-0.5 rounded-full bg-[#F8FAF6] shrink-0">
-                                    {place.tag}
-                                  </span>
-                                )}
-                              </div>
-                              <p
-                                className={`text-[11px] leading-relaxed line-clamp-2 ${
-                                  isSelected ? 'text-white/80' : 'text-[#717975]'
-                                }`}
-                              >
-                                {place.subtitle}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {[1, 2, 3, 5, 7].map((addAmount) => (
+                      <button
+                        key={addAmount}
+                        type="button"
+                        onClick={() => {
+                          const current = parseInt(customDays) || 2;
+                          const nextVal = Math.min(60, current + addAmount);
+                          setCustomDays(String(nextVal));
+                          setDurationOption('custom');
+                          updateDatesFromDuration(departureDate, 'custom', String(nextVal));
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl bg-white border border-black/10 hover:border-[#00261D] text-xs font-bold text-[#00261D] hover:bg-slate-50 transition-all cursor-pointer shadow-2xs flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3 text-[#00261D]" />
+                        <span>{addAmount} Day{addAmount > 1 ? 's' : ''}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          )}
 
-          {/* ─── STEP 2: TRAVELERS (Numeric Stepper 1-10) ─────────────── */}
-          {currentStep === 2 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900">
-                    Group Size
+            {/* Travelers Counter Card */}
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-black/10 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/5 pb-4">
+                <div>
+                  <span className="text-xs font-bold text-[#00261D] uppercase tracking-wider block">
+                    Group Size (Travelers Count)
                   </span>
+                  <span className="text-xs text-[#717975]">
+                    Select how many companions are joining this expedition.
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4 self-center sm:self-auto">
                   <button
                     type="button"
-                    onClick={() => setShowMobileSummary(true)}
-                    className="flex xl:hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#00261D]/20 text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all text-xs font-bold shadow-2xs cursor-pointer"
-                  >
-                    <Compass className="w-3.5 h-3.5" />
-                    <span>Trip Summary</span>
-                  </button>
-                </div>
-                <h1
-                  className="text-4xl sm:text-5xl font-normal text-[#00261D] leading-tight"
-                  style={{ fontFamily: "'Instrument Serif', serif" }}
-                >
-                  How many people are going?
-                </h1>
-                <p className="text-xs sm:text-sm text-[#717975]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  Including you. Private trips can include up to 10 travelers.
-                </p>
-              </div>
-
-              <div className="bg-white rounded-3xl p-8 sm:p-12 border border-black/10 shadow-xs flex flex-col items-center justify-center space-y-6">
-                <div className="flex items-center gap-8">
-                  <button
                     onClick={() => setTravelers((prev) => Math.max(1, prev - 1))}
                     disabled={travelers <= 1}
-                    className="w-14 h-14 rounded-full border border-black/15 bg-[#F8FAF6] hover:bg-[#E7E9E5] text-[#00261D] disabled:opacity-30 flex items-center justify-center transition-all cursor-pointer"
+                    className="w-10 h-10 rounded-full border border-black/15 bg-[#F8FAF6] hover:bg-[#E7E9E5] text-[#00261D] disabled:opacity-30 flex items-center justify-center transition-all cursor-pointer"
                   >
-                    <Minus className="w-6 h-6" />
+                    <Minus className="w-4 h-4" />
                   </button>
 
-                  <div className="text-center min-w-[140px]">
-                    <span
-                      className="text-6xl sm:text-7xl font-normal text-[#00261D] block"
-                      style={{ fontFamily: "'Instrument Serif', serif" }}
-                    >
+                  <div className="text-center min-w-[90px]">
+                    <span className="text-4xl font-normal text-[#00261D] block" style={{ fontFamily: "'Instrument Serif', serif" }}>
                       {travelers}
                     </span>
-                    <span className="text-xs uppercase font-bold tracking-wider text-[#717975]">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#717975]">
                       {travelers === 1 ? 'Solo Traveler' : 'Travelers'}
                     </span>
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => setTravelers((prev) => Math.min(10, prev + 1))}
                     disabled={travelers >= 10}
-                    className="w-14 h-14 rounded-full border border-black/15 bg-[#F8FAF6] hover:bg-[#E7E9E5] text-[#00261D] disabled:opacity-30 flex items-center justify-center transition-all cursor-pointer"
+                    className="w-10 h-10 rounded-full border border-black/15 bg-[#F8FAF6] hover:bg-[#E7E9E5] text-[#00261D] disabled:opacity-30 flex items-center justify-center transition-all cursor-pointer"
                   >
-                    <Plus className="w-6 h-6" />
+                    <Plus className="w-4 h-4" />
                   </button>
                 </div>
-
-                <p className="text-[11px] text-[#717975]">
-                  {travelers >= 10
-                    ? 'Maximum group limit reached for private AI-planned expeditions.'
-                    : 'Personal AI itineraries are optimized for groups of 1 to 10.'}
-                </p>
               </div>
-            </div>
-          )}
 
-          {/* ─── STEP 3: TRIP DURATION & COMPULSORY DATES ─────────────── */}
-          {currentStep === 3 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              {/* Lead Traveler Card */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900">
-                    Required Calendar Dates
+                  <span className="text-xs font-bold text-[#00261D] uppercase tracking-wider flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-[#00261D]" />
+                    <span>Lead Traveler Contact (You)</span>
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowMobileSummary(true)}
-                    className="flex xl:hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#00261D]/20 text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all text-xs font-bold shadow-2xs cursor-pointer"
-                  >
-                    <Compass className="w-3.5 h-3.5" />
-                    <span>Trip Summary</span>
-                  </button>
-                </div>
-                <h1
-                  className="text-4xl sm:text-5xl font-normal text-[#00261D] leading-tight"
-                  style={{ fontFamily: "'Instrument Serif', serif" }}
-                >
-                  When are you departing?
-                </h1>
-                <p className="text-xs sm:text-sm text-[#717975]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  Departure date is compulsory. Friday's weather intelligence will proactively check route conditions for safety.
-                </p>
-              </div>
-
-              {/* Compulsory Departure & Return Dates Card */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-black/10 shadow-xs space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-                  <div className="flex flex-col justify-between">
-                    <div className="flex items-center justify-between h-6 mb-2">
-                      <label className="text-xs font-bold text-[#00261D] uppercase tracking-wider flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4 text-[#00261D]" />
-                        <span>Departure Date *</span>
-                      </label>
-                      <span className="text-[10px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full uppercase">
-                        Compulsory
-                      </span>
-                    </div>
-                    <input
-                      type="date"
-                      min={(() => {
-                        const d = new Date();
-                        const yyyy = d.getFullYear();
-                        const mm = String(d.getMonth() + 1).padStart(2, '0');
-                        const dd = String(d.getDate()).padStart(2, '0');
-                        return `${yyyy}-${mm}-${dd}`;
-                      })()}
-                      value={departureDate}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setDepartureDate(val);
-                        updateDatesFromDuration(val, durationOption, customDays);
-                      }}
-                      className="w-full p-4 text-xs sm:text-sm bg-[#F8FAF6] border border-[#00261D] rounded-2xl focus:outline-none font-semibold text-[#00261D] h-[52px]"
-                      required
-                    />
-                    <span className="text-[10px] text-[#717975] mt-1.5 block min-h-[16px]">
-                      Select today or any upcoming departure date
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col justify-between">
-                    <div className="flex items-center justify-between h-6 mb-2">
-                      <label className="text-xs font-bold text-[#717975] uppercase tracking-wider flex items-center gap-1.5">
-                        <Lock className="w-3.5 h-3.5 text-[#717975]" />
-                        <span>Return Date</span>
-                      </label>
-                      <span className="text-[10px] text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded-full uppercase">
-                        Auto Calculated
-                      </span>
-                    </div>
-                    <input
-                      type="date"
-                      value={returnDate}
-                      readOnly
-                      disabled
-                      className="w-full p-4 text-xs sm:text-sm bg-[#F3F4F0] border border-black/10 rounded-2xl cursor-not-allowed font-semibold text-[#555E59] h-[52px]"
-                    />
-                    <span className="text-[10px] text-[#717975] mt-1.5 block min-h-[16px]">
-                      Calculated automatically from your selected trip days
-                    </span>
-                  </div>
-                </div>
-
-                {/* Interactive Trip Length Stepper & Adjustment Controls */}
-                <div className="space-y-3 pt-2 border-t border-black/5">
-                  <div className="p-4 sm:p-5 rounded-2xl bg-[#F8FAF6] border border-[#00261D]/15 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-[#00261D] uppercase tracking-wider flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-[#00261D]" />
-                        <span>Trip Duration (Total Days)</span>
-                      </label>
-                      <span className="text-[11px] text-emerald-800 font-semibold bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                        Auto-calculates Return Date
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      {/* Stepper with Minus / Number / Plus buttons */}
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center bg-white border border-[#00261D] rounded-xl p-1 shadow-2xs">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const current = parseInt(customDays) || 2;
-                              const nextVal = Math.max(1, current - 1);
-                              setCustomDays(String(nextVal));
-                              setDurationOption('custom');
-                              updateDatesFromDuration(departureDate, 'custom', String(nextVal));
-                            }}
-                            className="w-10 h-10 rounded-lg hover:bg-slate-100 text-[#00261D] font-bold text-lg flex items-center justify-center transition-colors cursor-pointer"
-                            title="Decrease 1 Day"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-
-                          <input
-                            type="number"
-                            min="1"
-                            max="60"
-                            value={customDays}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setCustomDays(val);
-                              setDurationOption('custom');
-                              updateDatesFromDuration(departureDate, 'custom', val);
-                            }}
-                            placeholder="2"
-                            className="w-16 p-2 text-center font-bold text-lg text-[#00261D] focus:outline-none"
-                          />
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const current = parseInt(customDays) || 2;
-                              const nextVal = Math.min(60, current + 1);
-                              setCustomDays(String(nextVal));
-                              setDurationOption('custom');
-                              updateDatesFromDuration(departureDate, 'custom', String(nextVal));
-                            }}
-                            className="w-10 h-10 rounded-lg bg-[#00261D] hover:bg-[#00261D]/90 text-white font-bold text-lg flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
-                            title="Add 1 Day"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-
-                        <span className="text-sm font-bold text-[#00261D]">
-                          {parseInt(customDays) === 1 ? 'Day Expedition' : 'Days Expedition'}
-                        </span>
-                      </div>
-
-                      {/* Quick Add / Jump Buttons */}
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {[1, 2, 3, 5, 7].map((addAmount) => (
-                          <button
-                            key={addAmount}
-                            type="button"
-                            onClick={() => {
-                              const current = parseInt(customDays) || 2;
-                              const nextVal = Math.min(60, current + addAmount);
-                              setCustomDays(String(nextVal));
-                              setDurationOption('custom');
-                              updateDatesFromDuration(departureDate, 'custom', String(nextVal));
-                            }}
-                            className="px-3 py-2 rounded-xl bg-white border border-black/10 hover:border-[#00261D] text-xs font-bold text-[#00261D] hover:bg-slate-50 transition-all cursor-pointer shadow-2xs flex items-center gap-1"
-                          >
-                            <Plus className="w-3 h-3 text-[#00261D]" />
-                            <span>{addAmount} Day{addAmount > 1 ? 's' : ''}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ─── Real-Time Weather Forecast & Day Predictions ─── */}
-                {isCheckingWeather ? (
-                  <div className="p-4 rounded-2xl bg-white border border-black/10 flex items-center gap-3 text-xs text-[#717975] shadow-2xs">
-                    <Loader2 className="w-4 h-4 animate-spin text-[#00261D]" />
-                    <span>Fetching live OpenWeather forecast for {destination || 'your destination'} across {customDays || 3} days...</span>
-                  </div>
-                ) : weatherAdvisory ? (
-                  <div className="space-y-3 pt-2">
-                    <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#00261D]/15 shadow-2xs space-y-4">
-                      {/* Weather Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-black/5 pb-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-full bg-[#E7F7EE] flex items-center justify-center">
-                            {renderWeatherIcon(weatherAdvisory.icon || 'sun', 'w-5 h-5')}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-[#00261D] uppercase tracking-wider">
-                                {weatherAdvisory.destination || destination || 'Destination'} Weather Forecast
-                              </span>
-                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                Live OpenWeather
-                              </span>
-                            </div>
-                            <span className="text-[11px] text-[#717975] flex items-center gap-2 mt-0.5">
-                              <span>Current: <strong>{weatherAdvisory.current_temp}°C {weatherAdvisory.condition}</strong></span>
-                              <span>•</span>
-                              <span>Humidity: {weatherAdvisory.humidity}%</span>
-                              <span>•</span>
-                              <span>Wind: {weatherAdvisory.wind_speed_kmh} km/h</span>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Day-by-Day Forecast Predictions Grid */}
-                      {Array.isArray(weatherAdvisory.forecast) && weatherAdvisory.forecast.length > 0 && (
-                        <div>
-                          <span className="text-[11px] uppercase font-bold text-[#717975] tracking-wider block mb-2.5">
-                            Day-by-Day Weather Prediction ({weatherAdvisory.forecast.length} Day{weatherAdvisory.forecast.length > 1 ? 's' : ''})
-                          </span>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
-                            {weatherAdvisory.forecast.map((fDay) => (
-                              <div
-                                key={fDay.day_number}
-                                className="p-3 rounded-xl bg-[#F8FAF6] border border-black/10 hover:border-[#00261D]/40 transition-all flex flex-col justify-between space-y-2 shadow-2xs"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[11px] font-bold text-[#00261D]">{fDay.day_label}</span>
-                                  {renderWeatherIcon(fDay.icon || 'sun', 'w-4 h-4')}
-                                </div>
-                                <div>
-                                  <span className="text-[10px] font-medium text-[#717975] block truncate">
-                                    {fDay.formatted_date}
-                                  </span>
-                                  <span className="text-sm font-bold text-[#00261D] block mt-0.5">
-                                    {fDay.temp}°C
-                                  </span>
-                                  <span className="text-[10px] font-bold text-[#555E59] block truncate">
-                                    {fDay.condition}
-                                  </span>
-                                </div>
-                                <div className="text-[9px] text-[#717975] pt-1 border-t border-black/5 flex items-center justify-between">
-                                  <span>{fDay.temp_max}° / {fDay.temp_min}°</span>
-                                  {fDay.pop > 0 && <span>💧 {fDay.pop}%</span>}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Advisory Warning Banner */}
-                      {weatherAdvisory.status === 'WARNING' && (
-                        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-2 text-xs">
-                          <div className="flex items-center gap-1.5 font-bold text-amber-950 uppercase tracking-wider text-[11px]">
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
-                            <span>{weatherAdvisory.title || 'Seasonal Travel Advisory'}</span>
-                          </div>
-                          <p className="text-amber-900 text-[11px] leading-relaxed">{weatherAdvisory.message}</p>
-                          {weatherAdvisory.suggested_dates && (
-                            <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-amber-200/60">
-                              <span className="text-[11px] text-amber-950 font-medium">
-                                Suggested Optimal Window: <strong>{weatherAdvisory.suggested_dates.label}</strong>
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setDepartureDate(weatherAdvisory.suggested_dates.start_date);
-                                  setReturnDate(weatherAdvisory.suggested_dates.end_date);
-                                  toast.success('Optimal weather travel dates applied!');
-                                }}
-                                className="px-3 py-1.5 bg-amber-800 hover:bg-amber-900 text-white rounded-full text-[10px] font-bold transition-all cursor-pointer shadow-2xs self-start sm:self-auto"
-                              >
-                                Apply Recommended Dates
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Optimal Status Note */}
-                      {weatherAdvisory.status === 'OPTIMAL' && (
-                        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2 text-xs text-emerald-900">
-                          <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                          <span className="text-[11px]">{weatherAdvisory.message || 'Favorable travel conditions forecasted across your expedition.'}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          )}
-
-          {/* ─── STEP 4: BUDGET (Default PKR 10,000) ──────────────────── */}
-          {currentStep === 4 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900">
-                    Budget Estimation
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowMobileSummary(true)}
-                    className="flex xl:hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#00261D]/20 text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all text-xs font-bold shadow-2xs cursor-pointer"
-                  >
-                    <Compass className="w-3.5 h-3.5" />
-                    <span>Trip Summary</span>
-                  </button>
-                </div>
-                <h1
-                  className="text-4xl sm:text-5xl font-normal text-[#00261D] leading-tight"
-                  style={{ fontFamily: "'Instrument Serif', serif" }}
-                >
-                  What's your budget?
-                </h1>
-                <p className="text-xs sm:text-sm text-[#717975]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  A rough estimate is enough. Default is set to PKR 10,000.
-                </p>
-              </div>
-
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-black/10 shadow-xs space-y-6">
-                <div className="flex items-center justify-between border-b border-black/5 pb-4">
-                  <span className="text-xs font-bold text-[#717975] uppercase tracking-wider">
-                    CALCULATE BUDGET AS
-                  </span>
-                  <div className="flex gap-1.5 p-1 rounded-full bg-[#F3F4F0] text-xs font-bold">
-                    <button
-                      onClick={() => setBudgetType('total_trip')}
-                      className={`px-4 py-1.5 rounded-full transition-all cursor-pointer ${
-                        budgetType === 'total_trip' ? 'bg-[#00261D] text-white shadow-2xs' : 'text-[#717975]'
-                      }`}
-                    >
-                      Total Trip
-                    </button>
-                    <button
-                      onClick={() => setBudgetType('per_person')}
-                      className={`px-4 py-1.5 rounded-full transition-all cursor-pointer ${
-                        budgetType === 'per_person' ? 'bg-[#00261D] text-white shadow-2xs' : 'text-[#717975]'
-                      }`}
-                    >
-                      Per Person
-                    </button>
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xl font-bold text-[#717975]">
-                    PKR
-                  </span>
-                  <input
-                    type="number"
-                    value={budgetAmount}
-                    onChange={(e) => setBudgetAmount(e.target.value)}
-                    placeholder="10000"
-                    className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl py-4 pl-20 pr-6 text-2xl font-bold text-[#00261D] focus:outline-none focus:border-[#00261D]"
-                    style={{ fontFamily: 'Inter, sans-serif' }}
-                  />
-                </div>
-
-                <div className="space-y-2 pt-2">
-                  <span className="text-[11px] font-bold text-[#717975] uppercase tracking-wider block">
-                    HOW FLEXIBLE IS YOUR BUDGET?
-                  </span>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {[
-                      { id: 'strict', label: 'Strict' },
-                      { id: 'some_flexibility', label: 'Some Flexibility' },
-                      { id: 'flexible', label: 'Flexible' },
-                    ].map((flex) => (
-                      <button
-                        key={flex.id}
-                        onClick={() => setBudgetFlexibility(flex.id)}
-                        className={`py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                          budgetFlexibility === flex.id
-                            ? 'bg-[#00261D] text-white'
-                            : 'bg-[#F8FAF6] text-[#414845] border border-black/10 hover:bg-[#E7E9E5]'
-                        }`}
-                      >
-                        {flex.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ─── STEP 5: ACCOMMODATION ────────────────────────────────── */}
-          {currentStep === 5 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900">
-                    Accommodation Tier
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowMobileSummary(true)}
-                    className="flex xl:hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#00261D]/20 text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all text-xs font-bold shadow-2xs cursor-pointer"
-                  >
-                    <Compass className="w-3.5 h-3.5" />
-                    <span>Trip Summary</span>
-                  </button>
-                </div>
-                <h1
-                  className="text-4xl sm:text-5xl font-normal text-[#00261D] leading-tight"
-                  style={{ fontFamily: "'Instrument Serif', serif" }}
-                >
-                  Where would you like to stay?
-                </h1>
-                <p className="text-xs sm:text-sm text-[#717975]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  We'll only include accommodation when your trip needs it.
-                </p>
-                {durationOption === '1_day' && (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-900 text-xs font-semibold">
-                    <Info className="w-3.5 h-3.5" />
-                    <span>You may not need accommodation for a 1-day trip.</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {[
-                  { id: 'none', title: 'No stay needed', sub: 'Day trip or independent lodging', minBudget: 0 },
-                  { id: 'budget', title: 'Budget stay', sub: 'Clean local guest houses & hostels (PKR 3K–6K/night)', minBudget: 0 },
-                  { id: 'comfortable', title: 'Comfortable hotel', sub: 'Standard 3-star quality lodges & hotels (PKR 8K–16K/night)', minBudget: 40000 },
-                  { id: 'premium', title: 'Premium retreat', sub: 'Luxury mountain resorts like Serena / Luxus (PKR 30K–70K+/night)', minBudget: 80000 },
-                  { id: 'friday_decide', title: 'Let Friday decide', sub: 'Optimized automatically for your destination and budget', minBudget: 0 },
-                ].map((acc) => {
-                  const currentTotalBudget = budgetType === 'per_person'
-                    ? (Number(budgetAmount) || 10000) * Number(travelers || 1)
-                    : (Number(budgetAmount) || 10000);
-                  const isLocked = currentTotalBudget < acc.minBudget;
-                  const isSelected = accommodation === acc.id;
-
-                  return (
-                    <div
-                      key={acc.id}
-                      onClick={() => {
-                        if (isLocked) {
-                          toast.error(`${acc.title} in Northern Pakistan requires an estimated total trip budget of at least PKR ${acc.minBudget.toLocaleString()}.`);
-                          return;
-                        }
-                        setAccommodation(acc.id);
-                      }}
-                      className={`p-5 rounded-2xl border transition-all relative space-y-1.5 ${
-                        isLocked
-                          ? 'opacity-45 bg-slate-100/80 border-slate-200 cursor-not-allowed'
-                          : isSelected
-                          ? 'bg-[#00261D] text-white border-[#00261D] shadow-xs cursor-pointer'
-                          : 'bg-white text-[#191C1A] border-black/10 hover:border-[#00261D] cursor-pointer'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold block" style={{ fontFamily: 'Inter, sans-serif' }}>
-                          {acc.title}
-                        </span>
-                        {isLocked && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
-                            Min. PKR {acc.minBudget / 1000}k
-                          </span>
-                        )}
-                        {isSelected && !isLocked && (
-                          <Check className="w-4 h-4 text-[#BBEAD5]" />
-                        )}
-                      </div>
-                      <p className={`text-xs ${isSelected && !isLocked ? 'text-white/80' : 'text-[#717975]'}`}>
-                        {acc.sub}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Market Insight Note */}
-              <div className="p-4 rounded-2xl bg-[#F8FAF6] border border-black/10 flex items-start gap-2.5 text-xs text-[#555E59]">
-                <Info className="w-4 h-4 text-[#00261D] shrink-0 mt-0.5" />
-                <span>
-                  <strong>Market Pricing Intelligence:</strong> In Pakistan's northern tourism corridors (Hunza, Skardu, Swat, Naran), standard 3-star comfortable hotels average PKR 8K–16K/night (requiring PKR 40K+ trip budget), while luxury heritage resorts like Serena, Luxus Attabad, and PC average PKR 30K–70K+/night (requiring PKR 80K+ trip budget).
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* ─── STEP 6: TRAVEL STYLE & PREFERENCES ──────────────────── */}
-          {currentStep === 6 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900">
-                    Travel Vibe & Style
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowMobileSummary(true)}
-                    className="flex xl:hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#00261D]/20 text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all text-xs font-bold shadow-2xs cursor-pointer"
-                  >
-                    <Compass className="w-3.5 h-3.5" />
-                    <span>Trip Summary</span>
-                  </button>
-                </div>
-                <h1
-                  className="text-4xl sm:text-5xl font-normal text-[#00261D] leading-tight"
-                  style={{ fontFamily: "'Instrument Serif', serif" }}
-                >
-                  What kind of trip are you looking for?
-                </h1>
-                <p className="text-xs sm:text-sm text-[#717975]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  Choose as many as feel right.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2.5">
-                {styleOptions.map((style, idx) => {
-                  const isSelected = selectedStyles.includes(style);
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => toggleStyle(style)}
-                      className={`px-5 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-                        isSelected
-                          ? 'bg-[#00261D] text-white shadow-xs scale-105'
-                          : 'bg-white text-[#414845] border border-black/10 hover:border-[#00261D]'
-                      }`}
-                    >
-                      {isSelected && <Check className="w-3.5 h-3.5" />}
-                      <span>{style}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <label className="text-xs font-bold text-[#00261D] uppercase tracking-wider block">
-                  Anything else? (Optional)
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Tell Friday what kind of experience you're hoping for (e.g., 'I prefer quiet places and less crowded locations')..."
-                  value={additionalNotes}
-                  onChange={(e) => setAdditionalNotes(e.target.value)}
-                  className="w-full p-4 text-xs sm:text-sm bg-white border border-black/10 rounded-2xl focus:outline-none focus:border-[#00261D] shadow-xs"
-                  style={{ fontFamily: 'Inter, sans-serif' }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* ─── STEP 7: DAY-BY-DAY STRUCTURED ITINERARY BUILDER (LIKE ORGANIZER) ─── */}
-          {currentStep === 7 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#BBEAD5]/40 text-[#00261D] inline-block">
-                    Interactive Itinerary Customizer
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowMobileSummary(true)}
-                    className="flex xl:hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#00261D]/20 text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all text-xs font-bold shadow-2xs cursor-pointer"
-                  >
-                    <Compass className="w-3.5 h-3.5" />
-                    <span>Trip Summary</span>
-                  </button>
-                </div>
-
-                <h1
-                  className="text-4xl sm:text-5xl font-normal text-[#00261D] leading-tight"
-                  style={{ fontFamily: "'Instrument Serif', serif" }}
-                >
-                  Expedition Itinerary & Day-by-Day Schedule
-                </h1>
-                <p className="text-xs sm:text-sm text-[#717975]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  Structure hourly sightseeing stops, scenic route transits, meal breaks, and hotel check-ins for {destination || 'your destination'}.
-                </p>
-              </div>
-
-              {/* AI Copilot & Add Day Action Bar */}
-              <div className="p-4 sm:p-5 rounded-3xl bg-[#E7F7EE] border border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-[#00261D] flex items-center justify-center text-white">
-                      <Compass className="w-3.5 h-3.5 text-[#BBEAD5]" />
-                    </div>
-                    <h4 className="text-sm font-bold text-[#00261D]">
-                      Friday AI Itinerary Copilot
-                    </h4>
-                  </div>
-                  <p className="text-xs text-[#00261D]/80">
-                    Auto-generate realistic mountain routes, photography viewpoints, food breaks, and timings for{' '}
-                    <strong>{destination || 'your destination'}</strong>.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
-                  <button
-                    type="button"
-                    disabled={isGeneratingItinerary}
-                    onClick={handleAutoGenerateItinerary}
-                    className="px-4 py-2.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {isGeneratingItinerary ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#BBEAD5]" />
-                    ) : (
-                      <Sparkles className="w-3.5 h-3.5 text-[#BBEAD5]" />
-                    )}
-                    <span>{isGeneratingItinerary ? 'Crafting Itinerary...' : '✨ Auto-Generate with AI'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addDayManually}
-                    className="px-3.5 py-2 rounded-full bg-white hover:bg-black/5 text-[#00261D] border border-black/15 text-xs font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1 whitespace-nowrap"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-[#00261D]" />
-                    <span>Add Day</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Days List (Structured Timeline Layout) */}
-              <div className="space-y-8">
-                {daysSchedule.map((day, dIdx) => (
-                  <div
-                    key={dIdx}
-                    className="p-6 sm:p-7 rounded-3xl bg-white border border-black/10 shadow-2xs space-y-6 relative transition-all hover:border-[#00261D]/30"
-                  >
-                    {/* Day Header Bar */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-black/10">
-                      <div className="flex items-center gap-3 flex-1">
-                        <span className="px-3.5 py-1.5 rounded-full bg-[#00261D] text-white text-xs font-extrabold tracking-wider uppercase shrink-0 shadow-2xs">
-                          DAY {String(day.day_number || dIdx + 1).padStart(2, '0')}
-                        </span>
-                        <input
-                          value={day.title}
-                          onChange={(e) => updateDayField(dIdx, 'title', e.target.value)}
-                          placeholder={
-                            dIdx === 0
-                              ? "e.g. Day 1: Departure, Scenic Transit & Arrival at Destination"
-                              : dIdx === daysSchedule.length - 1
-                              ? `e.g. Day ${dIdx + 1}: Final Sightseeing, Local Souvenirs & Return Journey`
-                              : `e.g. Day ${dIdx + 1}: Guided Sightseeing, Iconic Landmarks & Cultural Exploration`
-                          }
-                          className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-2.5 text-sm sm:text-base font-bold text-[#00261D] focus:outline-none focus:border-[#00261D] transition-colors"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-2 self-end md:self-auto">
-                        <span className="text-[11px] font-semibold text-[#717975] bg-[#F8FAF6] px-3 py-1.5 rounded-full border border-black/5">
-                          {day.activities?.length || 0} Stop{(day.activities?.length || 0) === 1 ? '' : 's'}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => addActivityToDay(dIdx)}
-                          className="px-3.5 py-1.5 rounded-full bg-[#E7F7EE] hover:bg-[#D4F0E2] text-[#00261D] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                          title="Add new stop to this day"
-                        >
-                          <Plus className="w-3.5 h-3.5 text-emerald-800" />
-                          <span>Add Stop</span>
-                        </button>
-
-                        {daysSchedule.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeDay(dIdx)}
-                            className="p-1.5 rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-                            title="Delete this entire day"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Day Highlights & Summary Box */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#717975] flex items-center gap-1.5">
-                        <Compass className="w-3.5 h-3.5 text-[#00261D]" />
-                        <span>Day Overview & Scenic Highlights</span>
-                      </label>
-                      <input
-                        value={day.summary || ''}
-                        onChange={(e) => updateDayField(dIdx, 'summary', e.target.value)}
-                        placeholder="e.g. Outline the day's route, transit points, key attractions, and evening stay/meals..."
-                        className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-2.5 text-xs text-[#00261D] focus:outline-none focus:border-[#00261D]"
-                      />
-                    </div>
-
-                    {/* Connected Timeline for Hourly Activities & Sightseeing */}
-                    <div className="space-y-3 pt-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider text-[#00261D] flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-[#00261D]" />
-                          <span>Chronological Stops & Schedule</span>
-                        </span>
-                      </div>
-
-                      {/* Vertical Connecting Line Timeline */}
-                      <div className="relative pl-6 sm:pl-8 space-y-4 border-l-2 border-dashed border-[#00261D]/25 ml-3 sm:ml-4 py-2">
-                        {(day.activities || []).map((act, aIdx) => (
-                          <div key={aIdx} className="relative group">
-                            {/* Timeline Number Circle */}
-                            <div className="absolute -left-[31px] sm:-left-[39px] top-3.5 w-6 h-6 rounded-full bg-white border-2 border-[#00261D] text-[#00261D] flex items-center justify-center text-[10px] font-extrabold shadow-2xs">
-                              {aIdx + 1}
-                            </div>
-
-                            {/* Stop Card */}
-                            <div className="p-4 sm:p-5 rounded-2xl bg-[#F8FAF6] hover:bg-white border border-black/10 hover:border-[#00261D]/40 transition-all space-y-3 shadow-2xs">
-                              {/* Row 1: Time, Title, Location, Delete */}
-                              <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
-                                {/* Time Input */}
-                                <div className="md:col-span-3">
-                                  <label className="block text-[9px] uppercase font-bold text-[#717975] mb-1 flex items-center gap-1">
-                                    <Clock className="w-3 h-3 text-[#717975]" />
-                                    <span>Time Slot</span>
-                                  </label>
-                                  <input
-                                    value={act.start_time ? `${act.start_time} - ${act.end_time || ''}` : act.time || ''}
-                                    onChange={(e) => updateActivityField(dIdx, aIdx, 'time', e.target.value)}
-                                    placeholder="e.g. 08:30 AM - 12:30 PM"
-                                    className="w-full bg-white border border-black/10 rounded-xl px-3 py-2 text-xs text-[#00261D] font-mono font-bold focus:outline-none focus:border-[#00261D]"
-                                  />
-                                </div>
-
-                                {/* Activity Title */}
-                                <div className="md:col-span-5">
-                                  <label className="block text-[9px] uppercase font-bold text-[#717975] mb-1">
-                                    Activity / Stop Name
-                                  </label>
-                                  <input
-                                    value={act.title || ''}
-                                    onChange={(e) => updateActivityField(dIdx, aIdx, 'title', e.target.value)}
-                                    placeholder={
-                                      aIdx === 0
-                                        ? "e.g. Morning Departure / Highway Rest Stop & Tea"
-                                        : aIdx === 1
-                                        ? "e.g. Arrival, Hotel Check-in & Freshen Up"
-                                        : "e.g. Guided Exploration / Sunset Viewpoint / Dinner"
-                                    }
-                                    className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-[#00261D] focus:outline-none focus:border-[#00261D]"
-                                  />
-                                </div>
-
-                                {/* Location */}
-                                <div className="md:col-span-3">
-                                  <label className="block text-[9px] uppercase font-bold text-[#717975] mb-1 flex items-center gap-1">
-                                    <MapPin className="w-3 h-3 text-[#717975]" />
-                                    <span>Location / Landmark</span>
-                                  </label>
-                                  <input
-                                    value={act.location || ''}
-                                    onChange={(e) => updateActivityField(dIdx, aIdx, 'location', e.target.value)}
-                                    placeholder="e.g. Departure Hub / Landmark / Hotel / Local Bazaar"
-                                    className="w-full bg-white border border-black/10 rounded-xl px-3 py-2 text-xs text-[#00261D] focus:outline-none focus:border-[#00261D]"
-                                  />
-                                </div>
-
-                                {/* Delete Stop Button */}
-                                <div className="md:col-span-1 flex items-end justify-end">
-                                  <button
-                                    type="button"
-                                    onClick={() => removeActivityFromDay(dIdx, aIdx)}
-                                    className="p-2 rounded-xl text-red-400 hover:text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
-                                    title="Remove this stop"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Row 2: Description / Experience Notes */}
-                              <div>
-                                <label className="block text-[9px] uppercase font-bold text-[#717975] mb-1">
-                                  Experience Details & Traveler Notes
-                                </label>
-                                <input
-                                  value={act.description || ''}
-                                  onChange={(e) => updateActivityField(dIdx, aIdx, 'description', e.target.value)}
-                                  placeholder="e.g. Outline key experiences, photography viewpoint tips, meal arrangements, ticket inclusions, or luggage instructions..."
-                                  className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2 text-xs text-[#414845] focus:outline-none focus:border-[#00261D]"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-
-                        {/* Add Stop Button at end of timeline */}
-                        <button
-                          type="button"
-                          onClick={() => addActivityToDay(dIdx)}
-                          className="w-full py-3 rounded-2xl border-2 border-dashed border-black/15 hover:border-[#00261D] bg-white hover:bg-emerald-50/50 text-[#00261D] text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
-                        >
-                          <Plus className="w-4 h-4 text-[#00261D]" />
-                          <span>Add Next Stop to Day {day.day_number || dIdx + 1}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Bottom Wide Add Day CTA */}
-                <button
-                  type="button"
-                  onClick={addDayManually}
-                  className="w-full py-4 rounded-3xl border-2 border-dashed border-[#00261D]/30 hover:border-[#00261D] bg-[#E7F7EE]/60 hover:bg-[#E7F7EE] text-[#00261D] font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs hover:scale-[1.005] active:scale-[0.995]"
-                >
-                  <Plus className="w-5 h-5 text-emerald-800" />
-                  <span>+ Add Day {daysSchedule.length + 1} to Itinerary</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ─── STEP 8: COMPULSORY TRAVELER CONTACT VERIFICATION ────── */}
-          {currentStep === 8 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900">
-                    Mandatory Contact Verification
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowMobileSummary(true)}
-                    className="flex xl:hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#00261D]/20 text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all text-xs font-bold shadow-2xs cursor-pointer"
-                  >
-                    <Compass className="w-3.5 h-3.5" />
-                    <span>Trip Summary</span>
-                  </button>
-                </div>
-                <h1
-                  className="text-4xl sm:text-5xl font-normal text-[#00261D] leading-tight"
-                  style={{ fontFamily: "'Instrument Serif', serif" }}
-                >
-                  Who is traveling?
-                </h1>
-                <p className="text-xs sm:text-sm text-[#717975]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  Please provide verified contact details so Friday's AI layer can dispatch WhatsApp briefings & email itineraries upon publishing.
-                </p>
-              </div>
-
-              {/* Lead Traveler Card (You) */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-black/10 shadow-xs space-y-4">
-                <div className="flex items-center gap-2 border-b border-black/5 pb-3">
-                  <User className="w-4 h-4 text-[#00261D]" />
-                  <span className="text-xs font-bold text-[#00261D] uppercase tracking-wider">
-                    Lead Traveler (You)
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    Lead Organizer
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#717975] block mb-1">
-                      Full Name
-                    </label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#717975] block mb-1">Full Name *</label>
                     <input
                       type="text"
                       value={leadContact.name}
                       onChange={(e) => setLeadContact({ ...leadContact, name: e.target.value })}
                       placeholder="Your Full Name"
-                      className="w-full p-3 text-xs bg-[#F8FAF6] border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D] font-semibold text-[#00261D]"
+                      className="w-full p-2.5 text-xs bg-[#F8FAF6] border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D] font-semibold text-[#00261D]"
                     />
                   </div>
-
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#717975] block mb-1">
-                      Email Address
-                    </label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#717975] block mb-1">Email Address *</label>
                     <input
                       type="email"
                       value={leadContact.email}
                       onChange={(e) => setLeadContact({ ...leadContact, email: e.target.value })}
-                      placeholder="your.email@domain.com"
-                      className="w-full p-3 text-xs bg-[#F8FAF6] border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D] font-semibold text-[#00261D]"
+                      placeholder="your.email@gmail.com"
+                      className="w-full p-2.5 text-xs bg-[#F8FAF6] border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D] font-semibold text-[#00261D]"
                     />
                   </div>
-
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#420E00] block mb-1">
-                      Phone / WhatsApp Number *
-                    </label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#420E00] block mb-1">Phone / WhatsApp *</label>
                     <input
                       type="tel"
                       value={leadContact.phone}
                       onChange={(e) => setLeadContact({ ...leadContact, phone: e.target.value })}
                       placeholder="+92 300 1234567"
-                      className="w-full p-3 text-xs bg-[#F8FAF6] border border-[#00261D] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#00261D] font-bold text-[#00261D]"
+                      className="w-full p-2.5 text-xs bg-[#F8FAF6] border border-[#00261D] rounded-xl focus:outline-none font-bold text-[#00261D]"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Companions Details (If travelers > 1) */}
+              {/* ─── CO-TRAVELERS INVITE OR SKIP TOGGLE ─────────────────────── */}
               {travelers > 1 && (
-                <div className="space-y-4">
+                <div className="pt-4 border-t border-black/5 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#00261D] uppercase tracking-wider">
-                      Co-Travelers & Companions ({companions.length})
+                    <span className="text-xs font-bold text-[#00261D] uppercase tracking-wider flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-emerald-800" />
+                      <span>Co-Travelers ({travelers - 1} Companion{travelers - 1 > 1 ? 's' : ''})</span>
                     </span>
-                    <span className="text-[11px] text-[#717975]">All fields required</span>
                   </div>
 
-                  {companions.map((comp, cIdx) => (
-                    <div
-                      key={cIdx}
-                      className="bg-white rounded-3xl p-6 border border-black/10 shadow-xs space-y-4"
+                  <p className="text-xs text-[#717975]">
+                    Do you want to invite your friends/co-travelers and send automated WhatsApp & Email itinerary briefings?
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setInviteCompanions(false)}
+                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                        !inviteCompanions
+                          ? 'bg-[#00261D] text-white border-[#00261D] shadow-xs'
+                          : 'bg-[#F8FAF6] text-[#00261D] border-black/10 hover:border-black/20'
+                      }`}
                     >
-                      <div className="flex items-center gap-2 border-b border-black/5 pb-2">
-                        <Users className="w-4 h-4 text-[#717975]" />
-                        <span className="text-xs font-bold text-[#00261D]">
-                          Companion #{cIdx + 2} Details
-                        </span>
-                      </div>
+                      <span className="text-xs font-bold block mb-0.5">Skip Co-Travelers for Now</span>
+                      <span className={`text-[11px] block ${!inviteCompanions ? 'text-white/80' : 'text-[#717975]'}`}>
+                        I'll manage the details myself. No companion contact info needed right now.
+                      </span>
+                    </button>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <label className="text-[10px] font-bold uppercase text-[#717975] block mb-1">Full Name *</label>
-                          <input
-                            type="text"
-                            placeholder="Companion Name"
-                            value={comp.name}
-                            onChange={(e) => {
-                              const next = [...companions];
-                              next[cIdx].name = e.target.value;
-                              setCompanions(next);
-                            }}
-                            className="w-full p-2.5 text-xs bg-[#F8FAF6] border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D]"
-                          />
-                        </div>
+                    <button
+                      type="button"
+                      onClick={() => setInviteCompanions(true)}
+                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                        inviteCompanions
+                          ? 'bg-[#00261D] text-white border-[#00261D] shadow-xs'
+                          : 'bg-[#F8FAF6] text-[#00261D] border-black/10 hover:border-black/20'
+                      }`}
+                    >
+                      <span className="text-xs font-bold block mb-0.5">Yes, Add Co-Traveler Details</span>
+                      <span className={`text-[11px] block ${inviteCompanions ? 'text-white/80' : 'text-[#717975]'}`}>
+                        Enter companions' names, WhatsApp numbers & emails for automated briefings.
+                      </span>
+                    </button>
+                  </div>
 
-                        <div>
-                          <label className="text-[10px] font-bold uppercase text-[#717975] block mb-1">Email Address *</label>
-                          <input
-                            type="email"
-                            placeholder="companion@email.com"
-                            value={comp.email}
-                            onChange={(e) => {
-                              const next = [...companions];
-                              next[cIdx].email = e.target.value;
-                              setCompanions(next);
-                            }}
-                            className="w-full p-2.5 text-xs bg-[#F8FAF6] border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D]"
-                          />
+                  {/* Companion Details Input Fields (When Opted In) */}
+                  {inviteCompanions && (
+                    <div className="space-y-4 pt-2 animate-in fade-in duration-200">
+                      {companions.map((comp, cIdx) => (
+                        <div key={cIdx} className="p-4 rounded-2xl bg-[#F8FAF6] border border-black/10 space-y-3">
+                          <span className="text-xs font-bold text-[#00261D] block">Companion #{cIdx + 2} Details</span>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-[#717975] block mb-1">Full Name *</label>
+                              <input
+                                type="text"
+                                placeholder="Companion Full Name"
+                                value={comp.name}
+                                onChange={(e) => {
+                                  const next = [...companions];
+                                  next[cIdx].name = e.target.value;
+                                  setCompanions(next);
+                                }}
+                                className="w-full p-2.5 text-xs bg-white border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D]"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-[#717975] block mb-1">Email Address *</label>
+                              <input
+                                type="email"
+                                placeholder="companion@gmail.com"
+                                value={comp.email}
+                                onChange={(e) => {
+                                  const next = [...companions];
+                                  next[cIdx].email = e.target.value;
+                                  setCompanions(next);
+                                }}
+                                className="w-full p-2.5 text-xs bg-white border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D]"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-[#420E00] block mb-1">Phone / WhatsApp *</label>
+                              <input
+                                type="tel"
+                                placeholder="+92 3XX XXXXXXX"
+                                value={comp.phone}
+                                onChange={(e) => {
+                                  const next = [...companions];
+                                  next[cIdx].phone = e.target.value;
+                                  setCompanions(next);
+                                }}
+                                className="w-full p-2.5 text-xs bg-white border border-[#00261D] rounded-xl focus:outline-none font-semibold text-[#00261D]"
+                              />
+                            </div>
+                          </div>
                         </div>
-
-                        <div>
-                          <label className="text-[10px] font-bold uppercase text-[#420E00] block mb-1">Phone / WhatsApp *</label>
-                          <input
-                            type="tel"
-                            placeholder="+92 3XX XXXXXXX"
-                            value={comp.phone}
-                            onChange={(e) => {
-                              const next = [...companions];
-                              next[cIdx].phone = e.target.value;
-                              setCompanions(next);
-                            }}
-                            className="w-full p-2.5 text-xs bg-[#F8FAF6] border border-[#00261D] rounded-xl focus:outline-none font-semibold text-[#00261D]"
-                          />
-                        </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
-          )}
+          </section>
+
+          {/* ─── SECTION 3: BUDGET, STAY & TRAVEL STYLES ───────────────── */}
+          <section id="section-budget-stay" className="space-y-6 pt-6 border-t border-black/5 scroll-mt-6">
+            <div className="space-y-2 border-b border-black/5 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900">
+                  Section 3
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+                  Budget & Stay Preferences
+                </h2>
+              </div>
+              <p className="text-xs text-[#717975]">
+                Set your budget and travel style preferences for optimal AI route and hotel matching.
+              </p>
+            </div>
+
+            {/* Budget Input Card */}
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-black/10 shadow-xs space-y-6">
+              <div className="flex items-center justify-between border-b border-black/5 pb-4">
+                <span className="text-xs font-bold text-[#717975] uppercase tracking-wider">
+                  CALCULATE BUDGET AS
+                </span>
+                <div className="flex gap-1.5 p-1 rounded-full bg-[#F3F4F0] text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setBudgetType('total_trip')}
+                    className={`px-4 py-1.5 rounded-full transition-all cursor-pointer ${
+                      budgetType === 'total_trip' ? 'bg-[#00261D] text-white shadow-2xs' : 'text-[#717975]'
+                    }`}
+                  >
+                    Total Trip
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBudgetType('per_person')}
+                    className={`px-4 py-1.5 rounded-full transition-all cursor-pointer ${
+                      budgetType === 'per_person' ? 'bg-[#00261D] text-white shadow-2xs' : 'text-[#717975]'
+                    }`}
+                  >
+                    Per Person
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative">
+                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xl font-bold text-[#717975]">
+                  PKR
+                </span>
+                <input
+                  type="number"
+                  value={budgetAmount}
+                  onChange={(e) => setBudgetAmount(e.target.value)}
+                  placeholder="10000"
+                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl py-4 pl-20 pr-6 text-2xl font-bold text-[#00261D] focus:outline-none focus:border-[#00261D]"
+                />
+              </div>
+
+              {/* Accommodation Selection */}
+              <div className="space-y-3 pt-2">
+                <span className="text-[11px] font-bold text-[#717975] uppercase tracking-wider block">
+                  WHERE WOULD YOU PREFER TO STAY?
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { id: 'budget', title: 'Budget Stay', sub: 'Clean local guest houses & hostels' },
+                    { id: 'comfortable', title: 'Comfortable Hotel', sub: 'Standard 3-star quality lodges & hotels' },
+                    { id: 'premium', title: 'Premium Retreat', sub: 'Luxury mountain resorts (Serena / Luxus)' },
+                    { id: 'friday_decide', title: 'Let Friday Decide', sub: 'Optimized automatically for your budget' },
+                  ].map((acc) => {
+                    const isSelected = accommodation === acc.id;
+                    return (
+                      <div
+                        key={acc.id}
+                        onClick={() => setAccommodation(acc.id)}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-1 ${
+                          isSelected
+                            ? 'bg-[#00261D] text-white border-[#00261D] shadow-xs'
+                            : 'bg-white text-[#191C1A] border-black/10 hover:border-[#00261D]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold">{acc.title}</span>
+                          {isSelected && <Check className="w-4 h-4 text-[#BBEAD5]" />}
+                        </div>
+                        <p className={`text-[11px] ${isSelected ? 'text-white/80' : 'text-[#717975]'}`}>
+                          {acc.sub}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Travel Styles */}
+              <div className="space-y-2 pt-2">
+                <span className="text-[11px] font-bold text-[#717975] uppercase tracking-wider block">
+                  TRAVEL VIBE & STYLES
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {travelStylesOptions.map((style) => {
+                    const isSel = selectedStyles.includes(style.id);
+                    return (
+                      <button
+                        key={style.id}
+                        type="button"
+                        onClick={() => handleToggleTravelStyle(style.id)}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isSel
+                            ? 'bg-[#00261D] text-white shadow-2xs'
+                            : 'bg-[#F8FAF6] text-[#414845] border border-black/10 hover:bg-[#E7E9E5]'
+                        }`}
+                      >
+                        <span>{style.label}</span>
+                        {isSel && <Check className="w-3 h-3 text-[#BBEAD5]" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ─── SECTION 4: SPECIAL WISHES & NOTES (OPTIONAL) ───────────── */}
+          <section id="section-preferences" className="space-y-6 pt-6 border-t border-black/5 scroll-mt-6">
+            <div className="space-y-2 border-b border-black/5 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900">
+                  Section 4
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+                  Special Wishes & Preferences (Optional)
+                </h2>
+              </div>
+              <p className="text-xs text-[#717975]">
+                Add any dietary, accessibility, or specific pacing requests for your itinerary.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-black/10 shadow-xs space-y-4">
+              <textarea
+                rows={3}
+                placeholder="e.g., 'Prefer scenic mountain photo stops, vegetarian food options, and relaxed morning starts'..."
+                value={additionalNotes}
+                onChange={(e) => setAdditionalNotes(e.target.value)}
+                className="w-full p-4 text-xs sm:text-sm bg-[#F8FAF6] border border-black/10 rounded-2xl focus:outline-none focus:border-[#00261D]"
+              />
+            </div>
+          </section>
         </div>
 
-        {/* ─── Bottom Navigation Buttons ───────────────────────────── */}
-        <footer className="pt-6 border-t border-black/5 flex items-center justify-between">
-          {currentStep > 1 ? (
-            <button
-              type="button"
-              onClick={() => setCurrentStep(currentStep - 1)}
-              className="px-6 py-3 rounded-full text-xs font-bold uppercase tracking-wider text-[#717975] hover:text-black transition-colors cursor-pointer"
-            >
-              Back
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowExitModal(true)}
-              className="px-6 py-3 rounded-full text-xs font-bold uppercase tracking-wider text-[#717975] hover:text-red-600 hover:bg-red-50/50 transition-colors cursor-pointer"
-            >
-              Exit Planning
-            </button>
-          )}
+        {/* ─── Bottom CTA Action Bar ───────────────────────────────────── */}
+        <footer className="pt-8 border-t border-black/10 space-y-4 sticky bottom-0 bg-[#F8FAF6]/95 backdrop-blur-md py-4 z-20">
+          <div className="p-4 sm:p-5 rounded-3xl bg-[#00261D] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#BBEAD5]" />
+                <span className="text-xs font-bold uppercase tracking-wider text-[#BBEAD5]">
+                  Ready to Generate
+                </span>
+              </div>
+              <p className="text-xs text-white/90">
+                {destination ? `${destination} • ` : ''}{customDays || 3} Days • {travelers} Traveler{travelers > 1 ? 's' : ''} • PKR {Number(budgetAmount || 10000).toLocaleString()}
+              </p>
+            </div>
 
-          {currentStep < totalSteps ? (
             <button
               type="button"
-              onClick={() => {
-                if (!validateTravelerStep(currentStep)) {
-                  return;
-                }
-                setCurrentStep(currentStep + 1);
-              }}
-              className="px-8 py-3.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all hover:scale-105 shadow-sm cursor-pointer"
+              onClick={handleGeneratePlan}
+              className="px-8 py-3.5 rounded-full bg-[#BBEAD5] hover:bg-white text-[#00261D] text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all hover:scale-105 shadow-md cursor-pointer shrink-0"
             >
-              <span>Continue</span>
-              <ArrowRight className="w-4 h-4" />
+              <Sparkles className="w-4 h-4 text-[#00261D]" />
+              <span>Plan My Trip with Friday AI</span>
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                if (!validateTravelerStep(8)) {
-                  return;
-                }
-                handleGeneratePlan();
-              }}
-              className="px-10 py-4 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2.5 transition-all hover:scale-105 shadow-md cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-[#BBEAD5]" />
-              <span>Plan my trip →</span>
-            </button>
-          )}
+          </div>
         </footer>
       </main>
 
-      {/* ─── Right Contextual Summary Panel ───────────────────────── */}
-      <aside className="hidden xl:flex flex-col w-80 p-8 shrink-0 border-l border-black/10 space-y-6 bg-[#F8FAF6] sticky top-0 h-screen overflow-y-auto">
+      {/* ─── Right Contextual Summary Panel (Permanently Fixed on Desktop/Laptop Screens) ── */}
+      <aside className="hidden xl:flex flex-col w-80 p-8 shrink-0 border-l border-black/10 space-y-6 bg-[#F8FAF6] fixed top-0 right-0 h-screen overflow-y-auto z-30 shadow-2xs">
         <div className="bg-white rounded-3xl p-6 border border-black/10 shadow-xs space-y-5">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#00261D] border-b border-black/5 pb-3">
             <Compass className="w-4 h-4 text-[#00261D]" />

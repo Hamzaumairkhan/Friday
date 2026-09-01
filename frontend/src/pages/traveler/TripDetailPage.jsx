@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   MapPin,
   Calendar,
@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { tripsService } from '../../services/trips';
 import { useAuth } from '../../context/AuthContext';
+import { getDestinationFallback } from '../../utils/imageService';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import EmptyState from '../../components/shared/EmptyState';
 import toast from 'react-hot-toast';
@@ -61,6 +62,7 @@ export default function TripDetailPage() {
   const { tripId } = useParams();
   const navigate = useNavigate();
   const { backendUser, firebaseUser, role, organizerProfile } = useAuth();
+  const isOrganizer = (role || backendUser?.role) === 'ORGANIZER';
 
   const [trip, setTrip] = useState(null);
   const [itinerary, setItinerary] = useState(null);
@@ -154,10 +156,32 @@ export default function TripDetailPage() {
     fetchTripData();
   }, [tripId]);
 
+  const location = useLocation();
+
   // Determine if current user is the owner
   const isOwner = Boolean(
     backendUser?.id && trip?.owner_id && (backendUser.id === trip.owner_id || backendUser.email === trip.owner_id)
   );
+
+  // Smart back navigation: If opened from Explore / community feed or user is not owner
+  const searchParams = new URLSearchParams(location.search);
+  const isFromExplore = Boolean(
+    location.state?.from === 'explore' ||
+    searchParams.get('from') === 'explore' ||
+    !isOwner ||
+    (typeof document !== 'undefined' && document.referrer && document.referrer.includes('/explore'))
+  );
+
+  const backTarget = isFromExplore ? '/explore' : '/my-trips';
+  const backText = isFromExplore ? 'Back to Explore' : 'Back to My Trips';
+
+  const handleBackNavigation = () => {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate(backTarget);
+    }
+  };
 
   // ─── Publish Trip Handler ──────────────────────────────────────────────
   const handlePublishTrip = async () => {
@@ -205,6 +229,27 @@ export default function TripDetailPage() {
     } catch (err) {
       console.error('Failed to update roster privacy:', err);
       toast.error('Failed to update roster privacy.');
+    }
+  };
+
+  // ─── Clone / Copy Trip into User's Private Workspace ───────────────────
+  const handleCopyTrip = async () => {
+    if (!trip) return;
+    if (isOrganizer) {
+      toast.error('Organizers cannot copy traveler trip itineraries. Only traveler accounts can clone community trips.');
+      return;
+    }
+    setIsCopying(true);
+    try {
+      const cloned = await tripsService.cloneTrip(trip.id);
+      toast.success(cloned.message || 'Trip cloned! Redirecting to your custom draft editor...');
+      const targetId = cloned.id || cloned.trip?.id;
+      navigate(`/plan-trip?tripId=${targetId}`);
+    } catch (err) {
+      console.error('Failed to clone trip:', err);
+      toast.error(err.response?.data?.detail || err.message || 'Could not copy this trip.');
+    } finally {
+      setIsCopying(false);
     }
   };
 
@@ -383,25 +428,6 @@ export default function TripDetailPage() {
     }
   };
 
-  // Copy Trip Handler (Only for other users' public trips)
-  const handleCopyTrip = async () => {
-    if (isOwner) {
-      toast.error('You already own this trip. You can customize it directly.');
-      return;
-    }
-    setIsCopying(true);
-    try {
-      const res = await tripsService.copyTrip(tripId);
-      toast.success('Trip copied to your personal workspace! You can now customize every detail.');
-      navigate(`/trips/${res.id}`);
-    } catch (err) {
-      console.error('Error copying trip:', err);
-      toast.error(err.message || 'Failed to copy trip.');
-    } finally {
-      setIsCopying(false);
-    }
-  };
-
   if (loading) {
     return <LoadingSpinner text="Loading AI itinerary and budget calculations..." />;
   }
@@ -415,35 +441,19 @@ export default function TripDetailPage() {
         <p className="text-xs text-[#717975]">
           This itinerary may be private or restricted by its creator.
         </p>
-        <Link to="/my-trips">
-          <button className="px-6 py-2 rounded-full border border-black/10 text-sm hover:bg-black/5">
-            Back to My Trips
-          </button>
-        </Link>
+        <button
+          onClick={handleBackNavigation}
+          className="px-6 py-2 rounded-full border border-black/10 text-sm hover:bg-black/5 cursor-pointer"
+        >
+          {backText}
+        </button>
       </div>
     );
   }
 
-  const getDestinationFallback = (dest) => {
-    const d = (dest || '').toLowerCase();
-    if (d.includes('pine') || d.includes('nathia') || d.includes('murree') || d.includes('galyat') || d.includes('ayubia') || d.includes('bhurban') || d.includes('patriata') || d.includes('dunga')) return '/images/stitch/stitch_asset_11.jpg';
-    if (d.includes('islamabad') || d.includes('margalla') || d.includes('faisal') || d.includes('rawalpindi')) return '/images/stitch/stitch_asset_4.jpg';
-    if (d.includes('lahore') || d.includes('badshahi') || d.includes('punjab') || d.includes('faisalabad') || d.includes('multan')) return '/images/stitch/stitch_asset_2.jpg';
-    if (d.includes('karachi') || d.includes('gwadar') || d.includes('ormara') || d.includes('kund') || d.includes('sindh')) return '/images/stitch/stitch_asset_5.jpg';
-    if (d.includes('swat') || d.includes('kalam') || d.includes('malam') || d.includes('mahudand')) return '/images/stitch/stitch_asset_10.jpg';
-    if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar') || d.includes('shogran')) return '/images/stitch/stitch_asset_9.jpg';
-    if (d.includes('kumrat') || d.includes('jahaz') || d.includes('katora')) return '/images/stitch/stitch_asset_8.jpg';
-    if (d.includes('fairy') || d.includes('nanga')) return '/images/stitch/stitch_asset_7.jpg';
-    if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila') || d.includes('khaplu')) return '/images/stitch/hero_mountains.jpg';
-    if (d.includes('hunza') || d.includes('passu') || d.includes('altit') || d.includes('baltit') || d.includes('attabad')) return '/images/stitch/stitch_asset_1.jpg';
-    if (d.includes('neelum') || d.includes('kashmir') || d.includes('arang') || d.includes('sharda') || d.includes('ratti') || d.includes('taobat')) return '/images/stitch/stitch_asset_8.jpg';
-    if (d.includes('chitral') || d.includes('kalash') || d.includes('shandur')) return '/images/stitch/stitch_asset_14.jpg';
-    return '/images/stitch/hero_mountains.jpg';
-  };
-
-  const defaultHero = getDestinationFallback(trip?.destination);
+  const defaultHero = getDestinationFallback(trip?.destination, trip?.id || trip?.title);
   const rawImage = trip?.image_url;
-  const isInvalidImage = !rawImage || rawImage.includes('instagram') || rawImage.includes('fbsbx') || rawImage.includes('panoramic_lake') || rawImage.includes('stitch_asset_6');
+  const isInvalidImage = !rawImage || rawImage.includes('instagram') || rawImage.includes('fbsbx') || rawImage.includes('panoramic_lake') || rawImage.includes('stitch_asset_6') || rawImage.startsWith('/images/stitch/');
   const heroImage = isInvalidImage ? defaultHero : rawImage;
   const days = itinerary?.days || [];
 
@@ -487,12 +497,12 @@ export default function TripDetailPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* ─── Top Bar: Navigation, Privacy Dropdown & Publish Controls ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-3xl border border-black/10 shadow-2xs">
-        <Link
-          to="/my-trips"
-          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#6F6F6F] hover:text-black transition-colors"
+        <button
+          onClick={handleBackNavigation}
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#6F6F6F] hover:text-black transition-colors cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to My Trips
-        </Link>
+          <ArrowLeft className="w-4 h-4" /> {backText}
+        </button>
 
         <div className="flex items-center gap-3 flex-wrap">
           {isOwner ? (
@@ -565,17 +575,19 @@ export default function TripDetailPage() {
               <span className="px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-[#717975] border border-black/5">
                 {trip.is_public ? 'Community Itinerary' : 'Private Itinerary (View Only)'}
               </span>
-              {(!isOwner && Boolean(trip.is_public) && (
-                ((role === 'ORGANIZER' || backendUser?.role === 'ORGANIZER' || Boolean(organizerProfile)) && (trip.owner_role === 'ORGANIZER' || (trip.owner_id && trip.owner_id.startsWith('org-')))) ||
-                (!(role === 'ORGANIZER' || backendUser?.role === 'ORGANIZER' || Boolean(organizerProfile)) && !(trip.owner_role === 'ORGANIZER' || (trip.owner_id && trip.owner_id.startsWith('org-'))))
-              )) && (
+              {Boolean(trip.is_public) && trip.allow_cloning === false && (
+                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
+                  Copying Disabled
+                </span>
+              )}
+              {(!isOwner && !isOrganizer && Boolean(trip.is_public) && trip.allow_cloning !== false) && (
                 <button
                   onClick={handleCopyTrip}
                   disabled={isCopying}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#00261D]/90 transition-all shadow-sm cursor-pointer"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#00261D]/90 transition-all shadow-sm cursor-pointer hover:scale-102 active:scale-98"
                 >
-                  {isCopying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{(role === 'ORGANIZER' || backendUser?.role === 'ORGANIZER' || Boolean(organizerProfile)) ? 'Copy & Customize Package →' : 'Copy & Customize This Trip →'}</span>
+                  {isCopying ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#BBEAD5]" /> : <Copy className="w-3.5 h-3.5 text-[#BBEAD5]" />}
+                  <span>Clone & Customize Trip →</span>
                 </button>
               )}
             </div>

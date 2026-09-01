@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, Compass, Sparkles, Luggage, LayoutDashboard, Package, CalendarCheck, MessageSquare, LogOut, ShieldCheck, Info, Tag } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Menu, X, Compass, Sparkles, Luggage, LayoutDashboard, Package, CalendarCheck, MessageSquare, LogOut, ShieldCheck, Info, Tag, ArrowRight, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from '../shared/NotificationBell';
+import TextRepel from '../ui/TextRepel';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { backendUser, firebaseUser, role, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -14,106 +17,120 @@ const Navbar = () => {
   const isOrganizer = role === 'ORGANIZER' || backendUser?.role === 'ORGANIZER';
   const navUserPhoto = backendUser?.profile_picture || backendUser?.avatar_url || firebaseUser?.photoURL;
 
-  // Dynamic Navigation Links based on role & auth
-  const travelerNav = [
-    { name: 'Discover', href: '/explore', icon: Compass },
-    { name: 'Plan with AI', href: '/plan-trip', icon: Sparkles },
-    { name: 'My Trips', href: '/my-trips', icon: Luggage },
-  ];
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-  const organizerNav = [
-    { name: 'Workspace', href: '/organizer/dashboard', icon: LayoutDashboard },
-    { name: 'My Packages', href: '/organizer/trips', icon: Package },
-    { name: 'Bookings', href: '/organizer/bookings', icon: CalendarCheck },
-    { name: 'Trip Groups', href: '/organizer/groups', icon: MessageSquare },
+  // Public & Authenticated Navigation Item Sets
+  const navItems = [
+    { name: 'Home', href: '/' },
+    { name: 'About', href: '/about' },
+    { name: 'Pricing', href: '/pricing' },
+    { name: 'Explore', href: '/explore' },
+    { name: 'How It Works', href: '/#how-it-works' },
   ];
-
-  const publicNav = [
-    { name: 'Discover', href: '/explore', icon: Compass, public: true },
-    { name: 'About', href: '/about', icon: Info, public: true },
-    { name: 'Pricing', href: '/about#pricing', icon: Tag, public: true },
-  ];
-
-  const currentNav = isAuthenticated
-    ? (isOrganizer ? organizerNav : travelerNav)
-    : publicNav;
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/', { replace: true });
   };
 
-  const handleNavClick = (e, item) => {
-    if (!isAuthenticated && item.public === false) {
-      e.preventDefault();
-      setIsOpen(false);
-      navigate(`/register?redirect=${encodeURIComponent(item.href)}`);
+  const handleLinkClick = (href) => {
+    setIsOpen(false);
+    if (href.startsWith('/#')) {
+      const anchorId = href.replace('/#', '');
+      if (location.pathname === '/') {
+        const el = document.getElementById(anchorId);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        navigate(`/${href.substring(1)}`);
+      }
     }
   };
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-black/10 transition-all duration-300 shadow-xs"
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? 'bg-white/95 backdrop-blur-md border-b border-black/10 shadow-xs'
+          : 'bg-white/80 backdrop-blur-sm border-b border-black/5'
+      }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center" style={{ height: '72px' }}>
-          {/* Brand Logo (Solid Black Instrument Serif Friday®) */}
-          <div className="flex items-center gap-10">
+          {/* Brand Logo (Solid Black Instrument Serif Friday® with TextRepel) */}
+          <div className="flex items-center gap-8 lg:gap-10">
             <Link to="/" className="flex items-center gap-2.5 group">
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-black text-white shadow-xs group-hover:scale-105 transition-transform"
-              >
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#00261D] text-white shadow-xs group-hover:scale-105 transition-transform">
                 <span
-                  className="text-xl font-bold text-white"
+                  className="text-xl font-bold text-[#BBEAD5]"
                   style={{ fontFamily: "'Instrument Serif', serif" }}
                 >
                   F
                 </span>
               </div>
-              <span
-                className="text-3xl tracking-tight font-normal"
-                style={{
-                  fontFamily: "'Instrument Serif', serif",
-                  color: '#000000',
-                }}
-              >
-                Friday<sup style={{ fontSize: '10px', verticalAlign: 'super', color: '#000000' }}>®</sup>
-              </span>
+              <div className="flex items-baseline">
+                <TextRepel
+                  text="Friday"
+                  className="text-3xl tracking-tight font-normal text-[#00261D]"
+                  style={{ fontFamily: "'Instrument Serif', serif" }}
+                  force={25}
+                  radius={70}
+                />
+                <sup style={{ fontSize: '10px', verticalAlign: 'super', color: '#00261D' }}>®</sup>
+              </div>
             </Link>
 
-            {/* Desktop Navigation Links (Stitch Monograph Caps) */}
-            <div className="hidden md:flex md:items-center md:space-x-1">
-              {currentNav.map((item) => {
+            {/* Desktop Navigation Links (Transparent BG, Pure Text Color Switch) */}
+            <div className="hidden md:flex md:items-center md:space-x-6 lg:space-x-8">
+              {navItems.map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
                   <Link
                     key={item.name}
                     to={item.href}
-                    onClick={(e) => handleNavClick(e, item)}
-                    className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest font-semibold transition-all ${
+                    onClick={() => handleLinkClick(item.href)}
+                    className={`relative py-2 text-xs uppercase tracking-widest transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-black text-white shadow-xs'
-                        : 'text-[#6F6F6F] hover:text-black hover:bg-slate-100'
+                        ? 'text-emerald-900 font-extrabold'
+                        : 'text-[#555E59] hover:text-emerald-800 font-semibold'
                     }`}
                     style={{ fontFamily: 'Inter, sans-serif' }}
                   >
-                    {item.name}
+                    <span>{item.name}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="navbar-indicator"
+                        className="absolute -bottom-1 left-0 right-0 h-0.5 bg-emerald-800 rounded-full"
+                      />
+                    )}
                   </Link>
                 );
               })}
             </div>
           </div>
 
-          {/* Desktop Right Side / Auth Actions */}
-          <div className="hidden md:flex md:items-center md:space-x-4">
+          {/* Desktop Right Side Actions */}
+          <div className="hidden md:flex md:items-center md:space-x-3">
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
                 <NotificationBell />
 
+                {/* Dashboard / Workspace Quick Button */}
+                <Link to={isOrganizer ? '/organizer/dashboard' : '/my-trips'}>
+                  <button className="px-4 py-2 rounded-full border border-black/10 hover:border-black/30 text-xs font-bold uppercase tracking-wider text-[#00261D] hover:bg-slate-50 transition-all cursor-pointer">
+                    {isOrganizer ? 'Organizer Hub' : 'My Trips'}
+                  </button>
+                </Link>
+
                 {/* Profile Pill */}
                 <Link
                   to={isOrganizer ? '/organizer/profile' : '/my-trips'}
-                  className="flex items-center gap-2.5 p-1.5 pr-3 rounded-full hover:bg-slate-100 border border-black/10 bg-white transition-colors shadow-xs"
+                  className="flex items-center gap-2 p-1.5 pr-3 rounded-full hover:bg-slate-100 border border-black/10 bg-white transition-colors shadow-2xs"
                 >
                   {navUserPhoto ? (
                     <img
@@ -121,25 +138,16 @@ const Navbar = () => {
                       alt={backendUser?.name || 'User'}
                       referrerPolicy="no-referrer"
                       crossOrigin="anonymous"
-                      className="w-7 h-7 rounded-full object-cover border border-black/10 shadow-2xs"
+                      className="w-7 h-7 rounded-full object-cover border border-black/10"
                     />
                   ) : (
                     <div className="w-7 h-7 rounded-full bg-[#00261D] text-white flex items-center justify-center text-xs font-bold">
                       {(backendUser?.name || 'U').charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <span className="text-xs font-medium text-black max-w-[110px] truncate" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    {backendUser?.name || (isOrganizer ? 'Organizer' : 'Traveler')}
+                  <span className="text-xs font-medium text-black max-w-[100px] truncate" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    {backendUser?.name || 'Account'}
                   </span>
-                  {isOrganizer ? (
-                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-700 text-white">
-                      <ShieldCheck className="w-3 h-3" /> Host
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-[#6F6F6F]">
-                      Traveler
-                    </span>
-                  )}
                 </Link>
 
                 <button
@@ -151,89 +159,99 @@ const Navbar = () => {
                 </button>
               </div>
             ) : (
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-2.5">
                 <Link
                   to="/register"
-                  className="rounded-full px-6 py-2.5 text-xs uppercase tracking-wider font-semibold transition-transform hover:scale-105 cursor-pointer bg-black text-white shadow-sm"
+                  className="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider text-[#00261D] hover:bg-slate-100 transition-colors cursor-pointer"
                   style={{ fontFamily: 'Inter, sans-serif' }}
                 >
-                  Start Journey
+                  Sign In
+                </Link>
+
+                <Link
+                  to="/plan-trip"
+                  className="px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider bg-[#00261D] text-white hover:bg-[#00261D]/90 transition-all shadow-sm hover:scale-102 flex items-center gap-1.5 cursor-pointer"
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#BBEAD5]" />
+                  <span>Start Planning</span>
                 </Link>
               </div>
             )}
           </div>
 
-          {/* Mobile Menu Toggle */}
-          <div className="flex items-center md:hidden gap-3">
+          {/* Mobile Hamburger Button */}
+          <div className="flex items-center md:hidden gap-2">
             {isAuthenticated && <NotificationBell />}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="p-2 rounded-lg text-black focus:outline-none cursor-pointer"
+              className="p-2 rounded-xl text-[#00261D] hover:bg-slate-100 transition-colors cursor-pointer"
+              aria-label="Toggle Navigation Menu"
             >
-              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Dropdown */}
+      {/* Mobile Drawer Overlay */}
       {isOpen && (
-        <div className="md:hidden bg-white border-b border-black/10 px-4 pt-3 pb-6 space-y-3 shadow-lg">
-          <div className="space-y-1">
-            {currentNav.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  onClick={(e) => {
-                    handleNavClick(e, item);
-                    setIsOpen(false);
-                  }}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl text-xs uppercase tracking-wider font-semibold ${
-                    isActive
-                      ? 'bg-black text-white'
-                      : 'text-[#6F6F6F] hover:bg-slate-100'
-                  }`}
-                  style={{ fontFamily: 'Inter, sans-serif' }}
-                >
-                  <Icon className="w-4 h-4" />
-                  {item.name}
-                </Link>
-              );
-            })}
+        <div className="md:hidden bg-white border-b border-black/10 px-6 py-6 space-y-4 shadow-xl animate-in slide-in-from-top-2 duration-200">
+          <div className="flex flex-col space-y-2">
+            {navItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                onClick={() => handleLinkClick(item.href)}
+                className={`px-4 py-3 rounded-2xl text-xs uppercase tracking-widest font-bold transition-colors ${
+                  location.pathname === item.href
+                    ? 'bg-[#00261D] text-white'
+                    : 'text-[#555E59] hover:bg-slate-100'
+                }`}
+              >
+                {item.name}
+              </Link>
+            ))}
           </div>
 
-          <div className="pt-3 border-t border-black/10">
+          <div className="pt-4 border-t border-black/10 flex flex-col gap-3">
             {isAuthenticated ? (
-              <div className="flex items-center justify-between pt-1">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-semibold">
-                    {backendUser?.name?.charAt(0) || 'U'}
-                  </div>
-                  <span className="text-xs font-medium text-black">{backendUser?.name || 'User'}</span>
-                </div>
+              <>
+                <Link
+                  to={isOrganizer ? '/organizer/dashboard' : '/my-trips'}
+                  onClick={() => setIsOpen(false)}
+                  className="w-full py-3 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider text-center"
+                >
+                  {isOrganizer ? 'Open Organizer Hub' : 'My Trips Workspace'}
+                </Link>
                 <button
                   onClick={() => {
                     setIsOpen(false);
                     handleSignOut();
                   }}
-                  className="flex items-center gap-1.5 text-xs text-red-600 font-medium cursor-pointer"
+                  className="w-full py-2.5 rounded-full border border-black/10 text-xs font-bold text-red-600 hover:bg-red-50 text-center uppercase tracking-wider cursor-pointer"
                 >
-                  <LogOut className="w-3.5 h-3.5" /> Sign Out
+                  Sign Out
                 </button>
-              </div>
+              </>
             ) : (
-              <div className="space-y-2">
+              <>
                 <Link
                   to="/register"
                   onClick={() => setIsOpen(false)}
-                  className="block text-center w-full py-2.5 rounded-full bg-black text-white text-xs font-semibold uppercase tracking-wider cursor-pointer"
+                  className="w-full py-3 rounded-full border border-black/10 text-[#00261D] text-xs font-bold uppercase tracking-wider text-center"
                 >
-                  Start Journey
+                  Sign In / Register
                 </Link>
-              </div>
+                <Link
+                  to="/plan-trip"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full py-3.5 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2 shadow-md"
+                >
+                  <Sparkles className="w-4 h-4 text-[#BBEAD5]" />
+                  <span>Start Planning with Friday</span>
+                </Link>
+              </>
             )}
           </div>
         </div>

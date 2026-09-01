@@ -13,6 +13,7 @@ import OnboardingGuard from '../components/guards/OnboardingGuard';
 // Public Pages
 import LandingPage from '../pages/Public/LandingPage';
 import AboutPage from '../pages/Public/AboutPage';
+import PricingPage from '../pages/Public/PricingPage';
 import RegisterPage from '../pages/auth/RegisterPage';
 
 // Traveler Pages
@@ -42,13 +43,14 @@ const router = createBrowserRouter([
   { path: '/login', element: <Navigate to="/register" replace /> },
   { path: '/register', element: <RegisterPage /> },
 
-  // Public Landing & About Pages (With Navbar & Footer)
+  // Public Landing, About & Pricing Pages (With Navbar & Footer)
   {
     path: '/',
     element: <MainLayout />,
     children: [
       { path: '', element: <LandingPage /> },
       { path: 'about', element: <AboutPage /> },
+      { path: 'pricing', element: <PricingPage /> },
       {
         path: 'organizer/onboarding',
         element: (
