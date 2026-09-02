@@ -133,6 +133,19 @@ app.add_middleware(
 app.include_router(v1_router)
 
 
+@app.get("/", tags=["Root"])
+async def root() -> Dict[str, Any]:
+    """Root landing endpoint for Friday API."""
+    return {
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "status": "online",
+        "description": "Friday AI Travel Copilot & Trusted Marketplace API for Pakistan",
+        "docs": "/docs",
+        "health": "/health/live",
+    }
+
+
 @app.get("/health/live", tags=["Health"])
 async def health_live() -> Dict[str, Any]:
     """Lightweight process liveness endpoint for load balancers and orchestrators."""
