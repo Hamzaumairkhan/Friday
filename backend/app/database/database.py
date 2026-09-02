@@ -19,8 +19,25 @@ def _ensure_sqlite_dir(url: str):
                 os.makedirs(dirname, exist_ok=True)
 
 
-_ensure_sqlite_dir(settings.DATABASE_URL)
-_ensure_sqlite_dir(settings.DATABASE_SYNC_URL)
+def _normalize_async_db_url(url: str) -> str:
+    """Normalize database URL for SQLAlchemy async engine (e.g. Railway mysql:// -> mysql+asyncmy://)."""
+    if url.startswith("mysql://"):
+        return url.replace("mysql://", "mysql+asyncmy://", 1)
+    return url
+
+
+def _normalize_sync_db_url(url: str) -> str:
+    """Normalize database URL for SQLAlchemy sync engine (e.g. Railway mysql:// -> mysql+pymysql://)."""
+    if url.startswith("mysql://"):
+        return url.replace("mysql://", "mysql+pymysql://", 1)
+    return url
+
+
+_async_db_url = _normalize_async_db_url(settings.DATABASE_URL)
+_sync_db_url = _normalize_sync_db_url(settings.DATABASE_SYNC_URL)
+
+_ensure_sqlite_dir(_async_db_url)
+_ensure_sqlite_dir(_sync_db_url)
 
 
 def _get_engine_kwargs(url: str) -> dict:
@@ -42,14 +59,14 @@ def _get_engine_kwargs(url: str) -> dict:
 
 # Async engine for FastAPI
 async_engine = create_async_engine(
-    settings.DATABASE_URL,
-    **_get_engine_kwargs(settings.DATABASE_URL),
+    _async_db_url,
+    **_get_engine_kwargs(_async_db_url),
 )
 
 # Sync engine for migrations, seed scripts, and testing
 sync_engine = create_engine(
-    settings.DATABASE_SYNC_URL,
-    **_get_engine_kwargs(settings.DATABASE_SYNC_URL),
+    _sync_db_url,
+    **_get_engine_kwargs(_sync_db_url),
 )
 
 async_session_factory = async_sessionmaker(
