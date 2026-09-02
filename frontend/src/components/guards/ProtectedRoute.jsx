@@ -19,7 +19,14 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
+    const redirectTarget = location.pathname + location.search;
+    return (
+      <Navigate
+        to={`/register?redirect=${encodeURIComponent(redirectTarget)}`}
+        state={{ from: location }}
+        replace
+      />
+    );
   }
 
   return children;

@@ -169,7 +169,7 @@ const Navbar = () => {
                 </Link>
 
                 <Link
-                  to="/plan-trip"
+                  to="/register?redirect=/plan-trip"
                   className="px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider bg-[#00261D] text-white hover:bg-[#00261D]/90 transition-all shadow-sm hover:scale-102 flex items-center gap-1.5 cursor-pointer"
                   style={{ fontFamily: 'Inter, sans-serif' }}
                 >
@@ -244,7 +244,7 @@ const Navbar = () => {
                   Sign In / Register
                 </Link>
                 <Link
-                  to="/plan-trip"
+                  to="/register?redirect=/plan-trip"
                   onClick={() => setIsOpen(false)}
                   className="w-full py-3.5 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2 shadow-md"
                 >

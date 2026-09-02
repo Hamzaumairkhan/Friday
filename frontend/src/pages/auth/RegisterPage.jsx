@@ -18,10 +18,12 @@ export default function RegisterPage() {
       if (role === 'ORGANIZER') {
         navigate('/organizer/dashboard', { replace: true });
       } else {
-        navigate('/explore', { replace: true });
+        const redirectParam = searchParams.get('redirect');
+        const from = redirectParam || location.state?.from?.pathname || '/explore';
+        navigate(from, { replace: true });
       }
     }
-  }, [isAuthenticated, role, navigate]);
+  }, [isAuthenticated, role, navigate, location.search, location.state]);
 
   const handleGoogleSignIn = async () => {
     setIsSubmitting(true);

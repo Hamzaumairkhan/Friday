@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, MapPin, Sun, Calendar, DollarSign, Users, ShieldCheck, Check, ArrowRight, Compass } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const STEPS = [
   { text: 'Finding destinations across Gilgit-Baltistan & Swat...', detail: 'Matched Hunza Valley & Passu Cones' },
@@ -14,6 +15,7 @@ const STEPS = [
 ];
 
 export default function LiveAiConversationDemo() {
+  const { isAuthenticated, role } = useAuth();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
@@ -187,7 +189,7 @@ export default function LiveAiConversationDemo() {
                 </div>
 
                 <div className="pt-2">
-                  <Link to="/plan-trip">
+                  <Link to={isAuthenticated ? (role === 'ORGANIZER' ? '/organizer/dashboard' : '/plan-trip') : '/register?redirect=/plan-trip'}>
                     <button className="w-full py-3.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md hover:scale-101 cursor-pointer">
                       <span>Customize in Friday Copilot</span>
                       <ArrowRight className="w-4 h-4" />

@@ -328,7 +328,7 @@ export default function LandingPage() {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="flex flex-col sm:flex-row gap-3.5 items-center pt-1"
               >
-                <Link to="/plan-trip">
+                <Link to={isAuthenticated ? (role === 'ORGANIZER' ? '/organizer/dashboard' : '/plan-trip') : '/register?redirect=/plan-trip'}>
                   <button
                     className="px-8 py-3.5 rounded-full text-xs font-bold uppercase tracking-wider bg-[#00261D] text-white hover:bg-[#00261D]/90 transition-all shadow-lg hover:scale-105 cursor-pointer flex items-center gap-2"
                     style={{ fontFamily: 'Inter, sans-serif' }}
@@ -338,7 +338,7 @@ export default function LandingPage() {
                   </button>
                 </Link>
 
-                <Link to="/explore">
+                <Link to={isAuthenticated ? '/explore' : '/register?redirect=/explore'}>
                   <button
                     className="px-8 py-3.5 rounded-full text-xs font-bold uppercase tracking-wider bg-white text-[#00261D] border border-black/15 hover:bg-slate-50 transition-all shadow-xs hover:scale-105 cursor-pointer flex items-center gap-2"
                     style={{ fontFamily: 'Inter, sans-serif' }}
@@ -595,7 +595,7 @@ export default function LandingPage() {
           radius={75}
         />
         <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Link to="/plan-trip">
+          <Link to={isAuthenticated ? (role === 'ORGANIZER' ? '/organizer/dashboard' : '/plan-trip') : '/register?redirect=/plan-trip'}>
             <button
               className="px-9 py-4 rounded-full text-xs font-bold uppercase tracking-widest bg-[#00261D] text-white hover:bg-[#00261D]/90 transition-all shadow-xl hover:scale-105 cursor-pointer flex items-center gap-2"
               style={{ fontFamily: 'Inter, sans-serif' }}
@@ -604,7 +604,7 @@ export default function LandingPage() {
               <span>Plan Your Trip with Friday →</span>
             </button>
           </Link>
-          <Link to="/explore">
+          <Link to={isAuthenticated ? '/explore' : '/register?redirect=/explore'}>
             <button
               className="px-9 py-4 rounded-full text-xs font-bold uppercase tracking-widest bg-white text-[#00261D] border border-black/15 hover:bg-slate-50 transition-all shadow-xs hover:scale-105 cursor-pointer"
               style={{ fontFamily: 'Inter, sans-serif' }}
