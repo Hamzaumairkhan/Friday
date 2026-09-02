@@ -74,6 +74,11 @@ class Settings(BaseSettings):
     # WHATSAPP (Isolated local Baileys microservice)
     WHATSAPP_SERVICE_URL: str = "http://127.0.0.1:3001"
 
+    # CLOUDINARY (Optional Image Storage for Production)
+    CLOUDINARY_CLOUD_NAME: Optional[str] = None
+    CLOUDINARY_API_KEY: Optional[str] = None
+    CLOUDINARY_API_SECRET: Optional[str] = None
+
     # OBSERVABILITY (LangSmith - Optional)
     LANGSMITH_API_KEY: Optional[str] = None
     LANGSMITH_TRACING: bool = False
