@@ -55,6 +55,13 @@ async def create_booking(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Organizer accounts cannot create bookings
+    if current_user.role and (current_user.role.value if hasattr(current_user.role, 'value') else current_user.role) == 'ORGANIZER':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Organizer accounts cannot book tours. Please use a Traveler account to make a booking.",
+        )
+
     service = BookingService(db)
     booking = await service.create_booking_request(user_id=current_user.id, data=req)
 

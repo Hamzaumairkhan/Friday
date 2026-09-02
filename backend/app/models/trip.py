@@ -45,6 +45,8 @@ class Trip(Base, IDMixin, TimestampMixin):
     copied_from_trip_id = Column(String, nullable=True)
     image_url = Column(Text, nullable=True)
     advisories = Column(JSON, default=list)
+    views_count = Column(Integer, default=0, nullable=False)
+    likes_count = Column(Integer, default=0, nullable=False)
 
     # Relationships
     members = relationship("TripMember", back_populates="trip", cascade="all, delete-orphan")

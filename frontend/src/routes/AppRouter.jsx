@@ -75,6 +75,7 @@ const router = createBrowserRouter([
     children: [
       { path: 'explore', element: <ExplorePage /> },
       { path: 'explore/:packageId', element: <PackageDetailPage /> },
+      { path: 'packages/:packageId', element: <PackageDetailPage /> },
       {
         path: 'plan-trip',
         element: (

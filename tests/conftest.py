@@ -17,7 +17,7 @@ from sqlalchemy import text
 # Import all models so metadata is complete
 import app.models  # noqa: F401
 from app.database.base import Base
-from app.database.database import get_db, _auto_migrate_sqlite
+from app.database.database import get_db, _auto_migrate_schema
 from app.main import app
 
 TEST_DB_PATH = os.path.join(backend_path, "data", "test_friday.db")
@@ -37,7 +37,7 @@ def mock_external_apis(monkeypatch):
 async def _reset_db():
     async with test_engine.begin() as conn:
         await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, checkfirst=True))
-        await conn.run_sync(_auto_migrate_sqlite)
+        await conn.run_sync(_auto_migrate_schema)
         for table in reversed(Base.metadata.sorted_tables):
             try:
                 await conn.execute(text(f"DELETE FROM {table.name}"))

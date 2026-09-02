@@ -1,4 +1,4 @@
-"""Hotels search tool with OpenStreetMap Nominatim lodging search & curated Pakistan hotel database."""
+"""Live hotels search tool using OpenStreetMap Nominatim lodging search and live research with source transparency."""
 
 from typing import Optional, Dict, Any, List
 from datetime import datetime
@@ -10,36 +10,9 @@ logger = get_logger("tools.hotels")
 
 USER_AGENT = "Friday-Travel-Copilot/1.0 (travel@friday.pk)"
 
-CURATED_PAKISTAN_HOTELS = {
-    "hunza": [
-        {"name": "Serena Inn Hunza", "address": "Karimabad, Hunza", "rating": 4.6, "review_count": 1800, "price_tier": "Luxury (Rs. 25,000-45,000/night)", "types": ["luxury_hotel"]},
-        {"name": "Luxus Grand Attabad Lake Resort", "address": "Attabad Lake, Hunza", "rating": 4.8, "review_count": 2100, "price_tier": "Luxury (Rs. 30,000-50,000/night)", "types": ["resort"]},
-        {"name": "Hunza Darbar Hotel", "address": "Karimabad, Hunza", "rating": 4.3, "review_count": 1400, "price_tier": "Mid-Range (Rs. 8,000-15,000/night)", "types": ["mid_range_hotel"]},
-        {"name": "Old Hunza Inn & Guest House", "address": "Karimabad, Hunza", "rating": 4.2, "review_count": 850, "price_tier": "Budget (Rs. 3,500-6,000/night)", "types": ["budget_stay"]},
-    ],
-    "skardu": [
-        {"name": "Shangrila Resort Skardu", "address": "Lower Kachura, Skardu", "rating": 4.7, "review_count": 2600, "price_tier": "Luxury (Rs. 28,000-45,000/night)", "types": ["luxury_resort"]},
-        {"name": "Serena Shigar Fort", "address": "Shigar Valley, Skardu", "rating": 4.8, "review_count": 1900, "price_tier": "Heritage Luxury (Rs. 35,000-60,000/night)", "types": ["heritage_hotel"]},
-        {"name": "Tengis Hotel Skardu", "address": "Main Bazar, Skardu", "rating": 4.1, "review_count": 650, "price_tier": "Budget (Rs. 4,000-7,000/night)", "types": ["budget_hotel"]},
-    ],
-    "swat": [
-        {"name": "Serena Swat Hotel", "address": "Saidu Sharif, Swat", "rating": 4.6, "review_count": 3200, "price_tier": "Luxury (Rs. 20,000-35,000/night)", "types": ["luxury_hotel"]},
-        {"name": "Rock City Resort", "address": "Fizagat, Swat", "rating": 4.3, "review_count": 1700, "price_tier": "Mid-Range (Rs. 8,000-14,000/night)", "types": ["resort"]},
-        {"name": "Green Hills Hotel Kalam", "address": "Kalam Valley, Swat", "rating": 4.2, "review_count": 920, "price_tier": "Budget (Rs. 3,500-6,500/night)", "types": ["mid_range_hotel"]},
-    ],
-    "murree": [
-        {"name": "Pearl Continental Bhurban", "address": "Bhurban, Murree", "rating": 4.6, "review_count": 4500, "price_tier": "Luxury (Rs. 28,000-45,000/night)", "types": ["luxury_resort"]},
-        {"name": "Lockwood Hotel Murree", "address": "Mall Road, Murree", "rating": 4.2, "review_count": 1600, "price_tier": "Mid-Range (Rs. 7,000-12,000/night)", "types": ["heritage_hotel"]},
-    ],
-    "naran": [
-        {"name": "Pine Park Hotel & Resort", "address": "Kaghan / Naran", "rating": 4.4, "review_count": 2100, "price_tier": "Mid-Range (Rs. 10,000-18,000/night)", "types": ["resort"]},
-        {"name": "Hotel de Manchi Naran", "address": "Main Bazar, Naran", "rating": 4.1, "review_count": 1300, "price_tier": "Budget (Rs. 4,000-7,500/night)", "types": ["hotel"]},
-    ],
-}
-
 
 class HotelsTool:
-    """Hotel and accommodation search using OpenStreetMap Nominatim lodging search with curated fallback."""
+    """Hotel and accommodation search using OpenStreetMap Nominatim live lodging search."""
 
     def __init__(self, timeout: float = 6.0):
         self.timeout = timeout
@@ -50,7 +23,7 @@ class HotelsTool:
         budget_tier: Optional[str] = None,
         max_price: Optional[float] = None
     ) -> Dict[str, Any]:
-        """Search hotels and guest houses with strict source attribution."""
+        """Search hotels and guest houses with strict live source attribution."""
         if not destination or not destination.strip():
             return {
                 "success": False,
@@ -62,8 +35,8 @@ class HotelsTool:
                 "error": "Destination parameter cannot be empty.",
             }
 
-        dest_clean = destination.strip().lower()
-        search_q = f"hotels in {destination} Pakistan"
+        dest_clean = destination.strip()
+        search_q = f"hotels in {dest_clean} Pakistan"
 
         # 1. Attempt Live OpenStreetMap Lodging Search
         try:
@@ -101,34 +74,9 @@ class HotelsTool:
                                 "error": None,
                             }
         except Exception as e:
-            logger.info(f"OpenStreetMap lodging search notice: {e}")
+            logger.info(f"OpenStreetMap lodging search notice for '{destination}': {e}")
 
-        # 2. Curated Pakistan Hotels Fallback
-        known = CURATED_PAKISTAN_HOTELS.get(dest_clean)
-        if known:
-            results = []
-            for item in known:
-                results.append({
-                    **item,
-                    "osm_url": f"https://www.openstreetmap.org/search?query=hotels+in+{destination}",
-                    "source": "curated_pakistan_hotels",
-                    "source_type": "curated",
-                    "pricing_note": "Indicative seasonal price range. Live booking availability requires direct contact.",
-                    "retrieved_at": datetime.utcnow().isoformat(),
-                })
-
-            return {
-                "success": True,
-                "destination": destination,
-                "count": len(results),
-                "data": results,
-                "source": "curated_pakistan_hotels",
-                "source_type": "curated",
-                "notice": "Curated Pakistan hotel knowledge. Prices are estimates and not live quotes.",
-                "error": None,
-            }
-
-        # 3. Honest unavailable
+        # 2. Honest unavailable state (No fake/demo hotels fabricated)
         return {
             "success": False,
             "destination": destination,
@@ -136,7 +84,7 @@ class HotelsTool:
             "data": [],
             "source": "openstreetmap_lodging",
             "source_type": "unavailable",
-            "error": f"No live lodging provider data and no curated hotel records for unknown destination '{destination}'.",
+            "error": f"No live lodging provider data found for destination '{destination}'.",
         }
 
 
@@ -145,7 +93,7 @@ async def search_hotels(
     budget_tier: Optional[str] = None,
     max_price: Optional[float] = None
 ) -> dict:
-    """Search for hotels by destination and budget tier."""
+    """Search for hotels at a destination."""
     tool = HotelsTool()
     res = await tool.search_hotels(destination=destination, budget_tier=budget_tier, max_price=max_price)
     return {
@@ -155,8 +103,8 @@ async def search_hotels(
             "count": len(res.get("data", [])),
             "hotels": res.get("data", []),
         },
-        "source": res.get("source"),
-        "source_type": res.get("source_type"),
-        "timestamp": datetime.utcnow().isoformat(),
+        "source": res["source"],
+        "source_type": res["source_type"],
+        "retrieved_at": res.get("retrieved_at"),
         "error": res.get("error"),
     }

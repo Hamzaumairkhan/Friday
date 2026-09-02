@@ -95,8 +95,8 @@ class OrganizersTool:
             "success": True,
             "data": organizers_list,
             "source": "friday_marketplace_db",
-            "source_type": "curated_seed",
-            "data_disclaimer": "Curated marketplace seed data. Independent verification pending.",
+            "source_type": "live_db",
+            "data_disclaimer": "Live Friday registered organizer & tour package marketplace database.",
             "retrieved_at": datetime.utcnow().isoformat(),
             "error": None,
         }

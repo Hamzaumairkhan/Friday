@@ -15,6 +15,7 @@ import {
   SlidersHorizontal,
   Eye,
   Copy,
+  Calendar,
 } from 'lucide-react';
 import { packagesService } from '../../services/packages';
 import { organizersService } from '../../services/organizers';
@@ -38,6 +39,8 @@ export default function ExplorePage() {
   const [feedSource, setFeedSource] = useState('ALL'); // 'ALL', 'ORGANIZER', 'PUBLIC', 'SAVED'
   const [savedPackages, setSavedPackages] = useState({});
   const [saveCounts, setSaveCounts] = useState({});
+  const [likedPackages, setLikedPackages] = useState({});
+  const [likeCounts, setLikeCounts] = useState({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const filterRef = useRef(null);
 
@@ -75,19 +78,32 @@ export default function ExplorePage() {
           duration_days: ct.duration || 4,
           price_per_person: pp,
           budget_total: totalBudget,
+          start_date: ct.start_date || null,
+          end_date: ct.end_date || null,
           image_url: ct.image_url || getDestinationFallback(ct.destination, ct.id),
           is_public_community: true,
           max_group_size: travelersCount,
           difficulty: 'Flexible',
           organizer_id: null,
+          views_count: ct.views_count || 0,
+          likes_count: ct.likes_count || 0,
           created_at: ct.created_at || ct.updated_at || null,
           creator_name: (ct.preferences && ct.preferences.lead_contact && ct.preferences.lead_contact.name) ? ct.preferences.lead_contact.name : 'Community Traveler',
           allow_cloning: ct.allow_cloning !== undefined ? Boolean(ct.allow_cloning) : true,
         };
       });
 
+      // Format organizer packages
+      const formattedPkgs = (pkgs || []).map((p) => ({
+        ...p,
+        start_date: p.departure_date || p.start_date || null,
+        end_date: p.return_date || p.end_date || null,
+        views_count: p.views_count || 0,
+        likes_count: p.likes_count || 0,
+      }));
+
       // Combine and sort feed chronologically (latest upload/creation appears first on top)
-      const allItems = [...(pkgs || []), ...formattedCommunity];
+      const allItems = [...formattedPkgs, ...formattedCommunity];
       allItems.sort((a, b) => {
         const getTimestamp = (item) => {
           if (item.created_at) {
@@ -127,12 +143,29 @@ export default function ExplorePage() {
 
       const storedCounts = JSON.parse(localStorage.getItem('friday_packages_save_counts') || '{}');
       const initialCounts = { ...storedCounts };
-      savedIds.forEach((id) => {
-        if (!initialCounts[id] || initialCounts[id] < 1) {
-          initialCounts[id] = 1;
+      allItems.forEach((item) => {
+        if (initialCounts[item.id] === undefined && item.saves_count) {
+          initialCounts[item.id] = item.saves_count;
         }
       });
       setSaveCounts(initialCounts);
+
+      // Load liked state and like counts
+      const likedIds = JSON.parse(localStorage.getItem('friday_liked_packages') || '[]');
+      const likedMap = {};
+      likedIds.forEach((id) => {
+        likedMap[id] = true;
+      });
+      setLikedPackages(likedMap);
+
+      const storedLikeCounts = JSON.parse(localStorage.getItem('friday_packages_like_counts') || '{}');
+      const initialLikes = { ...storedLikeCounts };
+      allItems.forEach((item) => {
+        if (initialLikes[item.id] === undefined) {
+          initialLikes[item.id] = item.likes_count || 0;
+        }
+      });
+      setLikeCounts(initialLikes);
     } catch (err) {
       console.error('Error fetching marketplace packages:', err);
     } finally {
@@ -171,6 +204,37 @@ export default function ExplorePage() {
 
     localStorage.setItem('friday_saved_packages', JSON.stringify(updated));
     localStorage.setItem('friday_packages_save_counts', JSON.stringify(storedCounts));
+  };
+
+  const toggleLike = (pkgId, isCommunity, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const likedIds = JSON.parse(localStorage.getItem('friday_liked_packages') || '[]');
+    const storedLikeCounts = JSON.parse(localStorage.getItem('friday_packages_like_counts') || '{}');
+    let updated;
+    let newCount;
+
+    if (likedIds.includes(pkgId)) {
+      updated = likedIds.filter((id) => id !== pkgId);
+      newCount = Math.max(0, (storedLikeCounts[pkgId] || likeCounts[pkgId] || 1) - 1);
+      storedLikeCounts[pkgId] = newCount;
+      setLikedPackages((prev) => ({ ...prev, [pkgId]: false }));
+      setLikeCounts((prev) => ({ ...prev, [pkgId]: newCount }));
+    } else {
+      updated = [...likedIds, pkgId];
+      newCount = (storedLikeCounts[pkgId] || likeCounts[pkgId] || 0) + 1;
+      storedLikeCounts[pkgId] = newCount;
+      setLikedPackages((prev) => ({ ...prev, [pkgId]: true }));
+      setLikeCounts((prev) => ({ ...prev, [pkgId]: newCount }));
+      toast.success('Liked this itinerary! ❤️');
+      if (isCommunity) {
+        tripsService.toggleLike(pkgId);
+      }
+    }
+
+    localStorage.setItem('friday_liked_packages', JSON.stringify(updated));
+    localStorage.setItem('friday_packages_like_counts', JSON.stringify(storedLikeCounts));
   };
 
   const handleCloneCommunityTrip = async (e, tripId) => {
@@ -415,6 +479,7 @@ export default function ExplorePage() {
                 const isCommunity = pkg.is_public_community === true;
                 const org = organizers[pkg.organizer_id];
                 const isSaved = !!savedPackages[pkg.id];
+                const isLiked = !!likedPackages[pkg.id];
                 const targetLink = isCommunity ? `/trips/${pkg.id}` : `/explore/${pkg.id}`;
 
                 return (
@@ -435,18 +500,27 @@ export default function ExplorePage() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
 
-                      {/* Badge: Public vs Organizer (Top-Left) */}
-                      <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md text-[#00261D] px-3.5 py-1.5 rounded-full flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase shadow-xs">
-                        {isCommunity ? (
-                          <>
-                            <Users className="w-3.5 h-3.5 text-emerald-800" />
-                            Public
-                          </>
-                        ) : (
-                          <>
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                            Organizer
-                          </>
+                      {/* Badges: Public / Organizer + Travel Dates (Top-Left) */}
+                      <div className="absolute top-4 left-4 flex items-center gap-2 flex-wrap max-w-[70%]">
+                        <div className="bg-white/95 backdrop-blur-md text-[#00261D] px-3.5 py-1.5 rounded-full flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase shadow-xs">
+                          {isCommunity ? (
+                            <>
+                              <Users className="w-3.5 h-3.5 text-emerald-800" />
+                              Public
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                              Organizer
+                            </>
+                          )}
+                        </div>
+
+                        {pkg.start_date && (
+                          <div className="bg-white/95 backdrop-blur-md text-[#00261D] px-3 py-1.5 rounded-full flex items-center gap-1.5 text-[11px] font-bold shadow-xs">
+                            <Calendar className="w-3.5 h-3.5 text-[#00261D]" />
+                            <span>{pkg.start_date}{pkg.end_date ? ` → ${pkg.end_date}` : ''}</span>
+                          </div>
                         )}
                       </div>
 
@@ -458,35 +532,58 @@ export default function ExplorePage() {
                         </span>
                       </div>
 
-                      {/* Save / Bookmark Button with Dynamic User Save Count (Top-Right) */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleSave(pkg.id, e);
-                        }}
-                        className={`absolute top-4 right-4 backdrop-blur-md flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-sm ${
-                          isSaved
-                            ? 'bg-[#00261D] text-[#BBEAD5] scale-105 shadow-md ring-2 ring-white/60'
-                            : 'bg-white/90 text-[#00261D] hover:bg-white hover:scale-105'
-                        } ${
-                          (saveCounts[pkg.id] || 0) > 0
-                            ? 'min-w-[40px] px-2 py-1.5 rounded-2xl gap-0.5'
-                            : 'h-10 w-10 rounded-full'
-                        }`}
-                        title={isSaved ? 'Remove from Saved' : 'Save to Bookmarks'}
-                        aria-label={isSaved ? 'Remove from Saved' : 'Save to Bookmarks'}
-                      >
-                        <Bookmark className={`w-4 h-4 transition-transform ${isSaved ? 'fill-[#BBEAD5]' : ''}`} />
-                        {(saveCounts[pkg.id] || 0) > 0 && (
-                          <span
-                            className={`text-[10px] font-extrabold leading-none tracking-tight ${
-                              isSaved ? 'text-[#BBEAD5]' : 'text-[#00261D]'
-                            }`}
-                          >
-                            {saveCounts[pkg.id]}
-                          </span>
-                        )}
-                      </button>
+                      {/* Like (Heart) & Save (Bookmark) Action Row (Top-Right) */}
+                      <div className="absolute top-4 right-4 flex items-center gap-2">
+                        {/* Like Button */}
+                        <button
+                          onClick={(e) => toggleLike(pkg.id, isCommunity, e)}
+                          className={`backdrop-blur-md flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-sm ${
+                            isLiked
+                              ? 'bg-rose-600 text-white scale-105 shadow-md ring-2 ring-white/60'
+                              : 'bg-white/90 text-[#00261D] hover:bg-white hover:scale-105'
+                          } ${
+                            (likeCounts[pkg.id] || 0) > 0
+                              ? 'min-w-[40px] px-2 py-1.5 rounded-2xl gap-0.5'
+                              : 'h-10 w-10 rounded-full'
+                          }`}
+                          title={isLiked ? 'Unlike itinerary' : 'Like itinerary'}
+                          aria-label={isLiked ? 'Unlike' : 'Like'}
+                        >
+                          <Heart className={`w-4 h-4 transition-transform ${isLiked ? 'fill-white text-white' : 'text-rose-600'}`} />
+                          {(likeCounts[pkg.id] || 0) > 0 && (
+                            <span className={`text-[10px] font-extrabold leading-none tracking-tight ${isLiked ? 'text-white' : 'text-[#00261D]'}`}>
+                              {likeCounts[pkg.id]}
+                            </span>
+                          )}
+                        </button>
+
+                        {/* Save / Bookmark Button */}
+                        <button
+                          onClick={(e) => toggleSave(pkg.id, e)}
+                          className={`backdrop-blur-md flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-sm ${
+                            isSaved
+                              ? 'bg-[#00261D] text-[#BBEAD5] scale-105 shadow-md ring-2 ring-white/60'
+                              : 'bg-white/90 text-[#00261D] hover:bg-white hover:scale-105'
+                          } ${
+                            (saveCounts[pkg.id] || 0) > 0
+                              ? 'min-w-[40px] px-2 py-1.5 rounded-2xl gap-0.5'
+                              : 'h-10 w-10 rounded-full'
+                          }`}
+                          title={isSaved ? 'Remove from Saved' : 'Save to Bookmarks'}
+                          aria-label={isSaved ? 'Remove from Saved' : 'Save to Bookmarks'}
+                        >
+                          <Bookmark className={`w-4 h-4 transition-transform ${isSaved ? 'fill-[#BBEAD5]' : ''}`} />
+                          {(saveCounts[pkg.id] || 0) > 0 && (
+                            <span
+                              className={`text-[10px] font-extrabold leading-none tracking-tight ${
+                                isSaved ? 'text-[#BBEAD5]' : 'text-[#00261D]'
+                              }`}
+                            >
+                              {saveCounts[pkg.id]}
+                            </span>
+                          )}
+                        </button>
+                      </div>
                     </div>
 
                     {/* Card Body */}
@@ -563,6 +660,15 @@ export default function ExplorePage() {
                             <span className="text-[10px] text-[#717975] uppercase font-semibold block">Duration</span>
                             <span className="font-semibold text-[#00261D]">{pkg.duration_days || 3} Days</span>
                           </div>
+                          {pkg.start_date && (
+                            <div>
+                              <span className="text-[10px] text-[#717975] uppercase font-semibold block">Dates</span>
+                              <span className="font-semibold text-[#00261D] flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-[#717975]" />
+                                {pkg.start_date}
+                              </span>
+                            </div>
+                          )}
                           <div>
                             <span className="text-[10px] text-[#717975] uppercase font-semibold block">Difficulty</span>
                             <span className="font-semibold text-[#00261D]">{pkg.difficulty || 'Flexible'}</span>
@@ -588,10 +694,10 @@ export default function ExplorePage() {
                               type="button"
                               onClick={(e) => handleCloneCommunityTrip(e, pkg.id)}
                               className="w-full sm:w-auto bg-[#E7F7EE] hover:bg-[#D4F0E2] text-[#00261D] rounded-full px-4 py-3 text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
-                              title="Clone & customize this itinerary for your group"
+                              title="Copy & edit this itinerary for your group"
                             >
                               <Copy className="w-3.5 h-3.5 text-emerald-800" />
-                              <span>Clone & Edit</span>
+                              <span>Copy & Edit</span>
                             </button>
                           )}
 

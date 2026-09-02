@@ -103,6 +103,17 @@ export default function PackageFormPage() {
   const [weatherAdvisory, setWeatherAdvisory] = useState(null);
   const [isCheckingWeather, setIsCheckingWeather] = useState(false);
 
+  // Geo Validation & Auto-Correction State
+  const [geoValidation, setGeoValidation] = useState({
+    isValid: true,
+    wasCorrected: false,
+    correctedName: '',
+    error: '',
+    checking: false,
+    region: '',
+    suggestions: [],
+  });
+
   // Default dates: departure = today + 14 days
   const getInitialDepartureDate = () => {
     const d = new Date();
@@ -226,6 +237,53 @@ export default function PackageFormPage() {
   }, [formData.departure_date, formData.duration_days]);
 
   // Live OpenWeather forecast for the organizer's expedition dates & destination
+  // Real-time Pakistan Geo Validation & Auto-Correction
+  useEffect(() => {
+    if (!formData.destination || formData.destination.trim().length < 2) {
+      setGeoValidation({ isValid: true, wasCorrected: false, correctedName: '', error: '', checking: false, region: '', suggestions: [] });
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setGeoValidation((prev) => ({ ...prev, checking: true }));
+        const res = await tripsService.validateDestination(formData.destination.trim());
+        if (res) {
+          if (res.is_valid_pakistan) {
+            setGeoValidation({
+              isValid: true,
+              wasCorrected: Boolean(res.was_corrected),
+              correctedName: res.corrected_destination,
+              error: '',
+              checking: false,
+              region: res.region,
+              suggestions: [],
+            });
+            if (res.was_corrected && res.corrected_destination && res.corrected_destination.toLowerCase() !== formData.destination.trim().toLowerCase()) {
+              updateField('destination', res.corrected_destination);
+              toast.success(`✨ Auto-corrected to ${res.corrected_destination} (${res.region || 'Pakistan'})`, { id: 'pkg-geo-correct' });
+            }
+          } else {
+            setGeoValidation({
+              isValid: false,
+              wasCorrected: false,
+              correctedName: '',
+              error: res.error || `Friday exclusively curates expeditions within Pakistan. '${formData.destination}' is outside Pakistan.`,
+              suggestions: res.suggestions || ['Hunza', 'Skardu', 'Swat', 'Naran', 'Islamabad', 'Lahore'],
+              checking: false,
+              region: '',
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Geo validation error:', err);
+        setGeoValidation((prev) => ({ ...prev, checking: false }));
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [formData.destination]);
+
   useEffect(() => {
     if (!formData.destination || formData.destination.trim().length < 2) return;
 
@@ -496,6 +554,11 @@ export default function PackageFormPage() {
       toast.error('Please enter Primary Destination.');
       return;
     }
+    if (!geoValidation.isValid) {
+      toast.error(geoValidation.error || `Friday exclusively curates expeditions within Pakistan. '${formData.destination}' is outside Pakistan.`);
+      setActiveTab('BASICS');
+      return;
+    }
     if (!formData.organizer_name?.trim()) {
       toast.error('Please enter Host / Company Name.');
       return;
@@ -639,6 +702,10 @@ export default function PackageFormPage() {
       }
       if (!formData.destination?.trim()) {
         toast.error('Primary Destination is required before moving to next step.');
+        return false;
+      }
+      if (!geoValidation.isValid) {
+        toast.error(geoValidation.error || `Friday exclusively curates expeditions within Pakistan. '${formData.destination}' is outside Pakistan.`);
         return false;
       }
       if (!formData.organizer_name?.trim()) {
@@ -834,14 +901,70 @@ export default function PackageFormPage() {
               </div>
 
               <div>
-                <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Primary Destination *</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs uppercase font-bold text-[#717975]">Primary Destination (in Pakistan) *</label>
+                  {geoValidation.checking && (
+                    <span className="text-[11px] text-emerald-800 font-semibold flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Verifying location in Pakistan...
+                    </span>
+                  )}
+                </div>
                 <input
                   value={formData.destination}
                   onChange={(e) => updateField('destination', e.target.value)}
                   placeholder="e.g. Hunza Valley, Gilgit-Baltistan"
                   required
-                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] focus:outline-none focus:border-[#00261D]"
+                  className={`w-full bg-[#F8FAF6] border rounded-2xl px-4 py-3 text-sm text-[#00261D] focus:outline-none ${
+                    !geoValidation.isValid
+                      ? 'border-amber-500 focus:border-amber-600 bg-amber-50/20'
+                      : 'border-black/10 focus:border-[#00261D]'
+                  }`}
                 />
+
+                {/* Verified Location Badge */}
+                {formData.destination && geoValidation.isValid && geoValidation.correctedName && !geoValidation.checking && (
+                  <div className="flex items-center gap-2 text-xs text-emerald-900 bg-emerald-50 border border-emerald-200/80 px-3.5 py-2 rounded-xl mt-2 animate-in fade-in">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                    <span>
+                      Verified in Pakistan: <strong>{geoValidation.correctedName}</strong>
+                      {geoValidation.region ? ` • ${geoValidation.region}` : ''}
+                    </span>
+                    {geoValidation.wasCorrected && (
+                      <span className="ml-auto text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
+                        ✨ Auto-Corrected
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Non-Pakistan or Invalid Location Alert */}
+                {!geoValidation.isValid && !geoValidation.checking && (
+                  <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 space-y-2 mt-2 animate-in fade-in">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-bold leading-tight text-amber-900">
+                          {geoValidation.error || `Friday exclusively curates expeditions within Pakistan. '${formData.destination}' is outside Pakistan.`}
+                        </p>
+                        <p className="text-[11px] text-amber-800">
+                          Please choose a destination across Pakistan:
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-1 border-t border-amber-200/60">
+                      {(geoValidation.suggestions || ['Hunza', 'Skardu', 'Swat', 'Naran', 'Islamabad', 'Lahore']).map((sug, sIdx) => (
+                        <button
+                          key={sIdx}
+                          type="button"
+                          onClick={() => updateField('destination', sug)}
+                          className="px-2.5 py-0.5 bg-white hover:bg-emerald-900 hover:text-white border border-amber-300 rounded-full text-[11px] font-bold text-[#00261D] cursor-pointer transition-all shadow-2xs"
+                        >
+                          {sug}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Host Organizer Transparency Fields (Read Only Verified from Profile) */}
@@ -1041,6 +1164,7 @@ export default function PackageFormPage() {
                 <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Departure Date *</label>
                 <input
                   type="date"
+                  min={new Date().toISOString().split('T')[0]}
                   value={formData.departure_date}
                   onChange={(e) => updateField('departure_date', e.target.value)}
                   required

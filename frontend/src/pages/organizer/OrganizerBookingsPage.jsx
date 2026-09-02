@@ -278,11 +278,25 @@ export default function OrganizerBookingsPage() {
                   return (
                     <tr key={b.id} className="hover:bg-[#F8FAF6] transition-colors">
                       <td className="py-4 px-6 font-bold text-[#00261D]">
-                        <div>
-                          <p className="font-bold text-[#00261D]">{travelerName}</p>
-                          {b.traveler_email && (
-                            <p className="text-[10px] text-[#717975] font-normal">{b.traveler_email}</p>
+                        <div className="flex items-center gap-3">
+                          {b.traveler_profile_picture ? (
+                            <img
+                              src={b.traveler_profile_picture}
+                              alt={travelerName}
+                              className="w-9 h-9 rounded-full object-cover border border-black/10 shrink-0"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-[#00261D] flex items-center justify-center text-white text-sm font-bold shrink-0">
+                              {travelerName.charAt(0).toUpperCase()}
+                            </div>
                           )}
+                          <div>
+                            <p className="font-bold text-[#00261D]">{travelerName}</p>
+                            {b.traveler_email && (
+                              <p className="text-[10px] text-[#717975] font-normal">{b.traveler_email}</p>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="py-4 px-6 max-w-xs truncate font-medium text-[#00261D]">

@@ -296,9 +296,18 @@ export default function DashboardPage() {
                     key={booking.id}
                     className="flex items-start gap-4 p-4 rounded-2xl bg-[#F8FAF6] border border-black/5 hover:border-black/15 transition-all"
                   >
+                    {booking.traveler_profile_picture ? (
+                      <img
+                        src={booking.traveler_profile_picture}
+                        alt={travelerName}
+                        className="w-10 h-10 rounded-full object-cover border border-black/10 shrink-0 shadow-2xs"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
                     <div className="w-10 h-10 rounded-full bg-[#00261D] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
                       {initial}
                     </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start gap-2 mb-1">
                         <div>

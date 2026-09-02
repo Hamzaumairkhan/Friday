@@ -33,7 +33,8 @@ import toast from 'react-hot-toast';
 export default function PackageDetailPage() {
   const { packageId } = useParams();
   const navigate = useNavigate();
-  const { backendUser } = useAuth();
+  const { backendUser, role } = useAuth();
+  const isOrganizer = (role || backendUser?.role) === 'ORGANIZER';
   const [pkg, setPkg] = useState(null);
   const [organizer, setOrganizer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -124,6 +125,10 @@ export default function PackageDetailPage() {
     if (!backendUser) {
       toast.error('Please log in as a Traveler to book this tour.');
       navigate('/auth/login?redirect=' + encodeURIComponent(`/packages/${pkg.id}`));
+      return;
+    }
+    if (isOrganizer) {
+      toast.error('Organizer accounts cannot book tours. Please switch to a Traveler account to make a booking.');
       return;
     }
     setIsBooking(true);
@@ -688,6 +693,12 @@ export default function PackageDetailPage() {
           </div>
 
           {/* CTA Button */}
+          {isOrganizer ? (
+            <div className="w-full bg-amber-50 border border-amber-200 text-amber-900 py-4 rounded-xl text-xs font-bold uppercase tracking-widest text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+              Organizers cannot book trips
+            </div>
+          ) : (
+          <>
           <button
             onClick={() => setBookDialogOpen(true)}
             className="w-full bg-[#00261D] text-white py-4 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-[#00261D]/90 transition-all cursor-pointer shadow-md"
@@ -699,6 +710,8 @@ export default function PackageDetailPage() {
           <p className="text-[11px] text-[#717975] text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
             You won't be charged yet.
           </p>
+          </>
+          )}
         </div>
 
         {/* Host Badge */}

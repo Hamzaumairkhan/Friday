@@ -18,10 +18,10 @@ def test_booking_derives_immutable_package_metadata(run_async, auth_headers, tes
             assert trip_res.status_code == 201
             trip_id = trip_res.json()["id"]
 
-            # Book the Swat 3-day package (pkg-swat-3d)
+            # Book the Hunza 5-day package (pkg-hunza-5d)
             booking_payload = {
                 "trip_id": trip_id,
-                "package_id": "pkg-swat-3d",
+                "package_id": "pkg-hunza-5d",
                 "travelers": 2,
                 "notes": "Vegetarian meals only",
             }
@@ -30,12 +30,12 @@ def test_booking_derives_immutable_package_metadata(run_async, auth_headers, tes
             booking = book_res.json()
 
             # Authoritative package assertions
-            assert booking["destination"] == "Swat", f"Expected Swat, got {booking.get('destination')}"
-            assert booking["duration_days"] == 3, f"Expected 3 days, got {booking.get('duration_days')}"
-            assert booking["package_title"] == "Swat & Malam Jabba Weekend Escape 3D"
-            assert booking["organizer_id"] == "org-swat-tours"
-            assert booking["total_price"] == 44000.0  # 22,000 * 2
-            assert booking["price_per_person"] == 22000.0
+            assert booking["destination"] == "Hunza", f"Expected Hunza, got {booking.get('destination')}"
+            assert booking["duration_days"] == 5, f"Expected 5 days, got {booking.get('duration_days')}"
+            assert booking["package_title"] == "Hunza Valley Autumn Discovery"
+            assert booking["organizer_id"] == "org-hunza-explorers"
+            assert booking["total_price"] == 90000.0  # 45,000 * 2
+            assert booking["price_per_person"] == 45000.0
 
     run_async(_test())
 

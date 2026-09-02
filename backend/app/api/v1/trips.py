@@ -29,10 +29,7 @@ from app.services.email_service import EmailService
 from app.services.dynamic_research_service import (
     DynamicDestinationResearchService,
     make_maps_url,
-    fetch_real_web_photo,
-    fetch_real_web_photo_async,
     fetch_real_web_photos_multi,
-    resolve_regional_fallback_image,
 )
 from app.agents.replanner_agent import ReplannerAgent
 from app.core.security import get_current_user_id
@@ -60,60 +57,91 @@ def _is_renderable_web_image(url: str) -> bool:
     return not any(bd in u_low for bd in BLOCKED_IMAGE_DOMAINS)
 
 
-def _resolve_destination_image(destination: Optional[str], variation_seed: Optional[int] = None) -> str:
-    if not destination:
-        return "https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?auto=format&fit=crop&w=1200&q=80"
-    
-    # 1. Try real web photo with dynamic rotation
-    real_photo = fetch_real_web_photo(destination, destination, variation_seed=variation_seed)
-    if real_photo and _is_renderable_web_image(real_photo):
-        return real_photo
+async def reconcile_trip_activity_costs(
+    db: AsyncSession,
+    trip_id: str,
+    new_budget_total: float,
+    accommodation_preference: str = "comfortable",
+) -> None:
+    """Synchronize all Day activities and Budget categories to match new_budget_total with 100% precision."""
+    total_b = max(5000.0, float(new_budget_total))
 
-    # 2. Regional fallback (clean, genuine photography)
-    return resolve_regional_fallback_image(destination, variation_seed=variation_seed)
+    # 1. Fetch itinerary with days & activities
+    itinerary_res = await db.execute(
+        select(Itinerary)
+        .where(Itinerary.trip_id == trip_id)
+        .options(selectinload(Itinerary.days).selectinload(Day.activities))
+    )
+    itinerary = itinerary_res.scalar_one_or_none()
+    if not itinerary or not itinerary.days:
+        return
 
+    all_activities: List[Activity] = []
+    for d in itinerary.days:
+        for a in d.activities:
+            all_activities.append(a)
 
-async def _fetch_web_images_and_research(destination: str, origin: str, variation_seed: Optional[int] = None) -> tuple[str, list[str]]:
-    """Live web search to find real photography and scenic web images for the exact destination with rotation."""
-    real_images: list[str] = []
+    if not all_activities:
+        return
 
-    # 1. Primary: Fetch real web photo pool from Wikipedia & Curated Travel collections
-    multi_photos = await fetch_real_web_photos_multi(destination, destination, limit=12)
-    for p in multi_photos:
-        if _is_renderable_web_image(p) and p not in real_images:
-            real_images.append(p)
-
-    # 2. Secondary: Tavily Search if active
-    settings = get_settings()
-    api_key = getattr(settings, "TAVILY_API_KEY", None)
-    if api_key:
-        try:
-            from tavily import TavilyClient
-            client = TavilyClient(api_key=api_key)
-            res = client.search(
-                query=f"{destination} Pakistan travel tourism attractions landscape photography",
-                include_images=True,
-                max_results=8,
-                search_depth="basic",
-            )
-            for img in res.get("images", []):
-                if _is_renderable_web_image(img) and img not in real_images:
-                    real_images.append(img)
-        except Exception:
-            pass
-
-    # 3. Fallback to authentic scenic regional photography
-    if not real_images:
-        fallback_hero = resolve_regional_fallback_image(destination, variation_seed=variation_seed)
-        real_images = [fallback_hero]
-
-    # Pick rotated hero image
-    if variation_seed is not None:
-        hero_idx = variation_seed % len(real_images)
+    # Proportional scaling
+    old_sum = sum(a.estimated_cost or 0 for a in all_activities)
+    if old_sum > 0:
+        allocated = 0.0
+        for i, act in enumerate(all_activities):
+            if i == len(all_activities) - 1:
+                act.estimated_cost = round(total_b - allocated)
+            else:
+                scaled = round((act.estimated_cost / old_sum) * total_b)
+                act.estimated_cost = scaled
+                allocated += scaled
     else:
-        hero_idx = 0
-    hero_img = real_images[hero_idx]
-    return hero_img, real_images
+        per_act = round(total_b / len(all_activities))
+        allocated = 0.0
+        for i, act in enumerate(all_activities):
+            if i == len(all_activities) - 1:
+                act.estimated_cost = round(total_b - allocated)
+            else:
+                act.estimated_cost = per_act
+                allocated += per_act
+
+    # 2. Update Budget category table
+    is_no_stay = (accommodation_preference == "none")
+    if is_no_stay:
+        b_trans = round(total_b * 0.40)
+        b_accom = 0
+        b_food = round(total_b * 0.30)
+        b_acts = round(total_b * 0.20)
+        b_other = max(0, round(total_b) - (b_trans + b_accom + b_food + b_acts))
+    else:
+        b_trans = round(total_b * 0.28)
+        b_accom = round(total_b * 0.35)
+        b_food = round(total_b * 0.20)
+        b_acts = round(total_b * 0.10)
+        b_other = max(0, round(total_b) - (b_trans + b_accom + b_food + b_acts))
+
+    budget_res = await db.execute(select(Budget).where(Budget.trip_id == trip_id))
+    existing_budgets = budget_res.scalars().all()
+    for b in existing_budgets:
+        if b.category == BudgetCategory.TRANSPORTATION:
+            b.estimated_amount = b_trans
+        elif b.category == BudgetCategory.ACCOMMODATION:
+            b.estimated_amount = b_accom
+        elif b.category == BudgetCategory.FOOD:
+            b.estimated_amount = b_food
+        elif b.category == BudgetCategory.ACTIVITIES:
+            b.estimated_amount = b_acts
+        elif b.category == BudgetCategory.MISCELLANEOUS:
+            b.estimated_amount = b_other
+
+
+async def _fetch_web_images_and_research(destination: str, origin: str, variation_seed: Optional[int] = None) -> tuple[Optional[str], list[str]]:
+    """Live web search to find real photography for the destination with rotation."""
+    photos = await fetch_real_web_photos_multi(destination, destination, limit=8)
+    if photos and len(photos) > 0:
+        hero_idx = (variation_seed if variation_seed is not None else 0) % len(photos)
+        return photos[hero_idx], photos
+    return None, []
 
 
 @router.get("/images/search")
@@ -133,8 +161,7 @@ async def search_destination_images(
 
 
 def _format_trip_response(t, members_override=None) -> TripResponse:
-    trip_seed = sum(ord(c) for c in str(getattr(t, 'id', '') or t.destination or ''))
-    img = getattr(t, 'image_url', None) or _resolve_destination_image(t.destination, variation_seed=trip_seed)
+    img = getattr(t, 'image_url', None)
     prefs = t.preferences if isinstance(t.preferences, dict) else {}
     
     members = []
@@ -195,6 +222,8 @@ def _format_trip_response(t, members_override=None) -> TripResponse:
         copied_from_trip_id=t.copied_from_trip_id if hasattr(t, 'copied_from_trip_id') else None,
         image_url=img,
         advisories=t.advisories or [] if hasattr(t, 'advisories') else [],
+        views_count=int(getattr(t, 'views_count', 0) or 0),
+        likes_count=int(getattr(t, 'likes_count', 0) or 0),
         weather=weather_data,
         owner_role=owner_role,
         members=members,
@@ -252,6 +281,16 @@ async def check_weather(
     )
 
 
+@router.post("/validate-destination")
+async def validate_destination(
+    payload: Dict[str, Any],
+):
+    """Validate whether the destination is in Pakistan, auto-correct spelling mistakes, and return details."""
+    from app.services.pakistan_geo_service import PakistanGeoService
+    query = payload.get("destination") or payload.get("query") or ""
+    return await PakistanGeoService.validate_and_correct_destination(query)
+
+
 @router.get("/slot-options")
 async def get_hourly_slot_options(
     destination: str,
@@ -269,6 +308,14 @@ async def get_trip(
     service = TripService(db)
     trip = await service.get_trip(trip_id=trip_id, user_id=user_id)
     
+    # Increment views count every time the trip is viewed
+    try:
+        trip.views_count = int(getattr(trip, 'views_count', 0) or 0) + 1
+        await db.commit()
+        await db.refresh(trip)
+    except Exception as e:
+        logger.warning(f"Could not increment views_count: {e}")
+
     # Enrich members with Google profile photos and verified names (hide email & phone if public)
     is_public = bool(trip.is_public)
     members = []
@@ -313,6 +360,36 @@ async def get_trip(
                 })
 
     return _format_trip_response(trip, members_override=members)
+
+
+@router.post("/{trip_id}/view")
+async def record_trip_view(
+    trip_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Record an impression view (+1) for a trip."""
+    trip = await db.get(Trip, trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    trip.views_count = int(getattr(trip, 'views_count', 0) or 0) + 1
+    await db.commit()
+    await db.refresh(trip)
+    return {"views_count": trip.views_count, "recorded": True}
+
+
+@router.post("/{trip_id}/like")
+async def toggle_trip_like(
+    trip_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle or record like (+1) on a public community trip."""
+    trip = await db.get(Trip, trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    trip.likes_count = int(getattr(trip, 'likes_count', 0) or 0) + 1
+    await db.commit()
+    await db.refresh(trip)
+    return {"likes_count": trip.likes_count, "liked": True}
 
 
 async def _dispatch_trip_notifications(trip: Trip, db: AsyncSession):
@@ -420,6 +497,14 @@ async def update_trip(
         trip.is_public = 1 if req.is_public else 0
     if req.image_url:
         trip.image_url = req.image_url
+
+    # Strict Budget Reconciliation: update activity costs and budget records to match new budget
+    if req.budget_total is not None and req.budget_total > 0:
+        pref = "comfortable"
+        if isinstance(trip.preferences, dict):
+            pref = trip.preferences.get("accommodation_preference", "comfortable")
+        await reconcile_trip_activity_costs(db, trip.id, req.budget_total, pref)
+
     await db.commit()
 
     return _format_trip_response(trip)
@@ -435,6 +520,16 @@ async def generate_guided_trip_plan(
     """Complete Guided AI Trip Planning Endpoint."""
     dest = (req.destination or req.destination_query or "Islamabad").strip()
     origin = (req.origin or "Islamabad").strip()
+
+    # 0. Geographic Verification & Auto-Correction for Pakistan
+    from app.services.pakistan_geo_service import PakistanGeoService
+    geo_res = await PakistanGeoService.validate_and_correct_destination(dest)
+    if not geo_res.get("is_valid_pakistan"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=geo_res.get("error") or f"Friday is Pakistan's exclusive AI travel architect. We only curate trips within Pakistan. '{dest}' is outside Pakistan."
+        )
+    dest = geo_res.get("corrected_destination") or dest
     
     # 1. Resolve duration days
     duration_days = 4
@@ -509,18 +604,45 @@ async def generate_guided_trip_plan(
         img_url = researched_hero or img_url
 
     # 6. Compute Deterministic Budget Breakdown
-    accom_pct = 0.35 if req.accommodation_preference != "none" else 0.0
-    trans_pct = 0.28
-    food_pct = 0.20
-    act_pct = 0.10
-    other_pct = 1.0 - (accom_pct + trans_pct + food_pct + act_pct)
+    if req.accommodation_preference == "none":
+        accom_pct = 0.0
+        trans_pct = 0.40
+        food_pct = 0.30
+        act_pct = 0.20
+        other_pct = 0.10
+    else:
+        pref = (req.accommodation_preference or "comfortable").lower()
+        if "budget" in pref:
+            accom_pct = 0.28
+            trans_pct = 0.32
+            food_pct = 0.22
+            act_pct = 0.12
+            other_pct = 0.06
+        elif "premium" in pref or "luxury" in pref:
+            accom_pct = 0.45
+            trans_pct = 0.25
+            food_pct = 0.15
+            act_pct = 0.10
+            other_pct = 0.05
+        else: # comfortable / friday_decide
+            accom_pct = 0.35
+            trans_pct = 0.28
+            food_pct = 0.20
+            act_pct = 0.10
+            other_pct = 0.07
+
+    b_trans = round(budget_total * trans_pct)
+    b_accom = round(budget_total * accom_pct)
+    b_food = round(budget_total * food_pct)
+    b_acts = round(budget_total * act_pct)
+    b_other = max(0, round(budget_total) - (b_trans + b_accom + b_food + b_acts))
 
     budget_breakdown = {
-        "transport": round(budget_total * trans_pct),
-        "accommodation": round(budget_total * accom_pct),
-        "food": round(budget_total * food_pct),
-        "activities": round(budget_total * act_pct),
-        "other": round(budget_total * max(0.05, other_pct)),
+        "transport": b_trans,
+        "accommodation": b_accom,
+        "food": b_food,
+        "activities": b_acts,
+        "other": b_other,
         "total": round(budget_total),
     }
 
@@ -621,7 +743,9 @@ async def generate_guided_trip_plan(
                 order=a_data["order"],
                 title=a_data["title"],
                 description=a_data["description"],
-                location=a_data["location"],
+                location=a_data.get("location"),
+                latitude=a_data.get("latitude"),
+                longitude=a_data.get("longitude"),
                 start_time=a_data["start_time"],
                 end_time=a_data["end_time"],
                 duration_minutes=a_data["duration_minutes"],
@@ -629,6 +753,7 @@ async def generate_guided_trip_plan(
                 category=act_cat,
                 image_url=a_data.get("image_url"),
                 notes=a_data.get("map_url"),
+                confidence=a_data.get("confidence", 0.95 if a_data.get("latitude") else 0.70),
             )
             db.add(act_obj)
 
@@ -700,15 +825,22 @@ async def publish_trip(
             acts = []
             for a in d.activities:
                 acts.append({
+                    "id": a.id,
+                    "order": a.order,
                     "title": a.title,
                     "description": a.description,
                     "location": a.location,
+                    "latitude": a.latitude,
+                    "longitude": a.longitude,
                     "start_time": a.start_time,
                     "end_time": a.end_time,
                     "duration_minutes": a.duration_minutes,
                     "estimated_cost": a.estimated_cost,
                     "category": a.category.value if hasattr(a.category, 'value') else a.category,
-                    "map_url": a.notes or make_maps_url(a.location or trip.destination, trip.destination),
+                    "image_url": a.image_url,
+                    "map_url": a.notes or make_maps_url(a.location or a.title or trip.destination, trip.destination, a.latitude, a.longitude),
+                    "notes": a.notes,
+                    "location_verified": bool(a.latitude and a.longitude),
                 })
             itinerary_days.append({
                 "day_number": d.day_number,
@@ -789,13 +921,22 @@ async def copy_or_clone_trip(
 
     # 2. Check Permissions: Organizers are prohibited from copying traveler trips
     cur_user = await db.get(User, user_id)
-    if cur_user:
-        user_role = cur_user.role.value if hasattr(cur_user.role, 'value') else str(cur_user.role)
-        if user_role == "ORGANIZER":
-            raise HTTPException(
-                status_code=403,
-                detail="Organizers cannot copy traveler trip itineraries. Only traveler accounts can clone community trips."
-            )
+    if not cur_user:
+        cur_user = User(
+            id=user_id,
+            email=f"{user_id}@friday.local",
+            name="Community Traveler",
+            role=UserRole.TRAVELER,
+        )
+        db.add(cur_user)
+        await db.flush()
+
+    user_role = cur_user.role.value if hasattr(cur_user.role, 'value') else str(cur_user.role)
+    if user_role == "ORGANIZER":
+        raise HTTPException(
+            status_code=403,
+            detail="Organizers cannot copy traveler trip itineraries. Only traveler accounts can clone community trips."
+        )
 
     # 3. Check Permissions: owner can always clone; other users can clone ONLY if trip is public and allow_cloning is true
     if orig_trip.owner_id != user_id:
@@ -804,8 +945,8 @@ async def copy_or_clone_trip(
         if not bool(getattr(orig_trip, 'allow_cloning', 1)):
             raise HTTPException(status_code=403, detail="The creator has disabled copying for this itinerary.")
 
-    cur_name = cur_user.name if cur_user else "Lead Traveler"
-    cur_email = cur_user.email if cur_user else f"{user_id}@friday.local"
+    cur_name = cur_user.name or "Lead Traveler"
+    cur_email = cur_user.email or f"{user_id}@friday.local"
     cur_phone = getattr(cur_user, "phone", "") or ""
 
     # 4. Clone preferences with fresh lead traveler & empty companion slots
@@ -918,7 +1059,7 @@ async def copy_or_clone_trip(
                 category=b.category,
                 estimated_amount=b.estimated_amount,
                 actual_amount=0.0,
-                currency=b.currency,
+                notes=getattr(b, 'notes', None),
                 version="1",
             )
             db.add(new_b)
@@ -956,14 +1097,17 @@ async def add_custom_activity(
         act_cat = ActivityCategory.OTHER
 
     location = payload.get("location", trip.destination)
-    map_url = payload.get("map_url") or make_maps_url(location, trip.destination)
+    verified_loc = await DynamicDestinationResearchService.verify_place_location_live(location, trip.destination)
+    map_url = payload.get("map_url") or verified_loc["maps_url"]
 
     act = Activity(
         day_id=day_id,
         order=int(payload.get("order", 99)),
         title=payload.get("title", "Custom Activity"),
         description=payload.get("description", ""),
-        location=location,
+        location=verified_loc["address"] if verified_loc["location_verified"] else location,
+        latitude=verified_loc["latitude"],
+        longitude=verified_loc["longitude"],
         start_time=payload.get("start_time", "10:00 AM"),
         end_time=payload.get("end_time", "12:00 PM"),
         duration_minutes=int(payload.get("duration_minutes", 120)),
@@ -971,6 +1115,7 @@ async def add_custom_activity(
         category=act_cat,
         image_url=payload.get("image_url", trip.image_url),
         notes=map_url,
+        confidence=0.95 if verified_loc["location_verified"] else 0.70,
     )
     db.add(act)
     await db.commit()
@@ -981,6 +1126,9 @@ async def add_custom_activity(
         "title": act.title,
         "description": act.description,
         "location": act.location,
+        "latitude": act.latitude,
+        "longitude": act.longitude,
+        "location_verified": bool(act.latitude and act.longitude),
         "start_time": act.start_time,
         "end_time": act.end_time,
         "duration_minutes": act.duration_minutes,
@@ -1015,8 +1163,11 @@ async def update_custom_activity(
     if "description" in payload:
         act.description = payload["description"]
     if "location" in payload:
-        act.location = payload["location"]
-        act.notes = payload.get("map_url") or make_maps_url(act.location, trip.destination)
+        verified_loc = await DynamicDestinationResearchService.verify_place_location_live(payload["location"], trip.destination)
+        act.location = verified_loc["address"] if verified_loc["location_verified"] else payload["location"]
+        act.latitude = verified_loc["latitude"]
+        act.longitude = verified_loc["longitude"]
+        act.notes = payload.get("map_url") or verified_loc["maps_url"]
     if "start_time" in payload:
         act.start_time = payload["start_time"]
     if "end_time" in payload:
@@ -1364,6 +1515,10 @@ async def replan_trip(
     trip.budget_total = updated_state["budget_total"]
     trip.version = updated_state["version"]
     await service.repo.update(trip)
+
+    # Strict Budget Reconciliation for all Day Activities & Budgets
+    await reconcile_trip_activity_costs(db, trip.id, trip.budget_total)
+
     await db.commit()
 
     return ReplanResponse(

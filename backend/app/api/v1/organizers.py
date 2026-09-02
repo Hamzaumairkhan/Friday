@@ -9,6 +9,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 from app.database.database import get_db
+from app.models.user import User
 from app.models.organizer import Organizer
 from app.models.package import Package
 from app.models.booking import Booking, BookingStatus, PaymentStatus
@@ -264,10 +265,9 @@ async def create_package_for_organizer(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new marketplace package strictly attached to the authenticated organizer."""
-    from app.api.v1.trips import _resolve_destination_image
     pkg_repo = PackageRepository(db)
     pkg_id = f"pkg-{uuid.uuid4().hex[:12]}"
-    resolved_img = req.image_url or _resolve_destination_image(req.destination or req.title)
+    resolved_img = req.image_url
     # Resolve authoritative organizer profile & contacts
     from app.repositories.user_repository import UserRepository
     user_repo = UserRepository(db)
@@ -359,8 +359,6 @@ async def update_my_package(
     current_organizer: Organizer = Depends(get_current_organizer),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update a package. IDOR protected: rejects if package belongs to another organizer."""
-    from app.api.v1.trips import _resolve_destination_image
     pkg_repo = PackageRepository(db)
     pkg = await pkg_repo.get_by_id(package_id)
     if not pkg:
@@ -377,9 +375,6 @@ async def update_my_package(
         if v is not None:
             setattr(pkg, k, v)
 
-    if not getattr(pkg, 'image_url', None):
-        pkg.image_url = _resolve_destination_image(pkg.destination or pkg.title)
-
     await pkg_repo.update(pkg)
     await db.commit()
     return _format_pkg(pkg)
@@ -392,7 +387,6 @@ async def clone_package_for_organizer(
     db: AsyncSession = Depends(get_db),
 ):
     """Clone an existing tour package into the authenticated organizer's workspace as a new package."""
-    from app.api.v1.trips import _resolve_destination_image
     pkg_repo = PackageRepository(db)
     orig_pkg = await pkg_repo.get_by_id(package_id)
     if not orig_pkg:
@@ -427,7 +421,7 @@ async def clone_package_for_organizer(
         contact_phone=org_phone,
         organizer_name=org_name,
         is_active=True,
-        image_url=orig_pkg.image_url or _resolve_destination_image(orig_pkg.destination),
+        image_url=orig_pkg.image_url,
         gallery_urls=list(orig_pkg.gallery_urls) if isinstance(orig_pkg.gallery_urls, list) else [],
     )
     saved_pkg = await pkg_repo.create(cloned_pkg)
@@ -522,6 +516,10 @@ async def list_my_organizer_bookings(
 
         if not formatted.traveler_phone and u and getattr(u, 'phone', None):
             formatted.traveler_phone = u.phone
+
+        # Populate traveler's Google profile picture
+        if u and getattr(u, 'profile_picture', None):
+            formatted.traveler_profile_picture = u.profile_picture
 
         enriched.append(formatted)
 

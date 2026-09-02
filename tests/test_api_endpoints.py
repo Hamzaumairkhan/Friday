@@ -115,6 +115,10 @@ def test_api_bookings_workflow(run_async, auth_headers, test_db_session):
             await seed_initial_data_async(session=session)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            # Get packages to find pkg id
+            pkgs = (await ac.get("/api/v1/packages", headers=auth_headers)).json()
+            package = pkgs[0]
+
             # Create trip first
             trip_res = await ac.post("/api/v1/trips", json={"destination": "Hunza", "duration": 4, "travelers": 2}, headers=auth_headers)
             assert trip_res.status_code == 201
@@ -123,15 +127,15 @@ def test_api_bookings_workflow(run_async, auth_headers, test_db_session):
             # Create booking
             booking_payload = {
                 "trip_id": trip_id,
-                "package_id": "pkg-hunza-4d",
+                "package_id": package["id"],
                 "travelers": 2,
                 "notes": "Vegetarian meal preference",
             }
             book_resp = await ac.post("/api/v1/bookings", json=booking_payload, headers=auth_headers)
             assert book_resp.status_code in (200, 201)
             booking = book_resp.json()
-            assert booking["package_id"] == "pkg-hunza-4d"
-            assert booking["total_price"] == 76000.0
+            assert booking["package_id"] == package["id"]
+            assert booking["total_price"] == package["price_per_person"] * 2
 
             # List user bookings
             list_b = await ac.get("/api/v1/bookings", headers=auth_headers)

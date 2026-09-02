@@ -60,6 +60,8 @@ class TripResponse(BaseModel):
     copied_from_trip_id: Optional[str] = None
     image_url: Optional[str] = None
     advisories: list = Field(default_factory=list)
+    views_count: int = 0
+    likes_count: int = 0
     weather: Optional[dict] = None
     owner_role: Optional[str] = "TRAVELER"
     members: list[dict] = Field(default_factory=list)

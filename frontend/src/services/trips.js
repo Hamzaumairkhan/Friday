@@ -47,6 +47,16 @@ export const tripsService = {
     return await api.post(`/trips/${tripId}/clone`);
   },
 
+  // Record Trip View (+1)
+  async recordView(tripId) {
+    return await api.post(`/trips/${tripId}/view`).catch(() => null);
+  },
+
+  // Toggle/Record Trip Like (+1)
+  async toggleLike(tripId) {
+    return await api.post(`/trips/${tripId}/like`).catch(() => null);
+  },
+
   // Dynamic replan
   async replanTrip(tripId, data) {
     return await api.post(`/trips/${tripId}/replan`, data);
@@ -80,6 +90,11 @@ export const tripsService = {
     });
     if (departureDate) params.append('departure_date', departureDate);
     return await api.get(`/trips/weather-check?${params.toString()}`);
+  },
+
+  // Validate whether destination is in Pakistan and auto-correct typos
+  async validateDestination(destination) {
+    return await api.post('/trips/validate-destination', { destination });
   },
 
   // Get 4 curated options per time slot for destination

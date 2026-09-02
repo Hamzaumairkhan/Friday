@@ -16,10 +16,10 @@ class BookingCreate(BaseModel):
 
 class BookingResponse(BaseModel):
     id: str
-    trip_id: str
-    package_id: str
-    user_id: str
-    organizer_id: str
+    trip_id: Optional[str] = None
+    package_id: Optional[str] = None
+    user_id: Optional[str] = None
+    organizer_id: Optional[str] = None
     travelers: int
     total_price: float
     status: str
@@ -34,7 +34,8 @@ class BookingResponse(BaseModel):
     traveler_phone: Optional[str] = None
     payment_status: Optional[str] = None
     payment_proof_url: Optional[str] = None
-    created_at: str
-    updated_at: str
+    traveler_profile_picture: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
     model_config = {"from_attributes": True}

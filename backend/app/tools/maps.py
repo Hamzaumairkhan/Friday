@@ -1,7 +1,8 @@
-"""OSRM & OpenStreetMap Directions routing tool with source transparency and curated Pakistan highway routes."""
+"""Live OSRM & OpenStreetMap routing and distance calculation tool with source transparency."""
 
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
+import math
 import httpx
 
 from app.core.logging import get_logger
@@ -10,39 +11,20 @@ logger = get_logger("tools.maps")
 
 USER_AGENT = "Friday-Travel-Copilot/1.0 (travel@friday.pk)"
 
-# Known coordinates for fast deterministic geocoding in Pakistan
-PAKISTAN_KNOWN_COORDS = {
-    "islamabad": (33.6844, 73.0479),
-    "rawalpindi": (33.5651, 73.0169),
-    "lahore": (31.5204, 74.3587),
-    "karachi": (24.8607, 67.0011),
-    "peshawar": (34.0151, 71.5249),
-    "hunza": (36.3167, 74.6500),
-    "karimabad": (36.3268, 74.6644),
-    "skardu": (35.2971, 75.6333),
-    "swat": (35.2227, 72.4258),
-    "mingora": (34.7758, 72.3626),
-    "kalam": (35.4907, 72.5859),
-    "malam jabba": (34.7994, 72.5714),
-    "naran": (34.9085, 73.6525),
-    "kaghan": (34.7738, 73.5273),
-    "murree": (33.9070, 73.3943),
-    "gilgit": (35.9221, 74.3087),
-    "chitral": (35.8510, 71.7864),
-    "abbottabad": (34.1688, 73.2215),
-}
 
-CURATED_PAKISTAN_ROUTES = {
-    ("islamabad", "hunza"): {"distance_km": 598.0, "drive_time_hours": 12.5, "summary": "via Karakoram Highway / N-35"},
-    ("islamabad", "skardu"): {"distance_km": 635.0, "drive_time_hours": 14.0, "summary": "via Jaglot-Skardu Road / S-1"},
-    ("islamabad", "swat"): {"distance_km": 245.0, "drive_time_hours": 4.5, "summary": "via Swat Motorway / M-16"},
-    ("islamabad", "kalam"): {"distance_km": 340.0, "drive_time_hours": 7.0, "summary": "via M-16 & Bahrain-Kalam Road"},
-    ("islamabad", "naran"): {"distance_km": 275.0, "drive_time_hours": 6.5, "summary": "via Hazara Motorway & N-15"},
-    ("islamabad", "murree"): {"distance_km": 65.0, "drive_time_hours": 1.5, "summary": "via Islamabad-Murree Expressway / N-75"},
-    ("islamabad", "lahore"): {"distance_km": 375.0, "drive_time_hours": 4.0, "summary": "via Lahore-Islamabad Motorway / M-2"},
-    ("lahore", "islamabad"): {"distance_km": 375.0, "drive_time_hours": 4.0, "summary": "via M-2 Motorway"},
-    ("rawalpindi", "hunza"): {"distance_km": 605.0, "drive_time_hours": 12.5, "summary": "via N-35 Karakoram Highway"},
-}
+def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate the great circle distance between two points in kilometers."""
+    r = 6371.0  # Earth radius in kilometers
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2.0) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(dlon / 2.0) ** 2
+    )
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return round(r * c, 1)
 
 
 class MapsTool:
@@ -51,23 +33,20 @@ class MapsTool:
     def __init__(self, timeout: float = 6.0):
         self.timeout = timeout
 
-    async def _geocode(self, client: httpx.AsyncClient, location: str) -> Optional[Tuple[float, float]]:
-        """Resolve location name to (lat, lon) coordinates using cache or Nominatim."""
-        clean_loc = location.strip().lower()
-        if clean_loc in PAKISTAN_KNOWN_COORDS:
-            return PAKISTAN_KNOWN_COORDS[clean_loc]
-
+    async def _geocode_live(self, client: httpx.AsyncClient, location: str) -> Optional[Tuple[float, float]]:
+        """Resolve location name to live (lat, lon) coordinates using OpenStreetMap Nominatim."""
         try:
             url = "https://nominatim.openstreetmap.org/search"
             headers = {"User-Agent": USER_AGENT}
-            params = {"q": f"{location}, Pakistan", "format": "json", "countrycodes": "pk", "limit": 1}
+            q = f"{location}, Pakistan" if "pakistan" not in location.lower() else location
+            params = {"q": q, "format": "json", "countrycodes": "pk", "limit": 1}
             resp = await client.get(url, params=params, headers=headers, timeout=4.0)
             if resp.status_code == 200:
                 data = resp.json()
-                if data:
+                if data and len(data) > 0:
                     return float(data[0]["lat"]), float(data[0]["lon"])
         except Exception as e:
-            logger.debug(f"Nominatim geocoding notice for '{location}': {e}")
+            logger.debug(f"Live Nominatim geocoding notice for '{location}': {e}")
         return None
 
     async def get_route(
@@ -76,7 +55,7 @@ class MapsTool:
         destination: str = "Hunza",
         mode: str = "driving"
     ) -> Dict[str, Any]:
-        """Fetch live road distance and duration via OSRM with graceful curated fallback."""
+        """Fetch live road distance and duration via OSRM."""
         if not origin or not destination or not origin.strip() or not destination.strip():
             return {
                 "success": False,
@@ -86,14 +65,14 @@ class MapsTool:
                 "error": "Both origin and destination are required.",
             }
 
-        orig_clean = origin.strip().lower()
-        dest_clean = destination.strip().lower()
+        orig_clean = origin.strip()
+        dest_clean = destination.strip()
 
-        # 1. Attempt Live OSRM Routing
+        # 1. Attempt Live OSRM Routing via dynamic live geocoding
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                orig_coords = await self._geocode(client, origin)
-                dest_coords = await self._geocode(client, destination)
+                orig_coords = await self._geocode_live(client, orig_clean)
+                dest_coords = await self._geocode_live(client, dest_clean)
 
                 if orig_coords and dest_coords:
                     lat1, lon1 = orig_coords
@@ -129,45 +108,58 @@ class MapsTool:
                                 },
                                 "error": None,
                             }
+                    else:
+                        # Geodesic calculation from live geocoded points
+                        straight_dist = haversine_distance_km(lat1, lon1, lat2, lon2)
+                        estimated_road_dist = round(straight_dist * 1.35, 1)
+                        estimated_time = round(estimated_road_dist / 45.0, 1)
+                        return {
+                            "success": True,
+                            "source": "openstreetmap_nominatim_live",
+                            "source_type": "live",
+                            "data": {
+                                "origin": origin,
+                                "destination": destination,
+                                "distance_km": estimated_road_dist,
+                                "drive_time_hours": estimated_time,
+                                "distance_text": f"{estimated_road_dist} km",
+                                "duration_text": f"{estimated_time} hours",
+                                "start_coordinates": {"latitude": lat1, "longitude": lon1},
+                                "end_coordinates": {"latitude": lat2, "longitude": lon2},
+                                "summary": f"Live geographic routing between {origin} and {destination}",
+                                "travel_mode": mode,
+                                "retrieved_at": datetime.utcnow().isoformat(),
+                            },
+                            "error": None,
+                        }
         except Exception as e:
-            logger.info(f"OSRM live routing notice ({e}). Checking curated Pakistan routes.")
+            logger.info(f"Live routing notice between '{origin}' and '{destination}': {e}")
 
-        # 2. Curated Pakistan Highway Routes Fallback
-        route_info = CURATED_PAKISTAN_ROUTES.get((orig_clean, dest_clean)) or CURATED_PAKISTAN_ROUTES.get((dest_clean, orig_clean))
-        if route_info:
-            dist_km = route_info["distance_km"]
-            time_hrs = route_info["drive_time_hours"]
-            return {
-                "success": True,
-                "source": "curated_pakistan_routes",
-                "source_type": "curated",
-                "data": {
-                    "origin": origin,
-                    "destination": destination,
-                    "distance_km": dist_km,
-                    "drive_time_hours": time_hrs,
-                    "distance_text": f"{dist_km} km",
-                    "duration_text": f"{time_hrs} hours",
-                    "summary": route_info["summary"],
-                    "travel_mode": mode,
-                    "is_live": False,
-                    "notice": "Curated Pakistan highway route knowledge.",
-                    "retrieved_at": datetime.utcnow().isoformat(),
-                },
-                "error": None,
-            }
-
-        # 3. Honest unavailable
+        # 2. Honest unavailable state (No fake route data fabricated)
         return {
             "success": False,
             "source": "osrm_routing",
             "source_type": "unavailable",
             "data": None,
-            "error": f"No live OSRM routing data and no curated route found between '{origin}' and '{destination}'.",
+            "error": f"Live driving route between '{origin}' and '{destination}' could not be calculated.",
         }
 
 
-async def get_route(origin: str = "Islamabad", destination: str = "Hunza") -> Dict[str, Any]:
-    """Convenience functional wrapper for maps tool."""
+async def get_route(origin: str, destination: str, mode: str = "driving") -> dict:
+    """Get driving route information between two locations."""
     tool = MapsTool()
-    return await tool.get_route(origin=origin, destination=destination)
+    res = await tool.get_route(origin=origin, destination=destination, mode=mode)
+    if res["success"]:
+        return {
+            "success": True,
+            "data": res["data"],
+            "source": res["source"],
+            "source_type": res["source_type"],
+            "retrieved_at": res["data"].get("retrieved_at"),
+        }
+    return {
+        "success": False,
+        "error": res.get("error", "Route unavailable"),
+        "source": res.get("source", "osrm_routing"),
+        "source_type": res.get("source_type", "unavailable"),
+    }

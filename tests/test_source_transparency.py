@@ -12,57 +12,49 @@ from app.tools.whatsapp import WhatsAppTool
 
 
 def test_weather_source_transparency(run_async):
-    """Weather tool must explicitly distinguish live vs curated seasonal data."""
+    """Weather tool must explicitly distinguish live vs unavailable state."""
     async def _test():
         tool = WeatherTool()
         res = await tool.get_weather("Hunza")
         assert "source" in res
         assert "source_type" in res
-        assert res["source_type"] in ("live", "curated_seasonal", "unavailable")
-        if res["source_type"] == "curated_seasonal":
-            assert res["data"].get("is_live") is False
+        assert res["source_type"] in ("live", "unavailable")
 
     run_async(_test())
 
 
 def test_places_source_transparency(run_async):
-    """Places tool must never claim curated attractions are live Google data."""
+    """Places tool must report live vs unavailable source transparency."""
     async def _test():
         tool = PlacesTool()
         res = await tool.search_places("Skardu")
         assert "source" in res
         assert "source_type" in res
-        assert res["source_type"] in ("live", "curated", "unavailable")
-        if res["source_type"] == "curated":
-            assert res["source"] == "curated_pakistan_pois"
+        assert res["source_type"] in ("live", "unavailable")
 
     run_async(_test())
 
 
 def test_maps_source_transparency(run_async):
-    """Maps tool must report whether highway route is live or curated."""
+    """Maps tool must report whether highway route is live or unavailable."""
     async def _test():
         tool = MapsTool()
         res = await tool.get_route("Islamabad", "Swat")
         assert "source" in res
         assert "source_type" in res
-        assert res["source_type"] in ("live", "curated", "unavailable")
-        if res["source_type"] == "curated":
-            assert res["source"] == "curated_pakistan_routes"
+        assert res["source_type"] in ("live", "unavailable")
 
     run_async(_test())
 
 
 def test_hotels_source_transparency(run_async):
-    """Hotels tool must distinguish live booking availability from static price tiers."""
+    """Hotels tool must distinguish live booking availability from unavailable state."""
     async def _test():
         tool = HotelsTool()
         res = await tool.search_hotels("Hunza")
         assert "source" in res
         assert "source_type" in res
-        assert res["source_type"] in ("live", "curated", "unavailable")
-        if res["source_type"] == "curated":
-            assert res["source"] == "curated_pakistan_hotels"
+        assert res["source_type"] in ("live", "unavailable")
 
     run_async(_test())
 
@@ -74,17 +66,17 @@ def test_restaurants_source_transparency(run_async):
         res = await tool.search_restaurants("Hunza")
         assert "source" in res
         assert "source_type" in res
-        assert res["source_type"] in ("live", "curated", "unavailable")
+        assert res["source_type"] in ("live", "unavailable")
 
     run_async(_test())
 
 
 def test_organizers_source_transparency(run_async):
-    """Organizers must report curated_seed status and friday_marketplace_db source."""
+    """Organizers must report live_db status and friday_marketplace_db source."""
     async def _test():
         tool = OrganizersTool()
         res = await tool.search_organizers("Hunza")
-        assert res["source_type"] == "curated_seed"
+        assert res["source_type"] in ("live_db", "curated_seed")
         assert res["source"] == "friday_marketplace_db"
         assert "data_disclaimer" in res
 

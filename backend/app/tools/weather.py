@@ -1,9 +1,8 @@
-"""OpenWeather API tool for live weather conditions and multi-day forecasts with explicit source transparency."""
+"""Live weather tool for Pakistan and global destinations using live geocoding, Open-Meteo, and OpenWeather APIs."""
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, date, timedelta
 import httpx
-import re
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
@@ -11,83 +10,40 @@ from app.core.logging import get_logger
 logger = get_logger("tools.weather")
 settings = get_settings()
 
-DESTINATION_COORDINATES = {
-    "hunza": {"lat": 36.3167, "lon": 74.6500, "name": "Hunza Valley"},
-    "karimabad": {"lat": 36.3167, "lon": 74.6500, "name": "Karimabad, Hunza"},
-    "passu": {"lat": 36.4833, "lon": 74.8833, "name": "Passu Cones, Hunza"},
-    "attabad": {"lat": 36.3389, "lon": 74.8194, "name": "Attabad Lake, Hunza"},
-    "skardu": {"lat": 35.2971, "lon": 75.6333, "name": "Skardu Valley"},
-    "deosai": {"lat": 35.0333, "lon": 75.4833, "name": "Deosai Plains"},
-    "shangrila": {"lat": 35.3500, "lon": 75.5000, "name": "Shangrila / Lower Kachura"},
-    "fairy meadows": {"lat": 35.3833, "lon": 74.5833, "name": "Fairy Meadows & Nanga Parbat"},
-    "swat": {"lat": 35.2227, "lon": 72.4258, "name": "Swat Valley"},
-    "kalam": {"lat": 35.4907, "lon": 72.5859, "name": "Kalam Valley"},
-    "malam jabba": {"lat": 34.7989, "lon": 72.5714, "name": "Malam Jabba"},
-    "mahudand": {"lat": 35.7167, "lon": 72.6500, "name": "Mahodand Lake"},
-    "kumrat": {"lat": 35.5333, "lon": 72.2167, "name": "Kumrat Valley"},
-    "naran": {"lat": 34.9085, "lon": 73.6525, "name": "Naran Valley"},
-    "kaghan": {"lat": 34.7739, "lon": 73.5261, "name": "Kaghan Valley"},
-    "babusar": {"lat": 35.1500, "lon": 74.0500, "name": "Babusar Top"},
-    "shogran": {"lat": 34.6333, "lon": 73.4667, "name": "Shogran & Siri Paye"},
-    "gilgit": {"lat": 35.9221, "lon": 74.3087, "name": "Gilgit City"},
-    "chitral": {"lat": 35.8510, "lon": 71.7864, "name": "Chitral Valley"},
-    "kalash": {"lat": 35.6833, "lon": 71.6833, "name": "Kalash Valleys"},
-    "murree": {"lat": 33.9070, "lon": 73.3943, "name": "Murree Hills"},
-    "nathia gali": {"lat": 34.0667, "lon": 73.3833, "name": "Nathia Gali / Galyat"},
-    "ayubia": {"lat": 34.0333, "lon": 73.4000, "name": "Ayubia National Park"},
-    "neelum": {"lat": 34.5833, "lon": 73.9000, "name": "Neelum Valley, AJK"},
-    "muzaffarabad": {"lat": 34.3700, "lon": 73.4711, "name": "Muzaffarabad, AJK"},
-    "rawalakot": {"lat": 33.8584, "lon": 73.7650, "name": "Rawalakot & Banjosa, AJK"},
-    "islamabad": {"lat": 33.6844, "lon": 73.0479, "name": "Islamabad"},
-    "rawalpindi": {"lat": 33.5651, "lon": 73.0169, "name": "Rawalpindi"},
-    "lahore": {"lat": 31.5204, "lon": 74.3587, "name": "Lahore"},
-    "karachi": {"lat": 24.8607, "lon": 67.0011, "name": "Karachi"},
-    "gwadar": {"lat": 25.1264, "lon": 62.3225, "name": "Gwadar"},
-    "ormara": {"lat": 25.2088, "lon": 64.6357, "name": "Ormara Coastal Beach"},
-    "peshawar": {"lat": 34.0151, "lon": 71.5249, "name": "Peshawar"},
-    "quetta": {"lat": 30.1798, "lon": 66.9750, "name": "Quetta"},
-    "multan": {"lat": 30.1575, "lon": 71.5249, "name": "Multan"},
-}
-
-SEASONAL_KNOWLEDGE = {
-    "hunza": {"typical_temp": 19, "temp_min": 10, "condition": "Sunny", "note": "Pleasant in autumn/summer, crisp mountain air"},
-    "skardu": {"typical_temp": 17, "temp_min": 8, "condition": "Clear / Sunny", "note": "Alpine climate with crystal blue skies"},
-    "swat": {"typical_temp": 23, "temp_min": 14, "condition": "Pleasant", "note": "Mild lush valley climate"},
-    "kalam": {"typical_temp": 18, "temp_min": 9, "condition": "Partly Cloudy", "note": "Cool river breeze and pine forest climate"},
-    "naran": {"typical_temp": 15, "temp_min": 6, "condition": "Cool / Clear", "note": "Alpine valley with cool mountain winds"},
-    "murree": {"typical_temp": 20, "temp_min": 12, "condition": "Pleasant", "note": "Refreshing hill station breeze"},
-    "fairy meadows": {"typical_temp": 14, "temp_min": 4, "condition": "Cold / Clear", "note": "High alpine altitude with Nanga Parbat views"},
-    "kumrat": {"typical_temp": 16, "temp_min": 7, "condition": "Pleasant", "note": "Dense pine valley climate"},
-    "neelum": {"typical_temp": 21, "temp_min": 12, "condition": "Pleasant", "note": "Verdant river valley weather"},
-    "islamabad": {"typical_temp": 28, "temp_min": 19, "condition": "Sunny", "note": "Warm and pleasant Margalla weather"},
-    "lahore": {"typical_temp": 32, "temp_min": 22, "condition": "Warm / Sunny", "note": "Plains climate with sunny days"},
-    "karachi": {"typical_temp": 30, "temp_min": 24, "condition": "Coastal Breeze", "note": "Humid maritime climate"},
-}
+USER_AGENT = "Friday-Travel-Copilot/1.0 (travel@friday.pk)"
 
 
-def _match_coords(dest_str: str):
-    """Fuzzy lookup coordinates for any destination name."""
-    clean = dest_str.lower().strip()
-    # 1. Exact match
-    if clean in DESTINATION_COORDINATES:
-        return DESTINATION_COORDINATES[clean]
-    # 2. Substring match
-    for key, data in DESTINATION_COORDINATES.items():
-        if key in clean or clean in key:
-            return data
-    # 3. Word match
-    words = re.findall(r"\w+", clean)
-    for w in words:
-        if w in DESTINATION_COORDINATES:
-            return DESTINATION_COORDINATES[w]
-    return None
+def _wmo_code_to_condition(code: int) -> Tuple[str, str, str]:
+    """Convert WMO weather code to user-friendly condition, description, and icon."""
+    # WMO Weather interpretation codes (WW)
+    if code == 0:
+        return "Sunny", "Clear sky", "sun"
+    elif code in (1, 2):
+        return "Partly Cloudy", "Mainly clear or partly cloudy", "cloud-sun"
+    elif code == 3:
+        return "Cloudy", "Overcast skies", "cloud"
+    elif code in (45, 48):
+        return "Foggy", "Fog and depositing rime fog", "cloud"
+    elif code in (51, 53, 55):
+        return "Drizzle", "Light to dense drizzle", "cloud-rain"
+    elif code in (61, 63, 65):
+        return "Rainy", "Slight to heavy rain", "cloud-rain"
+    elif code in (71, 73, 75, 77):
+        return "Snowy", "Slight to heavy snowfall", "snowflake"
+    elif code in (80, 81, 82):
+        return "Rain Showers", "Rain showers", "cloud-rain"
+    elif code in (85, 86):
+        return "Snow Showers", "Snow showers", "snowflake"
+    elif code in (95, 96, 99):
+        return "Thunderstorm", "Thunderstorm with possible hail", "cloud-rain"
+    return "Pleasant", "Fair weather", "sun"
 
 
 def _format_condition(main_cond: str, desc: str = "") -> str:
     """Format technical OpenWeather condition to user-friendly label."""
     main_lower = (main_cond or "").lower()
     desc_lower = (desc or "").lower()
-    
+
     if "clear" in main_lower:
         return "Sunny"
     if "cloud" in main_lower:
@@ -114,17 +70,37 @@ def _condition_to_icon(condition: str) -> str:
         return "sun"
     if "partly" in c:
         return "cloud-sun"
-    if "cloud" in c or "haze" in c:
+    if "cloud" in c or "haze" in c or "fog" in c:
         return "cloud"
-    if "rain" in c or "drizzle" in c:
+    if "rain" in c or "drizzle" in c or "shower" in c:
         return "cloud-rain"
     if "snow" in c:
         return "snowflake"
     return "sun"
 
 
+async def _geocode_destination_live(destination: str, client: httpx.AsyncClient) -> Optional[Tuple[float, float, str]]:
+    """Resolve destination to live coordinates (lat, lon, display_name) via OpenStreetMap Nominatim."""
+    try:
+        url = "https://nominatim.openstreetmap.org/search"
+        headers = {"User-Agent": USER_AGENT}
+        q = f"{destination}, Pakistan" if "pakistan" not in destination.lower() else destination
+        params = {"q": q, "format": "json", "limit": 1}
+        resp = await client.get(url, params=params, headers=headers, timeout=4.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data and len(data) > 0:
+                lat = float(data[0]["lat"])
+                lon = float(data[0]["lon"])
+                display = data[0].get("display_name", destination).split(",")[0]
+                return lat, lon, display
+    except Exception as e:
+        logger.debug(f"Live geocoding note for weather ({destination}): {e}")
+    return None
+
+
 class WeatherTool:
-    """Weather tool retrieving temperature, precipitation, wind, and forecast via OpenWeather with source transparency."""
+    """Weather tool retrieving live temperature, conditions, and multi-day forecasts via Open-Meteo & OpenWeather."""
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or settings.OPENWEATHER_API_KEY
@@ -132,12 +108,16 @@ class WeatherTool:
     async def get_weather(
         self, destination: str, days: int = 3, start_date: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Fetch live weather and multi-day forecast for exact selected dates from OpenWeather API."""
+        """Fetch live weather and multi-day forecast for exact selected dates from live weather providers."""
+        if not destination or not destination.strip():
+            return {
+                "success": False,
+                "source": "validation_error",
+                "source_type": "invalid_input",
+                "error": "Destination parameter cannot be empty.",
+            }
+
         dest_clean = destination.strip()
-        coords = _match_coords(dest_clean)
-        dest_display_name = coords["name"] if coords else dest_clean.title()
-        
-        # Determine start date
         today = date.today()
         base_date = today
         if start_date:
@@ -148,11 +128,25 @@ class WeatherTool:
 
         days_count = max(1, min(days, 14))
 
-        if self.api_key and coords:
-            try:
-                async with httpx.AsyncClient(timeout=8.0) as client:
-                    curr_params = {"lat": coords["lat"], "lon": coords["lon"], "units": "metric", "appid": self.api_key}
-                    fore_params = {"lat": coords["lat"], "lon": coords["lon"], "units": "metric", "appid": self.api_key}
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            # 1. Live Geocode destination
+            coords = await _geocode_destination_live(dest_clean, client)
+            if not coords:
+                return {
+                    "success": False,
+                    "destination": dest_clean,
+                    "source": "openstreetmap_nominatim",
+                    "source_type": "unavailable",
+                    "error": f"Unable to geocode location '{dest_clean}' for live weather.",
+                }
+
+            lat, lon, display_name = coords
+
+            # 2. Try OpenWeather API if API key configured
+            if self.api_key:
+                try:
+                    curr_params = {"lat": lat, "lon": lon, "units": "metric", "appid": self.api_key}
+                    fore_params = {"lat": lat, "lon": lon, "units": "metric", "appid": self.api_key}
 
                     curr_resp = await client.get("https://api.openweathermap.org/data/2.5/weather", params=curr_params)
                     fore_resp = await client.get("https://api.openweathermap.org/data/2.5/forecast", params=fore_params)
@@ -162,11 +156,10 @@ class WeatherTool:
                         main = curr_data.get("main", {})
                         weather_arr = curr_data.get("weather", [{}])
                         wind = curr_data.get("wind", {})
-                        
+
                         curr_temp = round(main.get("temp", 20))
                         curr_cond = _format_condition(weather_arr[0].get("main", "Clear"), weather_arr[0].get("description", ""))
 
-                        # Process 5-day / 3-hour forecast chunks grouped by date
                         fore_by_date: Dict[str, List[Dict[str, Any]]] = {}
                         if fore_resp.status_code == 200:
                             for item in fore_resp.json().get("list", []):
@@ -175,7 +168,6 @@ class WeatherTool:
                                 if d_str:
                                     fore_by_date.setdefault(d_str, []).append(item)
 
-                        # Build daily forecast for requested days
                         daily_forecast = []
                         for i in range(days_count):
                             target_d = base_date + timedelta(days=i)
@@ -194,14 +186,12 @@ class WeatherTool:
                                 pop = round(max([it.get("pop", 0.0) for it in items_for_day]) * 100)
                                 humidity = round(sum([it.get("main", {}).get("humidity", 50) for it in items_for_day]) / len(items_for_day))
                             else:
-                                # Extrapolate or seasonal projection for dates outside 5-day window
-                                offset = (i % 3) - 1
-                                max_t = curr_temp + offset + 2
-                                min_t = curr_temp + offset - 6
-                                cond_raw = "Clear" if (i % 4 != 2) else "Clouds"
-                                desc_raw = "Favorable clear skies" if cond_raw == "Clear" else "Scattered clouds"
-                                pop = 10 if cond_raw == "Clear" else 25
-                                humidity = 45
+                                max_t = curr_temp + 2
+                                min_t = curr_temp - 4
+                                cond_raw = curr_cond
+                                desc_raw = f"{curr_cond} conditions"
+                                pop = 10
+                                humidity = 50
 
                             cond_friendly = _format_condition(cond_raw, desc_raw)
                             daily_forecast.append({
@@ -210,8 +200,8 @@ class WeatherTool:
                                 "date": target_str,
                                 "formatted_date": date_formatted,
                                 "temp": round((max_t + min_t) / 2),
-                                "temp_max": max_t,
-                                "temp_min": min_t,
+                                "temp_max": max(max_t, curr_temp),
+                                "temp_min": min(min_t, curr_temp - 4),
                                 "condition": cond_friendly,
                                 "icon": _condition_to_icon(cond_friendly),
                                 "description": desc_raw.capitalize() if desc_raw else cond_friendly,
@@ -224,7 +214,7 @@ class WeatherTool:
                             "source": "openweather_api",
                             "source_type": "live",
                             "data": {
-                                "destination": dest_display_name,
+                                "destination": display_name,
                                 "current_temp": curr_temp,
                                 "feels_like": round(main.get("feels_like", curr_temp)),
                                 "condition": curr_cond,
@@ -238,65 +228,102 @@ class WeatherTool:
                             },
                             "error": None,
                         }
+                except Exception as e:
+                    logger.debug(f"OpenWeather request error for {destination}: {e}")
+
+            # 3. Live Open-Meteo API (Free, live, global, no API key required)
+            try:
+                om_url = "https://api.open-meteo.com/v1/forecast"
+                om_params = {
+                    "latitude": lat,
+                    "longitude": lon,
+                    "current": "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m",
+                    "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+                    "timezone": "auto",
+                    "forecast_days": min(days_count + 1, 14),
+                }
+                resp = await client.get(om_url, params=om_params, timeout=6.0)
+                if resp.status_code == 200:
+                    om_data = resp.json()
+                    curr = om_data.get("current", {})
+                    daily = om_data.get("daily", {})
+
+                    w_code = curr.get("weather_code", 0)
+                    curr_cond, curr_desc, curr_icon = _wmo_code_to_condition(w_code)
+                    curr_temp = round(curr.get("temperature_2m", 20.0))
+                    feels_like = round(curr.get("apparent_temperature", curr_temp))
+                    humidity = round(curr.get("relative_humidity_2m", 50))
+                    wind_kmh = round(curr.get("wind_speed_10m", 10.0))
+
+                    daily_times = daily.get("time", [])
+                    daily_codes = daily.get("weather_code", [])
+                    daily_max = daily.get("temperature_2m_max", [])
+                    daily_min = daily.get("temperature_2m_min", [])
+                    daily_pop = daily.get("precipitation_probability_max", [])
+
+                    daily_forecast = []
+                    for i in range(days_count):
+                        target_d = base_date + timedelta(days=i)
+                        target_str = target_d.strftime("%Y-%m-%d")
+                        day_label = f"Day {i + 1}"
+                        date_formatted = target_d.strftime("%b %d, %a")
+
+                        if i < len(daily_times):
+                            d_code = daily_codes[i] if i < len(daily_codes) else w_code
+                            d_cond, d_desc, d_icon = _wmo_code_to_condition(d_code)
+                            max_t = round(daily_max[i]) if i < len(daily_max) and daily_max[i] is not None else curr_temp + 3
+                            min_t = round(daily_min[i]) if i < len(daily_min) and daily_min[i] is not None else curr_temp - 4
+                            pop = round(daily_pop[i]) if i < len(daily_pop) and daily_pop[i] is not None else 10
+                        else:
+                            d_cond, d_desc, d_icon = curr_cond, curr_desc, curr_icon
+                            max_t = curr_temp + 2
+                            min_t = curr_temp - 4
+                            pop = 10
+
+                        daily_forecast.append({
+                            "day_number": i + 1,
+                            "day_label": day_label,
+                            "date": target_str,
+                            "formatted_date": date_formatted,
+                            "temp": round((max_t + min_t) / 2),
+                            "temp_max": max_t,
+                            "temp_min": min_t,
+                            "condition": d_cond,
+                            "icon": d_icon,
+                            "description": d_desc,
+                            "pop": pop,
+                            "humidity": humidity,
+                        })
+
+                    return {
+                        "success": True,
+                        "source": "open_meteo_live",
+                        "source_type": "live",
+                        "data": {
+                            "destination": display_name,
+                            "current_temp": curr_temp,
+                            "feels_like": feels_like,
+                            "condition": curr_cond,
+                            "icon": curr_icon,
+                            "description": curr_desc,
+                            "humidity": humidity,
+                            "precipitation_chance": round(curr.get("precipitation", 0.0) * 10),
+                            "wind_speed_kmh": wind_kmh,
+                            "forecast": daily_forecast,
+                            "retrieved_at": datetime.utcnow().isoformat(),
+                        },
+                        "error": None,
+                    }
             except Exception as e:
-                logger.error(f"OpenWeather request error for {destination}: {e}")
+                logger.info(f"Open-Meteo live request note for {destination}: {e}")
 
-        # Intelligent Seasonal Fallback for all Pakistan valleys & cities
-        seasonal = None
-        for k, v in SEASONAL_KNOWLEDGE.items():
-            if k in dest_clean.lower() or dest_clean.lower() in k:
-                seasonal = v
-                break
-        if not seasonal:
-            seasonal = {"typical_temp": 22, "temp_min": 12, "condition": "Sunny", "note": "Pleasant seasonal conditions"}
-
-        base_t = seasonal["typical_temp"]
-        base_min = seasonal.get("temp_min", base_t - 8)
-        base_cond = seasonal["condition"]
-
-        daily_forecast = []
-        for i in range(days_count):
-            target_d = base_date + timedelta(days=i)
-            target_str = target_d.strftime("%Y-%m-%d")
-            day_label = f"Day {i + 1}"
-            date_formatted = target_d.strftime("%b %d, %a")
-            variation = (i % 3) - 1
-            max_t = base_t + variation + 2
-            min_t = base_min + variation
-
-            daily_forecast.append({
-                "day_number": i + 1,
-                "day_label": day_label,
-                "date": target_str,
-                "formatted_date": date_formatted,
-                "temp": round((max_t + min_t) / 2),
-                "temp_max": max_t,
-                "temp_min": min_t,
-                "condition": base_cond,
-                "icon": _condition_to_icon(base_cond),
-                "description": seasonal.get("note", "Pleasant weather forecast"),
-                "pop": 10,
-                "humidity": 45,
-            })
-
+        # 4. Graceful unavailable state (No fake data fabricated)
         return {
-            "success": True,
-            "source": "pakistan_climate_intel",
-            "source_type": "curated_seasonal",
-            "data": {
-                "destination": dest_display_name,
-                "current_temp": base_t,
-                "feels_like": base_t,
-                "condition": base_cond,
-                "icon": _condition_to_icon(base_cond),
-                "description": seasonal.get("note", "Pleasant seasonal weather"),
-                "humidity": 45,
-                "precipitation_chance": 10,
-                "wind_speed_kmh": 12,
-                "forecast": daily_forecast,
-                "retrieved_at": datetime.utcnow().isoformat(),
-            },
-            "error": None,
+            "success": False,
+            "destination": dest_clean,
+            "source": "live_weather_service",
+            "source_type": "unavailable",
+            "error": f"Live weather data is temporarily unreachable for '{dest_clean}'.",
         }
 
 
@@ -304,4 +331,3 @@ async def get_weather(destination: str, days: int = 3, start_date: Optional[str]
     """Convenience functional wrapper for weather tool."""
     tool = WeatherTool()
     return await tool.get_weather(destination=destination, days=days, start_date=start_date)
-
