@@ -19,22 +19,36 @@ def _ensure_sqlite_dir(url: str):
                 os.makedirs(dirname, exist_ok=True)
 
 
-def _normalize_async_db_url(url: str) -> str:
-    """Normalize database URL for SQLAlchemy async engine (e.g. Railway mysql:// -> mysql+asyncmy://)."""
-    if url.startswith("mysql://"):
-        return url.replace("mysql://", "mysql+asyncmy://", 1)
-    return url
+def _resolve_db_url(is_sync: bool = False) -> str:
+    """Resolve database URL from settings or Railway environment variables, normalizing to asyncmy/pymysql."""
+    raw = getattr(settings, "DATABASE_SYNC_URL" if is_sync else "DATABASE_URL", "")
+    raw = str(raw or "").strip()
+
+    # If un-interpolated template like ${{MySQL.DATABASE_URL}} or empty string, resolve from Railway MySQL env vars
+    if not raw or raw.startswith("${{") or "://" not in raw:
+        env_mysql = os.environ.get("MYSQL_URL") or os.environ.get("MYSQLURL") or os.environ.get("DATABASE_URL")
+        if env_mysql and "://" in env_mysql and not env_mysql.startswith("${{"):
+            raw = env_mysql
+        else:
+            host = os.environ.get("MYSQLHOST")
+            user = os.environ.get("MYSQLUSER")
+            pwd = os.environ.get("MYSQLPASSWORD")
+            port = os.environ.get("MYSQLPORT", "3306")
+            db = os.environ.get("MYSQLDATABASE", "railway")
+            if host and user and pwd:
+                driver = "mysql+pymysql" if is_sync else "mysql+asyncmy"
+                return f"{driver}://{user}:{pwd}@{host}:{port}/{db}?charset=utf8mb4"
+
+    # Normalize mysql:// prefix to proper async/sync driver
+    if raw.startswith("mysql://"):
+        driver = "mysql+pymysql://" if is_sync else "mysql+asyncmy://"
+        return raw.replace("mysql://", driver, 1)
+
+    return raw or f"sqlite+aiosqlite:///{getattr(settings, 'DEFAULT_DB_FILE', 'friday.db')}"
 
 
-def _normalize_sync_db_url(url: str) -> str:
-    """Normalize database URL for SQLAlchemy sync engine (e.g. Railway mysql:// -> mysql+pymysql://)."""
-    if url.startswith("mysql://"):
-        return url.replace("mysql://", "mysql+pymysql://", 1)
-    return url
-
-
-_async_db_url = _normalize_async_db_url(settings.DATABASE_URL)
-_sync_db_url = _normalize_sync_db_url(settings.DATABASE_SYNC_URL)
+_async_db_url = _resolve_db_url(is_sync=False)
+_sync_db_url = _resolve_db_url(is_sync=True)
 
 _ensure_sqlite_dir(_async_db_url)
 _ensure_sqlite_dir(_sync_db_url)
@@ -115,11 +129,11 @@ async def get_db() -> AsyncSession:
 
 async def init_db() -> None:
     """Create all tables and auto-migrate missing columns with production MySQL validation."""
-    if settings.is_production and "sqlite" in settings.DATABASE_URL.lower():
+    if settings.is_production and "sqlite" in _async_db_url.lower():
         raise RuntimeError(
             "Production deployment error: DATABASE_URL must be configured with a managed MySQL connection (e.g. mysql+asyncmy://user:pass@host:port/dbname). SQLite is strictly prohibited in production mode."
         )
-    _ensure_sqlite_dir(settings.DATABASE_URL)
+    _ensure_sqlite_dir(_async_db_url)
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(_auto_migrate_schema)
@@ -127,7 +141,7 @@ async def init_db() -> None:
 
 def init_db_sync() -> None:
     """Create all tables synchronously (for scripts) and auto-migrate."""
-    _ensure_sqlite_dir(settings.DATABASE_SYNC_URL)
+    _ensure_sqlite_dir(_sync_db_url)
     Base.metadata.create_all(bind=sync_engine)
     with sync_engine.begin() as conn:
         _auto_migrate_schema(conn)
