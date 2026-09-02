@@ -97,7 +97,11 @@ async def get_db() -> AsyncSession:
 
 
 async def init_db() -> None:
-    """Create all tables and auto-migrate missing columns."""
+    """Create all tables and auto-migrate missing columns with production MySQL validation."""
+    if settings.is_production and "sqlite" in settings.DATABASE_URL.lower():
+        raise RuntimeError(
+            "Production deployment error: DATABASE_URL must be configured with a managed MySQL connection (e.g. mysql+asyncmy://user:pass@host:port/dbname). SQLite is strictly prohibited in production mode."
+        )
     _ensure_sqlite_dir(settings.DATABASE_URL)
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

@@ -79,8 +79,13 @@ class Settings(BaseSettings):
     LANGSMITH_TRACING: bool = False
     LANGSMITH_PROJECT: str = "friday"
 
-    # CORS
+    # CORS & FRONTEND
+    FRONTEND_URL: Optional[str] = None
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.strip().lower() == "production"
 
     model_config = {
         "env_file": [ENV_FILE_PATH, ".env"],

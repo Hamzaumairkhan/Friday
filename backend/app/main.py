@@ -35,36 +35,40 @@ async def lifespan(app: FastAPI):
     """Application lifecycle hook for DB initialization, seed data, and Baileys WhatsApp service."""
     global whatsapp_proc
 
-    logger.info("Initializing Friday database and seed data...")
+    logger.info("Initializing Friday database...")
     await init_db()
-    try:
-        await seed_initial_data_async()
-    except Exception as e:
-        logger.warning(f"Seed data notice: {e}")
-
-    # Auto-start Baileys WhatsApp bot microservice if not already running
-    whatsapp_dir = BACKEND_DIR / "whatsapp_service"
-    server_file = whatsapp_dir / "server.js"
-    is_whatsapp_running = False
-    try:
-        async with httpx.AsyncClient(timeout=1.0) as client:
-            resp = await client.get("http://localhost:3001/status")
-            if resp.status_code == 200:
-                is_whatsapp_running = True
-                logger.info("Friday Baileys WhatsApp bot is already online and connected on http://localhost:3001.")
-    except Exception:
-        is_whatsapp_running = False
-
-    if not is_whatsapp_running and server_file.exists() and shutil.which("node"):
+    if not settings.is_production:
         try:
-            logger.info("Starting Friday Baileys WhatsApp bot service on http://localhost:3001...")
-            whatsapp_proc = subprocess.Popen(
-                ["node", "server.js"],
-                cwd=str(whatsapp_dir),
-                shell=True,
-            )
+            await seed_initial_data_async()
         except Exception as e:
-            logger.warning(f"Could not auto-start Baileys WhatsApp service: {e}")
+            logger.warning(f"Seed data notice: {e}")
+    else:
+        logger.info("Production mode detected: skipping demo/seed data insertion.")
+
+    # Auto-start Baileys WhatsApp bot microservice if not already running (in dev/local environments)
+    if not settings.is_production:
+        whatsapp_dir = BACKEND_DIR / "whatsapp_service"
+        server_file = whatsapp_dir / "server.js"
+        is_whatsapp_running = False
+        try:
+            async with httpx.AsyncClient(timeout=1.0) as client:
+                resp = await client.get("http://localhost:3001/status")
+                if resp.status_code == 200:
+                    is_whatsapp_running = True
+                    logger.info("Friday Baileys WhatsApp bot is already online and connected on http://localhost:3001.")
+        except Exception:
+            is_whatsapp_running = False
+
+        if not is_whatsapp_running and server_file.exists() and shutil.which("node"):
+            try:
+                logger.info("Starting Friday Baileys WhatsApp bot service on http://localhost:3001...")
+                whatsapp_proc = subprocess.Popen(
+                    ["node", "server.js"],
+                    cwd=str(whatsapp_dir),
+                    shell=True,
+                )
+            except Exception as e:
+                logger.warning(f"Could not auto-start Baileys WhatsApp service: {e}")
 
     logger.info("Friday backend is ready! 🚀")
     yield
@@ -100,10 +104,12 @@ app.add_exception_handler(FridayError, friday_error_handler)
 # Tracing & Telemetry Middleware
 app.add_middleware(RequestIdMiddleware)
 
-# CORS: Allow all local development origins (localhost & 127.0.0.1 on all ports)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+# CORS: Allow environment-configured frontend origins + Vercel deployments
+origins = list(settings.CORS_ORIGINS)
+if settings.FRONTEND_URL and settings.FRONTEND_URL not in origins:
+    origins.append(settings.FRONTEND_URL)
+if not settings.is_production:
+    origins.extend([
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:5175",
@@ -112,8 +118,12 @@ app.add_middleware(
         "http://127.0.0.1:5174",
         "http://127.0.0.1:5175",
         "http://127.0.0.1:3000",
-    ],
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    ])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_origin_regex=r"https?://.*\.vercel\.app" if settings.is_production else r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
