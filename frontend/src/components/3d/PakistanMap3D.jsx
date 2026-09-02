@@ -16,7 +16,7 @@ const PAKISTAN_WAYPOINTS = [
     name: 'Hunza Valley',
     sub: 'Karimabad, Altit Fort & Passu Cones',
     altitude: '2,438m',
-    x: 77, // percentage positioning aligned to the Pakistan outline map
+    x: 70, // Accurately placed in northern Gilgit-Baltistan
     y: 11,
     region: 'Gilgit-Baltistan',
     temp: '18°C Sunny',
@@ -27,8 +27,8 @@ const PAKISTAN_WAYPOINTS = [
     name: 'Skardu & Deosai',
     sub: 'Shangrila Lake & Cold Desert',
     altitude: '2,228m',
-    x: 88,
-    y: 16,
+    x: 78, // Accurately placed in southeastern Baltistan inside Pakistan border
+    y: 17,
     region: 'Baltistan',
     temp: '16°C Clear',
     status: 'Open Pass',
@@ -38,8 +38,8 @@ const PAKISTAN_WAYPOINTS = [
     name: 'Fairy Meadows',
     sub: 'Nanga Parbat Basecamp & Raikot',
     altitude: '3,300m',
-    x: 73,
-    y: 20,
+    x: 68,
+    y: 19,
     region: 'Diamer',
     temp: '12°C Alpine',
     status: 'Jeep Route',
@@ -49,8 +49,8 @@ const PAKISTAN_WAYPOINTS = [
     name: 'Swat & Kalam',
     sub: 'Malam Jabba, Bahrain & Mahodand',
     altitude: '980m',
-    x: 63,
-    y: 26,
+    x: 59,
+    y: 25,
     region: 'Khyber Pakhtunkhwa',
     temp: '22°C Pleasant',
     status: 'Motorway',
@@ -60,7 +60,7 @@ const PAKISTAN_WAYPOINTS = [
     name: 'Islamabad Capital',
     sub: 'Departure Gateway & Motorway Hub',
     altitude: '540m',
-    x: 70,
+    x: 66,
     y: 33,
     region: 'Federal Hub',
     temp: '28°C Hub',
@@ -71,8 +71,8 @@ const PAKISTAN_WAYPOINTS = [
     name: 'Lahore Cultural Hub',
     sub: 'Walled City & Direct Flights Hub',
     altitude: '217m',
-    x: 78,
-    y: 47,
+    x: 71, // Accurately placed inside eastern Punjab on the map
+    y: 46,
     region: 'Punjab',
     temp: '32°C Sunny',
     status: 'Travel Hub',
@@ -82,8 +82,8 @@ const PAKISTAN_WAYPOINTS = [
     name: 'Gwadar & Makran',
     sub: 'Coastal Highway, Hammerhead & Ormara',
     altitude: '8m',
-    x: 14,
-    y: 78,
+    x: 17,
+    y: 80,
     region: 'Balochistan Coast',
     temp: '29°C Coastal',
     status: 'Coastal Route',
@@ -130,13 +130,15 @@ export default function PakistanMap3D({ variant = 'home' }) {
         className="relative z-10 w-full space-y-4"
       >
         {/* Pakistan Outline Map Visual (Transparent Background with Green Boundary Lines) */}
-        <div className="relative w-full h-[360px] sm:h-[420px] flex items-center justify-center p-2">
-          {/* Pakistan Map Image */}
-          <img
-            src="/images/pakistan_map.png"
-            alt="Pakistan Geographic Outline Map"
-            className="h-full w-auto max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,38,29,0.12)] mix-blend-multiply opacity-90 transition-transform duration-500"
-          />
+        <div className="relative w-full flex items-center justify-center p-2">
+          {/* Exact aspect ratio container matching the 980x1024 Pakistan outline map */}
+          <div className="relative aspect-[980/1024] h-[360px] sm:h-[420px] max-w-full">
+            {/* Pakistan Map Image */}
+            <img
+              src="/images/pakistan_map.png"
+              alt="Pakistan Geographic Outline Map"
+              className="w-full h-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,38,29,0.12)] mix-blend-multiply opacity-90 transition-transform duration-500 pointer-events-none"
+            />
 
           {/* Interactive Floating Waypoint Pins */}
           {PAKISTAN_WAYPOINTS.map((wp) => {
@@ -188,6 +190,7 @@ export default function PakistanMap3D({ variant = 'home' }) {
               </button>
             );
           })}
+          </div>
         </div>
 
         {/* Dynamic Waypoint Intelligence Pill Bar (Shows selected city info & weather) */}
