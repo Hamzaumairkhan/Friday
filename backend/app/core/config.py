@@ -21,13 +21,23 @@ class Settings(BaseSettings):
     # APP
     APP_NAME: str = "Friday"
     APP_VERSION: str = "0.1.0"
+    ENVIRONMENT: str = "development"
     DEBUG: bool = True
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
-    # DATABASE (Anchored strictly to backend/data/friday.db)
+    # DATABASE (Anchored strictly to backend/data/friday.db or remote MySQL)
     DATABASE_URL: str = f"sqlite+aiosqlite:///{DEFAULT_DB_FILE}"
     DATABASE_SYNC_URL: str = f"sqlite:///{DEFAULT_DB_FILE}"
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_TIMEOUT: float = 30.0
+    DB_POOL_RECYCLE: int = 1800
+    DB_POOL_PRE_PING: bool = True
+
+    # REDIS / CACHE
+    REDIS_URL: Optional[str] = None
+    DISABLE_RATE_LIMIT: bool = False
 
     # LLM - PRIMARY (Groq Cloud)
     GROQ_API_KEY: Optional[str] = None

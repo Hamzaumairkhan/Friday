@@ -1,12 +1,15 @@
 """Package model."""
 
-from sqlalchemy import Column, String, Integer, Float, JSON, Text, ForeignKey, Boolean
+from sqlalchemy import Column, String, Integer, Float, JSON, Text, ForeignKey, Boolean, Index
 from sqlalchemy.orm import relationship
 from app.database.base import Base, IDMixin, TimestampMixin
 
 
 class Package(Base, IDMixin, TimestampMixin):
     __tablename__ = "packages"
+    __table_args__ = (
+        Index("ix_packages_org_active", "organizer_id", "is_active"),
+    )
 
     organizer_id = Column(String, ForeignKey("organizers.id"), nullable=False, index=True)
     title = Column(String, nullable=False)

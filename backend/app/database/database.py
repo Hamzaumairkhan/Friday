@@ -22,18 +22,34 @@ def _ensure_sqlite_dir(url: str):
 _ensure_sqlite_dir(settings.DATABASE_URL)
 _ensure_sqlite_dir(settings.DATABASE_SYNC_URL)
 
+
+def _get_engine_kwargs(url: str) -> dict:
+    """Build production connection pool parameters with automatic health pinging."""
+    kwargs = {
+        "echo": False,
+        "future": True,
+        "pool_pre_ping": getattr(settings, "DB_POOL_PRE_PING", True),
+    }
+    if "sqlite" not in url.lower():
+        kwargs.update({
+            "pool_size": getattr(settings, "DB_POOL_SIZE", 10),
+            "max_overflow": getattr(settings, "DB_MAX_OVERFLOW", 10),
+            "pool_timeout": getattr(settings, "DB_POOL_TIMEOUT", 30.0),
+            "pool_recycle": getattr(settings, "DB_POOL_RECYCLE", 1800),
+        })
+    return kwargs
+
+
 # Async engine for FastAPI
 async_engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=False,
-    future=True,
+    **_get_engine_kwargs(settings.DATABASE_URL),
 )
 
 # Sync engine for migrations, seed scripts, and testing
 sync_engine = create_engine(
     settings.DATABASE_SYNC_URL,
-    echo=False,
-    future=True,
+    **_get_engine_kwargs(settings.DATABASE_SYNC_URL),
 )
 
 async_session_factory = async_sessionmaker(

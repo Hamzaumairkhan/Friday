@@ -1,6 +1,6 @@
 """Trip model."""
 
-from sqlalchemy import Column, String, Integer, Float, JSON, ForeignKey, Text, Enum as SAEnum
+from sqlalchemy import Column, String, Integer, Float, JSON, ForeignKey, Text, Enum as SAEnum, Index
 from sqlalchemy.orm import relationship
 import enum
 
@@ -24,6 +24,9 @@ class MemberRole(str, enum.Enum):
 
 class Trip(Base, IDMixin, TimestampMixin):
     __tablename__ = "trips"
+    __table_args__ = (
+        Index("ix_trips_public_status", "is_public", "status"),
+    )
 
     owner_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     title = Column(String, nullable=True)

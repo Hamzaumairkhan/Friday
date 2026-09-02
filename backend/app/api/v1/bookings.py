@@ -1,7 +1,7 @@
 """Bookings API endpoints with authoritative package and organizer snapshot serialization."""
 
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
@@ -49,36 +49,63 @@ def _format_booking(b) -> BookingResponse:
     )
 
 
-@router.post("", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
+from app.core.rate_limiter import rate_limit_booking
+from app.core.idempotency import IdempotencyManager
+
+
+@router.post("", response_model=BookingResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit_booking)])
 async def create_booking(
     req: BookingCreate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    idempotency_key = request.headers.get("X-Idempotency-Key")
+    is_cached, cached_payload = await IdempotencyManager.check_or_lock(
+        user_id=current_user.id,
+        endpoint="/api/v1/bookings",
+        idempotency_key=idempotency_key,
+    )
+    if is_cached and cached_payload:
+        return cached_payload.get("data")
+
     # Organizer accounts cannot create bookings
     if current_user.role and (current_user.role.value if hasattr(current_user.role, 'value') else current_user.role) == 'ORGANIZER':
+        await IdempotencyManager.unlock_on_error(current_user.id, "/api/v1/bookings", idempotency_key)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Organizer accounts cannot book tours. Please use a Traveler account to make a booking.",
         )
 
-    service = BookingService(db)
-    booking = await service.create_booking_request(user_id=current_user.id, data=req)
+    try:
+        service = BookingService(db)
+        booking = await service.create_booking_request(user_id=current_user.id, data=req)
 
-    # Create notification for organizer
-    org_repo = OrganizerRepository(db)
-    organizer = await org_repo.get_by_id(booking.organizer_id)
-    if organizer and organizer.user_id:
-        notif_service = NotificationService(db)
-        await notif_service.notify_new_booking(
-            organizer_user_id=organizer.user_id,
-            booking_id=booking.id,
-            traveler_name=booking.traveler_name or "A traveler",
-            package_title=booking.package_title or "a package",
+        # Create notification for organizer
+        org_repo = OrganizerRepository(db)
+        organizer = await org_repo.get_by_id(booking.organizer_id)
+        if organizer and organizer.user_id:
+            notif_service = NotificationService(db)
+            await notif_service.notify_new_booking(
+                organizer_user_id=organizer.user_id,
+                booking_id=booking.id,
+                traveler_name=booking.traveler_name or "A traveler",
+                package_title=booking.package_title or "a package",
+            )
+
+        await db.commit()
+        response_dto = _format_booking(booking)
+        await IdempotencyManager.save_result(
+            user_id=current_user.id,
+            endpoint="/api/v1/bookings",
+            idempotency_key=idempotency_key,
+            data=response_dto.model_dump(),
+            status_code=201,
         )
-
-    await db.commit()
-    return _format_booking(booking)
+        return response_dto
+    except Exception:
+        await IdempotencyManager.unlock_on_error(current_user.id, "/api/v1/bookings", idempotency_key)
+        raise
 
 
 @router.get("", response_model=List[BookingResponse])

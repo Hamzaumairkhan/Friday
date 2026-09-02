@@ -79,8 +79,16 @@ def _condition_to_icon(condition: str) -> str:
     return "sun"
 
 
+from app.core.cache import cache
+
+
 async def _geocode_destination_live(destination: str, client: httpx.AsyncClient) -> Optional[Tuple[float, float, str]]:
-    """Resolve destination to live coordinates (lat, lon, display_name) via OpenStreetMap Nominatim."""
+    """Resolve destination to live coordinates (lat, lon, display_name) via OpenStreetMap Nominatim with caching."""
+    cache_key = f"geo:nominatim:{destination.strip().lower()}"
+    cached_coords = await cache.get(cache_key)
+    if cached_coords and isinstance(cached_coords, list) and len(cached_coords) == 3:
+        return float(cached_coords[0]), float(cached_coords[1]), str(cached_coords[2])
+
     try:
         url = "https://nominatim.openstreetmap.org/search"
         headers = {"User-Agent": USER_AGENT}
@@ -93,6 +101,7 @@ async def _geocode_destination_live(destination: str, client: httpx.AsyncClient)
                 lat = float(data[0]["lat"])
                 lon = float(data[0]["lon"])
                 display = data[0].get("display_name", destination).split(",")[0]
+                await cache.set(cache_key, [lat, lon, display], ttl=86400)
                 return lat, lon, display
     except Exception as e:
         logger.debug(f"Live geocoding note for weather ({destination}): {e}")
@@ -118,6 +127,10 @@ class WeatherTool:
             }
 
         dest_clean = destination.strip()
+        weather_cache_key = f"weather:live:{dest_clean.lower()}:{days}:{start_date or 'today'}"
+        cached_weather = await cache.get(weather_cache_key)
+        if cached_weather and isinstance(cached_weather, dict) and cached_weather.get("success"):
+            return cached_weather
         today = date.today()
         base_date = today
         if start_date:
@@ -295,7 +308,7 @@ class WeatherTool:
                             "humidity": humidity,
                         })
 
-                    return {
+                    weather_result = {
                         "success": True,
                         "source": "open_meteo_live",
                         "source_type": "live",
@@ -314,6 +327,8 @@ class WeatherTool:
                         },
                         "error": None,
                     }
+                    await cache.set(weather_cache_key, weather_result, ttl=900)
+                    return weather_result
             except Exception as e:
                 logger.info(f"Open-Meteo live request note for {destination}: {e}")
 

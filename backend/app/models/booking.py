@@ -1,6 +1,6 @@
 """Booking model with immutable package & organizer snapshot persistence."""
 
-from sqlalchemy import Column, String, Float, Integer, Text, ForeignKey, DateTime, Enum as SAEnum
+from sqlalchemy import Column, String, Float, Integer, Text, ForeignKey, DateTime, Enum as SAEnum, Index
 from sqlalchemy.orm import relationship
 import enum
 
@@ -24,6 +24,9 @@ class PaymentStatus(str, enum.Enum):
 
 class Booking(Base, IDMixin, TimestampMixin):
     __tablename__ = "bookings"
+    __table_args__ = (
+        Index("ix_bookings_pkg_status", "package_id", "status"),
+    )
 
     trip_id = Column(String, ForeignKey("trips.id"), nullable=False, index=True)
     package_id = Column(String, ForeignKey("packages.id"), nullable=False, index=True)

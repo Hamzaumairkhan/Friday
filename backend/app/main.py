@@ -92,8 +92,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+from app.core.middleware import RequestIdMiddleware
+
 # Exception handlers
 app.add_exception_handler(FridayError, friday_error_handler)
+
+# Tracing & Telemetry Middleware
+app.add_middleware(RequestIdMiddleware)
 
 # CORS: Allow all local development origins (localhost & 127.0.0.1 on all ports)
 app.add_middleware(
@@ -116,6 +121,29 @@ app.add_middleware(
 
 # Mount API routes
 app.include_router(v1_router)
+
+
+@app.get("/health/live", tags=["Health"])
+async def health_live() -> Dict[str, Any]:
+    """Lightweight process liveness endpoint for load balancers and orchestrators."""
+    return {
+        "status": "alive",
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "timestamp": time.time(),
+    }
+
+
+@app.get("/health/ready", tags=["Health"])
+async def health_ready(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+    """Database readiness probe ensuring the instance can accept user traffic."""
+    try:
+        res = await db.execute(text("SELECT 1"))
+        if res.scalar() == 1:
+            return {"status": "ready", "database": "connected"}
+        return Response(status_code=503, content='{"status":"not_ready","error":"unexpected_query_result"}', media_type="application/json")
+    except Exception as e:
+        return Response(status_code=503, content=f'{{"status":"not_ready","error":"{str(e)}"}}', media_type="application/json")
 
 
 @app.get("/health", tags=["Health"])

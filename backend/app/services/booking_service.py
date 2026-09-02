@@ -50,8 +50,14 @@ class BookingService:
         if not package_id or not travelers or travelers < 1:
             raise ValidationError("package_id and a valid travelers count (>=1) are required")
 
-        # 1. Authoritative Package Resolution (Do NOT trust frontend metadata)
-        pkg_res = await self.db.execute(select(Package).where(Package.id == package_id))
+        # 1. Authoritative Package Resolution with Pessimistic Row Lock
+        pkg_query = select(Package).where(Package.id == package_id)
+        try:
+            pkg_res = await self.db.execute(pkg_query.with_for_update())
+        except Exception:
+            # Fallback for SQLite / engines without row-level lock syntax
+            pkg_res = await self.db.execute(pkg_query)
+
         package = pkg_res.scalar_one_or_none()
         if not package or not package.is_active:
             raise NotFoundError(f"Package '{package_id}' is not active or does not exist")
