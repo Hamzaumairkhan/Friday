@@ -99,8 +99,8 @@ def _format_public_package(p) -> dict:
     org_name = (getattr(org, 'name', None) if org else None) or getattr(p, 'organizer_name', None) or "Verified Tour Host"
     org_phone = (getattr(org, 'contact_phone', None) if org else None) or getattr(p, 'contact_phone', None) or "+92 300 1234567"
     org_email = getattr(org, 'contact_email', None) if org else None
-    pkg_rating = getattr(p, 'rating', None) or (getattr(org, 'rating', None) if org else 0.0) or 0.0
-    pkg_reviews_count = getattr(p, 'reviews_count', None) or (getattr(org, 'reviews_count', None) if org else 0) or 0
+    pkg_rating = getattr(p, 'rating', 0.0) or 0.0
+    pkg_reviews_count = getattr(p, 'reviews_count', 0) or 0
     return {
         "id": p.id,
         "organizer_id": p.organizer_id,

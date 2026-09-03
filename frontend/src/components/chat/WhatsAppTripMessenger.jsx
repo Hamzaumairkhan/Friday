@@ -26,6 +26,7 @@ import { useAuth } from '../../context/AuthContext';
 import MessageBubble from '../shared/MessageBubble';
 import UserAvatar from '../shared/UserAvatar';
 import { playNotificationSound } from '../../utils/notificationSound';
+import { getDestinationFallback } from '../../utils/imageService';
 import toast from 'react-hot-toast';
 
 export default function WhatsAppTripMessenger({
@@ -187,20 +188,6 @@ export default function WhatsAppTripMessenger({
     `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
       backendUser?.name || user?.displayName || 'User'
     )}`;
-
-  const getDestinationFallback = (dest) => {
-    const d = (dest || '').toLowerCase();
-    if (d.includes('pine') || d.includes('nathia') || d.includes('murree') || d.includes('galyat') || d.includes('ayubia')) return '/images/stitch/stitch_asset_11.jpg';
-    if (d.includes('islamabad') || d.includes('margalla') || d.includes('faisal') || d.includes('rawalpindi')) return '/images/stitch/stitch_asset_4.jpg';
-    if (d.includes('lahore') || d.includes('badshahi') || d.includes('punjab')) return '/images/stitch/stitch_asset_2.jpg';
-    if (d.includes('karachi') || d.includes('gwadar') || d.includes('ormara') || d.includes('sindh')) return '/images/stitch/stitch_asset_5.jpg';
-    if (d.includes('swat') || d.includes('kalam') || d.includes('malam')) return '/images/stitch/stitch_asset_10.jpg';
-    if (d.includes('naran') || d.includes('kaghan') || d.includes('saif') || d.includes('babusar')) return '/images/stitch/stitch_asset_9.jpg';
-    if (d.includes('hunza') || d.includes('passu') || d.includes('attabad')) return '/images/stitch/stitch_asset_1.jpg';
-    if (d.includes('skardu') || d.includes('deosai') || d.includes('shangrila')) return '/images/stitch/hero_mountains.jpg';
-    if (d.includes('neelum') || d.includes('kashmir') || d.includes('kumrat')) return '/images/stitch/stitch_asset_8.jpg';
-    return '/images/stitch/hero_mountains.jpg';
-  };
 
   const activeTitle =
     activeGroupDetails?.title || selectedGroup?.title || 'Trip Community';

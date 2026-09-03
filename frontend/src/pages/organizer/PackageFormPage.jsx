@@ -29,12 +29,15 @@ import {
   ShieldCheck,
   ArrowRight,
   MessageSquare,
+  Image as ImageIcon,
+  RefreshCw,
 } from 'lucide-react';
 import { organizersService } from '../../services/organizers';
 import { packagesService } from '../../services/packages';
 import { tripsService } from '../../services/trips';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import { getDestinationFallback, searchDestinationImages, DESTINATION_WEB_PHOTOS } from '../../utils/imageService';
 import toast from 'react-hot-toast';
 
 const renderWeatherIcon = (iconName, className = 'w-5 h-5') => {
@@ -600,11 +603,16 @@ export default function PackageFormPage() {
           });
           if (aiRes && Array.isArray(aiRes.days) && aiRes.days.length > 0) {
             finalActivities = aiRes.days;
+            if (aiRes.hero_image && !formData.image_url) {
+              updateField('image_url', aiRes.hero_image);
+            }
           }
         } catch (genErr) {
           console.warn('AI schedule generation fallback to structured schedule', genErr);
         }
       }
+
+      const resolvedCoverImg = formData.image_url || getDestinationFallback(formData.destination.trim());
 
       const payload = {
         title: formData.title.trim(),
@@ -619,6 +627,7 @@ export default function PackageFormPage() {
         description: formData.description?.trim(),
         accommodation_type: formData.accommodation_type.trim(),
         transportation_type: formData.transportation_type.trim(),
+        image_url: resolvedCoverImg,
         inclusions: formData.inclusions,
         exclusions: formData.exclusions,
         activities: finalActivities,
@@ -961,6 +970,44 @@ export default function PackageFormPage() {
                           {sug}
                         </button>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Genuine Destination Web Photography Preview (Feed & Group Chat) */}
+                {formData.destination && geoValidation.isValid && (
+                  <div className="mt-3 p-3.5 rounded-2xl bg-[#F8FAF6] border border-black/10 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#00261D] flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-emerald-800" />
+                        <span>Expedition Web Cover Photo (Feed & Group Chat)</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextSeed = Math.floor(Math.random() * 1000);
+                          const newImg = getDestinationFallback(formData.destination, nextSeed);
+                          updateField('image_url', newImg);
+                          toast.success('Switched to another authentic Pakistan photo!');
+                        }}
+                        className="text-[11px] font-bold text-emerald-900 hover:text-emerald-700 flex items-center gap-1 cursor-pointer bg-white px-2.5 py-1 rounded-full border border-black/10 shadow-2xs"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        <span>Shuffle Photo</span>
+                      </button>
+                    </div>
+                    <div className="relative h-44 sm:h-52 rounded-xl overflow-hidden bg-[#00261D] border border-black/10">
+                      <img
+                        src={formData.image_url || getDestinationFallback(formData.destination)}
+                        alt={formData.destination}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = getDestinationFallback(formData.destination, 42);
+                        }}
+                      />
+                      <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[10px] font-medium px-2.5 py-1 rounded-lg">
+                        📍 Real destination photography for {formData.destination}
+                      </div>
                     </div>
                   </div>
                 )}

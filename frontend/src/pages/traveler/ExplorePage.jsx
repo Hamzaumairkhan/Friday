@@ -491,10 +491,10 @@ export default function ExplorePage() {
                     {/* 400px Image Container with Film Matte Overlay */}
                     <div className="relative h-72 sm:h-96 w-full overflow-hidden bg-[#00261D]">
                       <img
-                        src={pkg.image_url || '/images/stitch/stitch_asset_1.jpg'}
+                        src={pkg.image_url || getDestinationFallback(pkg.destination, pkg.id)}
                         alt={pkg.title}
                         onError={(e) => {
-                          e.currentTarget.src = '/images/stitch/stitch_asset_1.jpg';
+                          e.currentTarget.src = getDestinationFallback(pkg.destination, (pkg.id || '') + 'fallback');
                         }}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
                       />
@@ -629,18 +629,27 @@ export default function ExplorePage() {
                           </p>
                           <p className="text-[11px] text-[#717975] flex items-center gap-1">
                             {isCommunity ? (
-                              <span className="text-emerald-700 font-medium flex items-center gap-1">
-                                <ShieldCheck className="w-3 h-3 text-emerald-700 inline" />
-                                <span>Verified Community Traveler</span>
-                              </span>
-                            ) : (
-                              (pkg.rating > 0 || org?.rating > 0) && (pkg.reviews_count > 0 || org?.reviews_count > 0) ? (
+                              Number(pkg.rating) > 0 && Number(pkg.reviews_count) > 0 ? (
                                 <span className="flex items-center gap-1 font-semibold text-[#00261D]">
                                   <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
                                   <span>
-                                    {(pkg.rating || org?.rating || 0).toFixed(1)} (
-                                    {pkg.reviews_count || org?.reviews_count || 0}{' '}
-                                    {(pkg.reviews_count || org?.reviews_count || 0) === 1 ? 'review' : 'reviews'})
+                                    {Number(pkg.rating).toFixed(1)} ({pkg.reviews_count}{' '}
+                                    {Number(pkg.reviews_count) === 1 ? 'review' : 'reviews'})
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="text-emerald-700 font-medium flex items-center gap-1">
+                                  <ShieldCheck className="w-3 h-3 text-emerald-700 inline" />
+                                  <span>Verified Community Traveler</span>
+                                </span>
+                              )
+                            ) : (
+                              Number(pkg.rating) > 0 && Number(pkg.reviews_count) > 0 ? (
+                                <span className="flex items-center gap-1 font-semibold text-[#00261D]">
+                                  <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                                  <span>
+                                    {Number(pkg.rating).toFixed(1)} ({pkg.reviews_count}{' '}
+                                    {Number(pkg.reviews_count) === 1 ? 'review' : 'reviews'})
                                   </span>
                                 </span>
                               ) : (
@@ -847,10 +856,10 @@ export default function ExplorePage() {
                   >
                     <div className="relative shrink-0">
                       <img
-                        src={item.image_url || '/images/stitch/stitch_asset_1.jpg'}
+                        src={item.image_url || getDestinationFallback(item.destination, item.id)}
                         alt={item.title}
                         onError={(e) => {
-                          e.currentTarget.src = '/images/stitch/stitch_asset_1.jpg';
+                          e.currentTarget.src = getDestinationFallback(item.destination, (item.id || '') + 'fallback');
                         }}
                         className="w-14 h-14 rounded-xl object-cover shadow-2xs group-hover:scale-105 transition-transform duration-300"
                       />

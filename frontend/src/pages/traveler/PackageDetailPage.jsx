@@ -20,11 +20,13 @@ import {
   Footprints,
   Phone,
   Eye,
+  Navigation,
 } from 'lucide-react';
 import { packagesService } from '../../services/packages';
 import { organizersService } from '../../services/organizers';
 import { bookingsService } from '../../services/bookings';
 import { tripsService } from '../../services/trips';
+import { getDestinationFallback } from '../../utils/imageService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
@@ -167,7 +169,7 @@ export default function PackageDetailPage() {
     );
   }
 
-  const defaultHero = '/images/stitch/stitch_asset_6.jpg';
+  const defaultHero = getDestinationFallback(pkg.destination, pkg.id);
   const heroImage = pkg.image_url || defaultHero;
 
   let itinerary = [];
@@ -176,14 +178,56 @@ export default function PackageDetailPage() {
       day: d.day_number || i + 1,
       title: d.title || `Day ${i + 1}`,
       description: d.summary || '',
-      activities: (d.activities || []).map((a) =>
-        typeof a === 'string'
-          ? a
-          : `${a.start_time ? `${a.start_time}: ` : ''}${a.title || a.location || ''}`
-      ),
+      activities: (d.activities || []).map((a, aIdx) => {
+        if (typeof a === 'string') {
+          return {
+            title: a,
+            description: '',
+            start_time: '',
+            end_time: '',
+            location: pkg.destination,
+            category: 'EXPLORATION',
+            image_url: getDestinationFallback(pkg.destination, (pkg.id || '') + i + aIdx),
+            map_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a + ', ' + pkg.destination)}`,
+          };
+        }
+        const loc = a.location || pkg.destination;
+        return {
+          title: a.title || a.location || `Stop ${aIdx + 1}`,
+          description: a.description || '',
+          start_time: a.start_time || '',
+          end_time: a.end_time || '',
+          location: loc,
+          category: a.category || 'SIGHTSEEING',
+          image_url: a.image_url || getDestinationFallback(loc || a.title || pkg.destination, (pkg.id || '') + i + aIdx),
+          map_url: a.map_url || a.notes || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((a.title || loc) + ', ' + pkg.destination)}`,
+        };
+      }),
     }));
   } else if (Array.isArray(pkg.itinerary)) {
-    itinerary = pkg.itinerary;
+    itinerary = pkg.itinerary.map((d, i) => ({
+      ...d,
+      activities: (d.activities || []).map((a, aIdx) => {
+        if (typeof a === 'string') {
+          return {
+            title: a,
+            description: '',
+            start_time: '',
+            end_time: '',
+            location: pkg.destination,
+            category: 'EXPLORATION',
+            image_url: getDestinationFallback(pkg.destination, (pkg.id || '') + i + aIdx),
+            map_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a + ', ' + pkg.destination)}`,
+          };
+        }
+        const loc = a.location || pkg.destination;
+        return {
+          ...a,
+          image_url: a.image_url || getDestinationFallback(loc || a.title || pkg.destination, (pkg.id || '') + i + aIdx),
+          map_url: a.map_url || a.notes || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((a.title || loc) + ', ' + pkg.destination)}`,
+        };
+      }),
+    }));
   }
 
   const totalCalculated = (pkg.price_per_person || 0) * travelersCount;
@@ -223,15 +267,15 @@ export default function PackageDetailPage() {
                 <Eye className="w-3.5 h-3.5 text-[#BBEAD5]" />
                 <span>{pkg.views_count || 0} {pkg.views_count === 1 ? 'view' : 'views'}</span>
               </span>
-              {(pkg.rating > 0 || organizer?.rating > 0) && (pkg.reviews_count > 0 || organizer?.reviews_count > 0) ? (
+              {Number(pkg.rating) > 0 && (Number(pkg.reviews_count) > 0 || reviews.length > 0) ? (
                 <span className="bg-[#FFDBD0] text-[#420E00] px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1">
                   <Star className="w-3 h-3 fill-[#420E00]" />
-                  {(pkg.rating || organizer?.rating || 0).toFixed(1)} ({pkg.reviews_count || organizer?.reviews_count || 0} reviews)
+                  {Number(pkg.rating).toFixed(1)} ({pkg.reviews_count || reviews.length} {Number(pkg.reviews_count || reviews.length) === 1 ? 'review' : 'reviews'})
                 </span>
               ) : (
                 <span className="bg-white/95 backdrop-blur-md text-[#00261D] px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-emerald-800" />
-                  New Tour Package
+                  ✨ New Tour Package
                 </span>
               )}
             </div>
@@ -329,14 +373,73 @@ export default function PackageDetailPage() {
                       </p>
 
                       {item.activities && item.activities.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="space-y-3 pt-2">
                           {item.activities.map((act, actIdx) => (
-                            <span
+                            <div
                               key={actIdx}
-                              className="px-3 py-1 rounded-full text-xs bg-[#E7E9E5] text-[#191C1A] font-medium"
+                              className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-2xl bg-white border border-black/10 gap-3.5 hover:border-black/20 hover:shadow-xs transition-all group"
                             >
-                              {act}
-                            </span>
+                              <div className="flex items-start sm:items-center gap-3.5 w-full sm:w-auto flex-1">
+                                {/* Activity Real Web Photography Thumbnail */}
+                                <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-xl overflow-hidden shrink-0 bg-[#00261D] border border-black/10">
+                                  <img
+                                    src={act.image_url || heroImage}
+                                    alt={act.title}
+                                    onError={(e) => {
+                                      e.currentTarget.src = heroImage;
+                                    }}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                </div>
+
+                                <div className="min-w-0 flex-1 space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {(act.start_time || act.end_time) && (
+                                      <div className="px-2.5 py-0.5 rounded-full bg-[#F8FAF6] border border-black/10 text-[10px] font-bold text-[#00261D] shrink-0 flex items-center gap-1 shadow-2xs">
+                                        <Clock className="w-3 h-3 text-[#717975]" />
+                                        <span>
+                                          {act.start_time}{act.end_time ? ` – ${act.end_time}` : ''}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {act.category && (
+                                      <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60">
+                                        {act.category}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <h5 className="text-sm font-bold text-[#00261D]">
+                                    {act.title}
+                                  </h5>
+
+                                  {act.description && (
+                                    <p className="text-xs text-[#555E59] leading-relaxed line-clamp-2">
+                                      {act.description}
+                                    </p>
+                                  )}
+
+                                  {act.location && (
+                                    <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                                      <p className="text-[11px] text-[#717975] flex items-center gap-1 truncate max-w-xs">
+                                        <MapPin className="w-3 h-3 text-[#00261D] shrink-0" />
+                                        <span className="truncate">{act.location}</span>
+                                      </p>
+                                      <a
+                                        href={act.map_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#00261D] text-[#BBEAD5] hover:bg-[#00261D]/90 text-[10px] font-bold tracking-wide transition-all shadow-2xs hover:scale-105 whitespace-nowrap"
+                                        title="Open in Google Maps"
+                                      >
+                                        <Navigation className="w-2.5 h-2.5" />
+                                        <span>View Map</span>
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
                           ))}
                         </div>
                       )}
@@ -412,28 +515,39 @@ export default function PackageDetailPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-black/10 shadow-2xs">
-                  <div className="w-12 h-12 rounded-xl bg-[#FFDBD0] flex items-center justify-center text-[#420E00] font-black text-xl">
-                    {(pkg.rating || organizer?.rating || 0) > 0 ? (pkg.rating || organizer?.rating).toFixed(1) : '–'}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          className={`w-4 h-4 ${
-                            star <= Math.round(pkg.rating || organizer?.rating || 0)
-                              ? 'text-amber-500 fill-amber-500'
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
+                {(() => {
+                  const actualCount = reviews.length;
+                  const avgRating = actualCount > 0
+                    ? (reviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / actualCount)
+                    : (Number(pkg.rating) > 0 ? Number(pkg.rating) : 0);
+
+                  return (
+                    <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-black/10 shadow-2xs">
+                      <div className="w-12 h-12 rounded-xl bg-[#F8FAF6] border border-black/10 flex items-center justify-center text-[#00261D] font-black text-xl">
+                        {avgRating > 0 ? avgRating.toFixed(1) : '–'}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`w-4 h-4 ${
+                                avgRating > 0 && star <= Math.round(avgRating)
+                                  ? 'text-amber-500 fill-amber-500'
+                                  : 'text-gray-300'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <p className="text-[11px] font-bold text-[#717975] mt-0.5">
+                          {actualCount > 0
+                            ? `Based on ${actualCount} genuine ${actualCount === 1 ? 'review' : 'reviews'}`
+                            : 'No reviews yet for this expedition'}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-[11px] font-bold text-[#717975] mt-0.5">
-                      Based on {reviews.length} genuine {reviews.length === 1 ? 'review' : 'reviews'}
-                    </p>
-                  </div>
-                </div>
+                  );
+                })()}
               </div>
 
               {/* Submit a Review Form */}

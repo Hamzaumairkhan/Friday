@@ -11,7 +11,7 @@ const STEPS = [
   { text: 'Calculating detailed expense & per-person budget...', detail: 'PKR 48,000 total estimated (within 50k budget)' },
   { text: 'Finding boutique riverside hotels & guest cottages...', detail: '3 verified riverside stays found' },
   { text: 'Checking open group departures & co-travelers...', detail: 'Autumn Colors Expedition (4 seats left)' },
-  { text: 'Verifying licensed local mountain guides...', detail: 'Alpine Mountain Guides (4.9 ★ Rating)' },
+  { text: 'Verifying licensed local mountain guides...', detail: 'Alpine Mountain Guides (Verified License)' },
 ];
 
 export default function LiveAiConversationDemo() {
@@ -184,7 +184,7 @@ export default function LiveAiConversationDemo() {
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 inline" />
                       <span>Alpine Mountain Treks</span>
                     </span>
-                    <span className="text-[10px] text-[#717975]">4.9 ★ (18 reviews)</span>
+                    <span className="text-[10px] text-emerald-800 font-semibold">Verified Expedition Operator</span>
                   </div>
                 </div>
 

@@ -1,21 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Clock, ShieldCheck, Star, Eye } from 'lucide-react';
-
-const STITCH_FALLBACKS = [
-  '/images/stitch/stitch_asset_1.jpg',
-  '/images/stitch/stitch_asset_6.jpg',
-  '/images/stitch/stitch_asset_9.jpg',
-  '/images/stitch/stitch_asset_14.jpg',
-  '/images/stitch/hero_mountains.jpg',
-  '/images/stitch/stitch_asset_4.jpg',
-];
+import { getDestinationFallback } from '../../utils/imageService';
 
 export default function PackageCard({ pkg, organizer }) {
   const navigate = useNavigate();
 
-  // Deterministic fallback based on ID if image_url is missing or invalid
-  const fallbackIndex = Math.abs((pkg?.id || 'default').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % STITCH_FALLBACKS.length;
-  const defaultImage = STITCH_FALLBACKS[fallbackIndex];
+  const defaultImage = getDestinationFallback(pkg?.destination, pkg?.id);
   const imageUrl = pkg?.image_url || defaultImage;
 
   return (
@@ -94,13 +84,12 @@ export default function PackageCard({ pkg, organizer }) {
               Hosted by {organizer?.name || 'Alpine Treks & Expeditions'}
             </p>
             <div className="text-[11px] text-[#6F6F6F] flex items-center gap-1 mt-0.5">
-              {(pkg?.rating > 0 || organizer?.rating > 0) && (pkg?.reviews_count > 0 || organizer?.reviews_count > 0) ? (
+              {Number(pkg?.rating) > 0 && Number(pkg?.reviews_count) > 0 ? (
                 <span className="flex items-center gap-1 font-semibold text-[#00261D]">
                   <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
                   <span>
-                    {(pkg?.rating || organizer?.rating || 0).toFixed(1)} (
-                    {pkg?.reviews_count || organizer?.reviews_count || 0}{' '}
-                    {(pkg?.reviews_count || organizer?.reviews_count || 0) === 1 ? 'review' : 'reviews'})
+                    {Number(pkg?.rating).toFixed(1)} ({pkg?.reviews_count}{' '}
+                    {Number(pkg?.reviews_count) === 1 ? 'review' : 'reviews'})
                   </span>
                 </span>
               ) : (

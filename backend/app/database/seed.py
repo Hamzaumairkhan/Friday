@@ -33,8 +33,8 @@ DEMO_ORGANIZERS: List[Dict[str, Any]] = [
         "verification_status": "VERIFIED",
         "is_verified": True,
         "destinations": ["Hunza", "Gilgit", "Skardu"],
-        "rating": 4.9,
-        "reviews_count": 128,
+        "rating": 0.0,
+        "reviews_count": 0,
         "location": "Karimabad, Hunza",
     }
 ]
