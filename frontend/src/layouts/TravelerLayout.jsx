@@ -293,8 +293,8 @@ export default function TravelerLayout() {
             </button>
           </nav>
 
-          <div className="flex items-center justify-between px-4 text-[11px] text-[#717975]">
-            <div className="flex gap-3">
+          <div className="flex items-center justify-between px-4 py-2 border-t border-black/5 text-[11px] text-[#717975]">
+            <div className="flex gap-2.5">
               <Link to="/about" className="hover:text-[#00261D] flex items-center gap-1">
                 <HelpCircle className="w-3 h-3" /> Help
               </Link>
@@ -305,10 +305,10 @@ export default function TravelerLayout() {
             <button
               type="button"
               onClick={() => setIsReportModalOpen(true)}
-              className="hover:text-amber-800 flex items-center gap-1 text-[11px] text-amber-700 cursor-pointer font-medium"
+              className="hover:text-amber-900 flex items-center gap-1 text-[10px] text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 px-2 py-0.5 rounded-full cursor-pointer font-bold transition-all shadow-2xs shrink-0"
               title="Report a bug or issue"
             >
-              <AlertCircle className="w-3 h-3" /> Report Issue
+              <AlertCircle className="w-3 h-3 text-amber-800" /> Report Issue
             </button>
           </div>
         </div>

@@ -140,18 +140,18 @@ class SmtpEmailProvider(BaseEmailProvider):
             if html:
                 msg.attach(MIMEText(html, "html", "utf-8"))
 
-            # 1. Primary: Port 587 with STARTTLS
+            # 1. Primary: Port 465 with SSL (Instant encrypted connection, avoids cloud port 587 throttle)
             try:
-                with smtplib.SMTP(self.host, self.port or 587, timeout=8.0) as server:
-                    server.starttls()
+                with smtplib.SMTP_SSL(self.host, 465, timeout=5.0) as server:
                     server.login(self.user, self.password)
                     server.sendmail(self.from_email, [target_to], msg.as_string())
                 return True
-            except Exception as e587:
-                logger.warning(f"SMTP port 587 dispatch failed ({e587}), retrying via port 465 SSL...")
+            except Exception as e465:
+                logger.warning(f"SMTP port 465 SSL dispatch failed ({e465}), trying port 587 STARTTLS...")
 
-            # 2. Fallback: Port 465 with SSL (bypasses cloud outbound port 587 restrictions)
-            with smtplib.SMTP_SSL(self.host, 465, timeout=8.0) as server:
+            # 2. Fallback: Port 587 with STARTTLS
+            with smtplib.SMTP(self.host, self.port or 587, timeout=5.0) as server:
+                server.starttls()
                 server.login(self.user, self.password)
                 server.sendmail(self.from_email, [target_to], msg.as_string())
             return True

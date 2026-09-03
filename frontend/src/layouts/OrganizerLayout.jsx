@@ -191,13 +191,14 @@ export default function OrganizerLayout() {
 
         {/* Report Issue Action */}
         <div className="px-4 py-2 border-t border-black/5 flex items-center justify-between text-xs">
+          <span className="text-[11px] text-[#717975]">Found a bug?</span>
           <button
             type="button"
             onClick={() => setIsReportModalOpen(true)}
-            className="hover:text-amber-800 flex items-center gap-1.5 text-xs text-amber-700 cursor-pointer font-semibold transition-colors"
+            className="hover:text-amber-900 flex items-center gap-1 text-[10px] text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 px-2 py-0.5 rounded-full cursor-pointer font-bold transition-all shadow-2xs shrink-0"
             title="Report a bug or issue"
           >
-            <AlertCircle className="w-3.5 h-3.5 text-amber-700" />
+            <AlertCircle className="w-3 h-3 text-amber-800" />
             <span>Report Issue</span>
           </button>
         </div>

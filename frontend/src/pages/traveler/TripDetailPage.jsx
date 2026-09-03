@@ -235,6 +235,10 @@ export default function TripDetailPage() {
   // ─── Clone / Copy Trip into User's Private Workspace ───────────────────
   const handleCopyTrip = async () => {
     if (!trip) return;
+    if (isOrganizer && !isOwner) {
+      toast.error('Organizers cannot copy traveler trip itineraries. Only traveler accounts can clone community trips.');
+      return;
+    }
     setIsCopying(true);
     try {
       const cloned = await tripsService.cloneTrip(trip.id);
@@ -659,7 +663,7 @@ export default function TripDetailPage() {
                   Copying Disabled
                 </span>
               )}
-              {Boolean(trip.is_public) && trip.allow_cloning !== false && (
+              {!isOrganizer && Boolean(trip.is_public) && trip.allow_cloning !== false && (
                 <button
                   onClick={handleCopyTrip}
                   disabled={isCopying}
@@ -1640,7 +1644,7 @@ export default function TripDetailPage() {
               )}
             </>
           ) : (
-            Boolean(trip.is_public) && trip.allow_cloning !== false && (
+            !isOrganizer && Boolean(trip.is_public) && trip.allow_cloning !== false && (
               <button
                 onClick={handleCopyTrip}
                 disabled={isCopying}

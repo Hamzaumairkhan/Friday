@@ -1030,6 +1030,13 @@ async def copy_or_clone_trip(
         db.add(cur_user)
         await db.flush()
 
+    user_role = cur_user.role.value if hasattr(cur_user.role, 'value') else str(cur_user.role)
+    if user_role == "ORGANIZER" and orig_trip.owner_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Organizers cannot copy traveler trip itineraries. Only traveler accounts can clone community trips."
+        )
+
     # 3. Check Permissions: owner can always clone; other users can clone ONLY if trip is public and allow_cloning is true
     if orig_trip.owner_id != user_id:
         if not bool(orig_trip.is_public):

@@ -30,13 +30,12 @@ export const packagesService = {
       visitorId = 'vis_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
       localStorage.setItem('friday_visitor_id', visitorId);
     }
-    const viewed = JSON.parse(localStorage.getItem('friday_viewed_packages') || '[]');
-    if (viewed.includes(packageId)) {
-      return { already_viewed: true };
+    try {
+      const res = await api.post(`/packages/${packageId}/view`, { visitor_id: visitorId });
+      return res.data;
+    } catch {
+      return null;
     }
-    viewed.push(packageId);
-    localStorage.setItem('friday_viewed_packages', JSON.stringify(viewed));
-    return await api.post(`/packages/${packageId}/view`, { visitor_id: visitorId });
   },
 
   // Traveler authentic reviews & ratings

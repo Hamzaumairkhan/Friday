@@ -111,6 +111,15 @@ export default function PackageDetailPage() {
     }
   };
 
+  const fetchPackageReviews = async (pid) => {
+    try {
+      const revs = await packagesService.getReviews(pid || packageId);
+      setReviews(revs?.data || revs || []);
+    } catch (e) {
+      console.error('Error fetching reviews:', e);
+    }
+  };
+
   useEffect(() => {
     const fetchPackageDetails = async () => {
       setLoading(true);
@@ -216,7 +225,8 @@ export default function PackageDetailPage() {
     );
   }
 
-  const heroImage = pkg.image_url;
+  const rawHeroImage = pkg.image_url;
+  const heroImage = rawHeroImage ? (rawHeroImage.startsWith('http://') ? rawHeroImage.replace('http://', 'https://') : rawHeroImage) : null;
 
   let itinerary = [];
   if (Array.isArray(pkg.activities) && pkg.activities.length > 0 && typeof pkg.activities[0] === 'object') {
@@ -238,6 +248,8 @@ export default function PackageDetailPage() {
           };
         }
         const loc = a.location || pkg.destination;
+        const rawImg = a.image_url || null;
+        const safeImg = rawImg ? (rawImg.startsWith('http://') ? rawImg.replace('http://', 'https://') : rawImg) : null;
         return {
           title: a.title || a.location || `Stop ${aIdx + 1}`,
           description: a.description || '',
@@ -245,7 +257,7 @@ export default function PackageDetailPage() {
           end_time: a.end_time || '',
           location: loc,
           category: a.category || 'SIGHTSEEING',
-          image_url: a.image_url || null,
+          image_url: safeImg,
           map_url: a.map_url || a.notes || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((a.title || loc) + ', ' + pkg.destination)}`,
         };
       }),
@@ -524,9 +536,9 @@ export default function PackageDetailPage() {
             </button>
           </div>
 
-          {/* Tab 1: Itinerary Timeline */}
+          {/* Tab 1: Itinerary Timeline (Discrete Day Cards Matching Traveler Experience) */}
           {activeTab === 'ITINERARY' && (
-            <section className="space-y-6">
+            <section className="space-y-6 w-full max-w-full">
               <h2
                 className="text-3xl font-normal text-[#00261D]"
                 style={{ fontFamily: "'Instrument Serif', serif" }}
@@ -535,41 +547,68 @@ export default function PackageDetailPage() {
               </h2>
 
               {itinerary.length > 0 ? (
-                <div className="relative pl-4 sm:pl-6 md:pl-8 border-l border-black/20 flex flex-col gap-8 w-full max-w-full">
+                <div className="flex flex-col gap-6 w-full max-w-full">
                   {itinerary.map((item, idx) => (
-                    <div key={idx} className="relative w-full max-w-full">
-                      {/* Terracotta Dot */}
-                      <div className="absolute -left-[23px] sm:-left-[31px] md:-left-[39px] w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-[#420E00] border-3 sm:border-4 border-[#F8FAF6]" />
-
-                      <span className="text-[11px] font-bold text-[#420E00] uppercase tracking-widest mb-1 block">
-                        DAY {item.day || idx + 1}
-                      </span>
-                      <h4
-                        className="text-2xl font-normal text-[#00261D] mb-2 break-words"
-                        style={{ fontFamily: "'Instrument Serif', serif" }}
-                      >
-                        {item.title}
-                      </h4>
-                      <p className="text-xs sm:text-sm text-[#414845] leading-relaxed mb-3 break-words" style={{ fontFamily: 'Inter, sans-serif' }}>
-                        {item.description}
-                      </p>
+                    <div
+                      key={idx}
+                      className="bg-white p-5 sm:p-6 rounded-3xl border border-black/10 shadow-xs space-y-4 w-full max-w-full"
+                    >
+                      <div>
+                        <span className="text-[11px] font-bold text-[#420E00] uppercase tracking-widest mb-1 block">
+                          DAY {item.day || idx + 1}
+                        </span>
+                        <h4
+                          className="text-2xl font-normal text-[#00261D] mb-2 break-words"
+                          style={{ fontFamily: "'Instrument Serif', serif" }}
+                        >
+                          {item.title}
+                        </h4>
+                        {item.description && (
+                          <p
+                            className="text-xs sm:text-sm text-[#414845] leading-relaxed break-words"
+                            style={{ fontFamily: 'Inter, sans-serif' }}
+                          >
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
 
                       {item.activities && item.activities.length > 0 && (
-                        <div className="space-y-3 pt-2 w-full max-w-full">
-                          {item.activities.map((act, actIdx) => (
-                            <div
-                              key={actIdx}
-                              className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-white border border-black/10 gap-3.5 hover:border-black/20 hover:shadow-xs transition-all group w-full max-w-full overflow-hidden"
-                            >
-                              <div className="flex items-start sm:items-center gap-3.5 w-full sm:w-auto flex-1 min-w-0">
-                                {/* Activity Real Web Photography Thumbnail */}
-                                {(() => {
-                                  const rawActThumb = act.image_url || heroImage;
-                                  const isInvalidActThumb = !rawActThumb || rawActThumb.includes('instagram') || rawActThumb.includes('fbsbx') || rawActThumb.includes('panoramic_lake') || rawActThumb.includes('stitch_asset_6') || rawActThumb.startsWith('/images/stitch/');
-                                  const actThumb = isInvalidActThumb ? null : rawActThumb;
+                        <div className="space-y-2 pt-2 border-t border-black/5">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-[#717975] block">
+                            Scheduled Stops & Activities
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            {item.activities.map((act, actIdx) => {
+                              const rawActThumb = act.image_url || heroImage;
+                              const isInvalidActThumb =
+                                !rawActThumb ||
+                                rawActThumb.includes('instagram') ||
+                                rawActThumb.includes('fbsbx') ||
+                                rawActThumb.includes('panoramic_lake') ||
+                                rawActThumb.includes('stitch_asset_6') ||
+                                rawActThumb.startsWith('/images/stitch/');
+                              const actThumb = isInvalidActThumb
+                                ? null
+                                : rawActThumb.startsWith('http://')
+                                ? rawActThumb.replace('http://', 'https://')
+                                : rawActThumb;
+                              const mapUrl =
+                                act.map_url ||
+                                (act.latitude && act.longitude
+                                  ? `https://www.google.com/maps/search/?api=1&query=${act.latitude},${act.longitude}`
+                                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                      (act.title || act.location || pkg.destination) + ' Pakistan'
+                                    )}`);
 
-                                  return (
-                                    <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-xl overflow-hidden shrink-0 bg-[#00261D] border border-black/10 flex items-center justify-center">
+                              return (
+                                <div
+                                  key={actIdx}
+                                  className="p-4 rounded-2xl bg-[#F8FAF6] border border-black/5 hover:border-black/15 transition-all text-xs space-y-3 relative group"
+                                >
+                                  <div className="flex items-start gap-3">
+                                    {/* Activity Image Thumbnail */}
+                                    <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-[#00261D] border border-black/10 shadow-2xs flex items-center justify-center">
                                       {actThumb ? (
                                         <img
                                           src={actThumb}
@@ -586,61 +625,67 @@ export default function PackageDetailPage() {
                                         className="w-full h-full flex items-center justify-center text-lg select-none"
                                         style={{ display: actThumb ? 'none' : 'flex' }}
                                       >
-                                        <span>{getContextualEmoji(pkg.destination, act.title, act.category)}</span>
-                                      </div>
-                                    </div>
-                                  );
-                                })()}
-
-                                <div className="min-w-0 flex-1 space-y-1">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    {(act.start_time || act.end_time) && (
-                                      <div className="px-2.5 py-0.5 rounded-full bg-[#F8FAF6] border border-black/10 text-[10px] font-bold text-[#00261D] shrink-0 flex items-center gap-1 shadow-2xs">
-                                        <Clock className="w-3 h-3 text-[#717975]" />
                                         <span>
-                                          {act.start_time}{act.end_time ? ` – ${act.end_time}` : ''}
+                                          {getContextualEmoji(pkg.destination, act.title, act.category)}
                                         </span>
                                       </div>
-                                    )}
-                                    {act.category && (
-                                      <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60">
-                                        {act.category}
-                                      </span>
-                                    )}
+                                    </div>
+
+                                    <div className="min-w-0 flex-1 space-y-1">
+                                      <div className="flex justify-between items-start gap-1">
+                                        <span className="font-bold text-[#00261D] leading-snug break-words">
+                                          {act.title}
+                                        </span>
+                                        {act.category && (
+                                          <span className="text-[9px] font-bold bg-[#BBEAD5]/40 text-[#00261D] px-2 py-0.5 rounded-full uppercase shrink-0">
+                                            {act.category}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {act.description && (
+                                        <p className="text-xs text-[#555E59] leading-relaxed break-words pt-1">
+                                          {act.description}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
 
-                                  <h5 className="text-sm font-bold text-[#00261D] break-words">
-                                    {act.title}
-                                  </h5>
+                                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-black/5 text-[10px] sm:text-[11px]">
+                                    {act.start_time || act.end_time ? (
+                                      <div className="flex items-center gap-1 font-semibold text-[#00261D] bg-white px-2 py-0.5 rounded-full border border-black/5">
+                                        <Clock className="w-3 h-3 text-[#717975] shrink-0" />
+                                        <span>
+                                          {act.start_time}
+                                          {act.end_time ? ` – ${act.end_time}` : ''}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <div />
+                                    )}
 
-                                  {act.description && (
-                                    <p className="text-xs text-[#555E59] leading-relaxed break-words pt-0.5">
-                                      {act.description}
-                                    </p>
-                                  )}
-
-                                  {act.location && (
-                                    <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                                      <p className="text-[11px] text-[#717975] flex items-center gap-1 truncate max-w-xs">
-                                        <MapPin className="w-3 h-3 text-[#00261D] shrink-0" />
-                                        <span className="truncate">{act.location}</span>
-                                      </p>
+                                    {act.location && (
                                       <a
-                                        href={act.map_url}
+                                        href={mapUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#00261D] text-[#BBEAD5] hover:bg-[#00261D]/90 text-[10px] font-bold tracking-wide transition-all shadow-2xs hover:scale-105 whitespace-nowrap"
+                                        className="text-emerald-800 hover:text-emerald-950 font-semibold flex items-center gap-1 hover:underline cursor-pointer truncate max-w-[170px]"
                                         title="Open in Google Maps"
                                       >
-                                        <Navigation className="w-2.5 h-2.5" />
-                                        <span>View Map</span>
+                                        <MapPin className="w-3 h-3 text-emerald-700 shrink-0" />
+                                        <span className="truncate">{act.location}</span>
                                       </a>
-                                    </div>
-                                  )}
+                                    )}
+
+                                    {act.estimated_cost ? (
+                                      <span className="font-bold text-[#420E00]">
+                                        PKR {Number(act.estimated_cost).toLocaleString()}
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 </div>
-                              </div>
-                            </div>
-                          ))}
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>
