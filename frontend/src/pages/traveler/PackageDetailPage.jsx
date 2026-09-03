@@ -75,41 +75,7 @@ export default function PackageDetailPage() {
     }
   };
 
-  const handleCopyItineraryToVault = async () => {
-    if (!pkg?.id) return;
-    setIsCloning(true);
-    try {
-      toast.loading('Copying itinerary to My Trips...', { id: 'copy-vault' });
-      const tripPayload = {
-        destination: pkg.destination || 'Pakistan',
-        duration_days: pkg.duration_days || 5,
-        budget_pkr: pkg.price_per_person || 50000,
-        notes: `Cloned from tour package: ${pkg.title}`,
-        days: (itinerary || []).map((d, i) => ({
-          day_number: d.day_number || d.day || i + 1,
-          title: d.title || `Day ${i + 1}`,
-          description: d.description || '',
-          activities: (d.activities || []).map((a) => ({
-            title: typeof a === 'string' ? a : a.title,
-            description: a.description || '',
-            start_time: a.start_time || '09:00 AM',
-            end_time: a.end_time || '12:00 PM',
-            location: a.location || pkg.destination,
-            category: a.category || 'SIGHTSEEING',
-            estimated_cost: a.estimated_cost || 0,
-          })),
-        })),
-      };
-      const created = await tripsService.createTrip(tripPayload);
-      toast.success('Itinerary copied to your personal trips!', { id: 'copy-vault' });
-      navigate(`/trips/${created.id || created.data?.id}`);
-    } catch (err) {
-      console.error('Copy itinerary error:', err);
-      toast.error('Could not copy itinerary right now.', { id: 'copy-vault' });
-    } finally {
-      setIsCloning(false);
-    }
-  };
+
 
   const fetchPackageReviews = async (pid) => {
     try {
@@ -331,7 +297,7 @@ export default function PackageDetailPage() {
             </button>
 
             <div className="flex items-center gap-2">
-              {isOrganizer ? (
+              {isOrganizer && (
                 <button
                   onClick={handleClonePackage}
                   disabled={isCloning}
@@ -340,16 +306,6 @@ export default function PackageDetailPage() {
                 >
                   {isCloning ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#BBEAD5]" /> : <Copy className="w-3.5 h-3.5 text-[#BBEAD5]" />}
                   <span>Copy & Edit</span>
-                </button>
-              ) : (
-                <button
-                  onClick={handleCopyItineraryToVault}
-                  disabled={isCloning}
-                  className="px-4 py-2 rounded-full bg-white/90 backdrop-blur-md text-[#00261D] text-xs font-bold hover:bg-white transition-all shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95"
-                  title="Copy itinerary to My Trips"
-                >
-                  {isCloning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5 text-[#00261D]" />}
-                  <span>Copy Itinerary</span>
                 </button>
               )}
             </div>
@@ -1077,15 +1033,6 @@ export default function PackageDetailPage() {
                 Book this trip
               </button>
 
-              <button
-                onClick={handleCopyItineraryToVault}
-                disabled={isCloning}
-                className="w-full bg-[#F8FAF6] border border-black/10 text-[#00261D] py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-slate-100 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-98"
-              >
-                {isCloning ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-800" /> : <Copy className="w-3.5 h-3.5 text-emerald-800" />}
-                <span>Copy Itinerary to My Trips</span>
-              </button>
-
               <p className="text-[11px] text-[#717975] text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
                 You won't be charged yet.
               </p>
@@ -1225,23 +1172,13 @@ export default function PackageDetailPage() {
               <span>Copy Package</span>
             </button>
           ) : (
-            <>
-              <button
-                onClick={handleCopyItineraryToVault}
-                disabled={isCloning}
-                className="p-2.5 rounded-full bg-[#F8FAF6] border border-black/10 text-[#00261D] hover:bg-slate-100 transition-all shadow-2xs flex items-center justify-center cursor-pointer shrink-0"
-                title="Copy Itinerary to My Trips"
-              >
-                {isCloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4 text-[#00261D]" />}
-              </button>
-              <button
-                onClick={() => setBookDialogOpen(true)}
-                className="px-5 sm:px-6 py-2.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-98 transition-all"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-[#BBEAD5]" />
-                <span>Book Trip</span>
-              </button>
-            </>
+            <button
+              onClick={() => setBookDialogOpen(true)}
+              className="px-6 py-2.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-2 cursor-pointer shrink-0 active:scale-98 transition-all"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#BBEAD5]" />
+              <span>Book Trip</span>
+            </button>
           )}
         </div>
       </div>
