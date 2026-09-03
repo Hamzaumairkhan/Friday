@@ -275,13 +275,42 @@ async def check_weather(
     destination: str,
     departure_date: Optional[str] = None,
     duration_days: int = 3,
+    duration: Optional[int] = None,
 ):
     """Analyze destination weather for selected dates, fetch live multi-day forecast, and return optimal dates."""
-    return await DynamicDestinationResearchService.check_weather_advisory(
-        destination=destination,
-        departure_date=departure_date,
-        duration_days=duration_days,
-    )
+    from app.tools.weather import get_weather
+    effective_days = duration or duration_days or 3
+    try:
+        weather_res = await get_weather(
+            destination=destination,
+            days=effective_days,
+            start_date=departure_date,
+        )
+        data = weather_res.get("data", {}) if isinstance(weather_res, dict) else {}
+        return {
+            "success": True,
+            "destination": destination,
+            "current_temp": data.get("current_temp"),
+            "feels_like": data.get("feels_like"),
+            "condition": data.get("condition", "Pleasant"),
+            "description": data.get("description", "Good conditions for expedition"),
+            "forecast": data.get("forecast", []),
+            "icon": data.get("icon", "sun"),
+            "advisory": f"Current weather in {destination} is {data.get('condition', 'pleasant')} ({data.get('current_temp', 24)}°C).",
+        }
+    except Exception as e:
+        logger.warning(f"Weather check failed for {destination}: {e}")
+        return {
+            "success": False,
+            "destination": destination,
+            "current_temp": 24,
+            "feels_like": 24,
+            "condition": "Pleasant",
+            "description": "Weather conditions are generally favorable for travel.",
+            "forecast": [],
+            "icon": "sun",
+            "advisory": f"Weather in {destination} is generally suitable for travel.",
+        }
 
 
 @router.post("/validate-destination")
