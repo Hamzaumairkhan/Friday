@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     GOOGLE_MAPS_API_KEY: Optional[str] = None
 
     # EMAIL (Direct Gmail SMTP + Resend Fallback)
-    RESEND_API_KEY: Optional[str] = None
+    RESEND_API_KEY: Optional[str] = "re_6XVkdAMu_MHemv9sFHUqiFvpUjM3S7tbT"
     EMAIL_FROM: str = "todaysfriday555@gmail.com"
     ADMIN_EMAIL: Optional[str] = "hamzaumairkhan30@gmail.com"
     SMTP_HOST: Optional[str] = "smtp.gmail.com"
@@ -85,8 +85,8 @@ class Settings(BaseSettings):
     LANGSMITH_PROJECT: str = "friday"
 
     # CORS & FRONTEND
-    FRONTEND_URL: Optional[str] = None
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    FRONTEND_URL: Optional[str] = "https://friday-jet-mu.vercel.app"
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173", "https://friday-jet-mu.vercel.app"]
 
     @property
     def is_production(self) -> bool:

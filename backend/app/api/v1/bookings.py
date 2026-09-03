@@ -1,10 +1,11 @@
 """Bookings API endpoints with authoritative package and organizer snapshot serialization."""
 
+import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from typing import List, Optional
 
 from app.database.database import get_db
 from app.schemas.booking import BookingCreate, BookingResponse
@@ -32,25 +33,126 @@ def _format_booking(b) -> BookingResponse:
         organizer_id=b.organizer_id,
         travelers=b.travelers,
         total_price=b.total_price,
-        status=b.status.value if hasattr(b.status, 'value') else b.status,
-        notes=b.notes,
-        package_title=b.package_title,
-        destination=b.destination,
-        duration_days=b.duration_days,
-        price_per_person=b.price_per_person,
-        organizer_name=b.organizer_name,
-        traveler_name=b.traveler_name,
+        status=b.status.value if hasattr(b.status, 'value') else str(b.status),
+        notes=getattr(b, 'notes', None),
+        package_title=getattr(b, 'package_title', None),
+        destination=getattr(b, 'destination', None),
+        duration_days=getattr(b, 'duration_days', None),
+        price_per_person=getattr(b, 'price_per_person', None),
+        organizer_name=getattr(b, 'organizer_name', None),
+        traveler_name=getattr(b, 'traveler_name', None),
         traveler_email=getattr(b, 'traveler_email', None),
         traveler_phone=getattr(b, 'traveler_phone', None),
-        payment_status=b.payment_status.value if hasattr(b.payment_status, 'value') else (b.payment_status or "PENDING"),
-        payment_proof_url=b.payment_proof_url,
-        created_at=b.created_at.isoformat() if b.created_at else "",
-        updated_at=b.updated_at.isoformat() if b.updated_at else "",
+        payment_status=b.payment_status.value if hasattr(b.payment_status, 'value') else (str(b.payment_status) if b.payment_status else "PENDING"),
+        payment_proof_url=getattr(b, 'payment_proof_url', None),
+        created_at=b.created_at.isoformat() if getattr(b, 'created_at', None) else "",
+        updated_at=b.updated_at.isoformat() if getattr(b, 'updated_at', None) else "",
     )
 
 
 from app.core.rate_limiter import rate_limit_booking
 from app.core.idempotency import IdempotencyManager
+
+
+async def _dispatch_booking_alerts_background(
+    booking_id: str,
+    org_email: Optional[str],
+    org_phone: Optional[str],
+    org_name: str,
+    traveler_name: str,
+    traveler_email: Optional[str],
+    traveler_phone: Optional[str],
+    package_title: str,
+    destination: str,
+    total_price: float,
+    travelers: int,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+):
+    """Background task to dispatch emails and WhatsApp alerts without blocking the client."""
+    from app.services.email_service import EmailService
+    from app.tools.whatsapp import WhatsAppTool
+    from app.core.config import get_settings
+
+    cfg = get_settings()
+    frontend_base = cfg.FRONTEND_URL or "https://friday-jet-mu.vercel.app"
+    portal_url = f"{frontend_base}/organizer/bookings"
+    email_svc = EmailService()
+    wa_tool = WhatsAppTool()
+
+    # 1. Organizer Email Alert
+    if org_email:
+        try:
+            await email_svc.send_booking_alert_to_organizer(
+                booking_id=booking_id,
+                organizer_email=org_email,
+                organizer_name=org_name,
+                traveler_name=traveler_name,
+                package_title=package_title,
+                destination=destination,
+                total_price=total_price,
+                travelers=travelers,
+            )
+            logger.info(f"Dispatched booking alert email to organizer: {org_email}")
+        except Exception as e:
+            logger.warning(f"Failed to dispatch booking alert email to organizer {org_email}: {e}")
+
+    # 2. Organizer WhatsApp Alert
+    if org_phone:
+        try:
+            wa_msg = (
+                f"🎉 *New Tour Booking Request Received!* 🏔️\n\n"
+                f"Hello *{org_name}*,\n"
+                f"Traveler *{traveler_name}* has requested a reservation for your tour:\n\n"
+                f"📌 *Booking ID:* #{booking_id[:8]}\n"
+                f"📦 *Tour Package:* {package_title}\n"
+                f"📍 *Destination:* {destination}\n"
+                f"👥 *Seats Reserved:* {travelers} Traveler(s)\n"
+                f"💰 *Total Amount:* PKR {total_price:,.0f}\n\n"
+                f"🔗 *Manage in Organizer Portal:* {portal_url}\n\n"
+                f"— *Friday AI Travel Marketplace*"
+            )
+            await wa_tool.send_whatsapp(to_number=org_phone, message=wa_msg)
+            logger.info(f"Dispatched booking WhatsApp alert to organizer: {org_phone}")
+        except Exception as e:
+            logger.warning(f"Failed to dispatch booking WhatsApp alert to organizer {org_phone}: {e}")
+
+    # 3. Traveler Confirmation Email
+    if traveler_email:
+        try:
+            await email_svc.send_booking_confirmation(
+                booking_id=booking_id,
+                traveler_email=traveler_email,
+                traveler_name=traveler_name,
+                package_title=package_title,
+                destination=destination,
+                total_price=total_price,
+                travelers=travelers,
+                organizer_name=org_name,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            logger.info(f"Dispatched booking confirmation email to traveler: {traveler_email}")
+        except Exception as e:
+            logger.warning(f"Failed to dispatch booking confirmation email to traveler {traveler_email}: {e}")
+
+    # 4. Traveler WhatsApp Confirmation
+    if traveler_phone:
+        try:
+            traveler_msg = (
+                f"✅ *Booking Request Initiated!* 🎒\n\n"
+                f"Hello *{traveler_name}*,\n"
+                f"Your booking request for *{package_title}* in *{destination}* has been submitted.\n\n"
+                f"📌 *Booking ID:* #{booking_id[:8]}\n"
+                f"👥 *Travelers:* {travelers} Seat(s)\n"
+                f"💰 *Total Due:* PKR {total_price:,.0f}\n\n"
+                f"Please transfer the amount to the organizer's account and upload your payment proof slip to confirm your reservation.\n\n"
+                f"— *Friday AI Travel Marketplace*"
+            )
+            await wa_tool.send_whatsapp(to_number=traveler_phone, message=traveler_msg)
+            logger.info(f"Dispatched booking WhatsApp confirmation to traveler: {traveler_phone}")
+        except Exception as e:
+            logger.warning(f"Failed to dispatch booking WhatsApp confirmation to traveler {traveler_phone}: {e}")
 
 
 @router.post("", response_model=BookingResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit_booking)])
@@ -81,113 +183,69 @@ async def create_booking(
         service = BookingService(db)
         booking = await service.create_booking_request(user_id=current_user.id, data=req)
 
-        # Dispatch notifications & alerts to organizer
+        # Resolve organizer info for notifications
         org_repo = OrganizerRepository(db)
         organizer = await org_repo.get_by_id(booking.organizer_id)
-        if organizer:
-            # 1. In-app notification
-            if organizer.user_id:
-                try:
-                    notif_service = NotificationService(db)
-                    await notif_service.notify_new_booking(
-                        organizer_user_id=organizer.user_id,
-                        booking_id=booking.id,
-                        traveler_name=booking.traveler_name or current_user.name or "A traveler",
-                        package_title=booking.package_title or "Tour Package",
-                    )
-                except Exception as ne:
-                    logger.warning(f"Failed to create in-app booking notification: {ne}")
+        org_email = organizer.contact_email if organizer else None
+        org_phone = organizer.contact_phone or getattr(organizer, 'phone', None) if organizer else None
+        org_user_id = organizer.user_id if organizer else None
+        org_name = organizer.name if organizer else "Expedition Host"
 
-            # 2. Resolve Organizer Email & Phone
-            org_email = organizer.contact_email
-            org_phone = organizer.contact_phone or getattr(organizer, 'phone', None)
-            if (not org_email or not org_phone) and organizer.user_id:
-                from app.repositories.user_repository import UserRepository
-                user_repo = UserRepository(db)
-                u = await user_repo.get_by_id(organizer.user_id)
-                if u:
-                    if not org_email:
-                        org_email = u.email
-                    if not org_phone:
-                        org_phone = getattr(u, 'phone', None)
+        if (not org_email or not org_phone) and org_user_id:
+            from app.repositories.user_repository import UserRepository
+            user_repo = UserRepository(db)
+            u = await user_repo.get_by_id(org_user_id)
+            if u:
+                if not org_email:
+                    org_email = u.email
+                if not org_phone:
+                    org_phone = getattr(u, 'phone', None)
 
-            # 3. Email Alert to Organizer
-            if org_email:
-                try:
-                    from app.services.email_service import EmailService
-                    email_svc = EmailService()
-                    await email_svc.send_booking_alert_to_organizer(
-                        booking_id=booking.id,
-                        organizer_email=org_email,
-                        organizer_name=organizer.name or "Expedition Host",
-                        traveler_name=booking.traveler_name or current_user.name or "Verified Traveler",
-                        package_title=booking.package_title or "Expedition",
-                        destination=booking.destination or "Pakistan",
-                        total_price=booking.total_price,
-                        travelers=booking.travelers,
-                    )
-                except Exception as ee:
-                    logger.warning(f"Failed to dispatch booking alert email to organizer: {ee}")
-
-            # 4. WhatsApp Alert to Organizer
-            if org_phone:
-                try:
-                    from app.tools.whatsapp import WhatsAppTool
-                    wa_tool = WhatsAppTool()
-                    portal_url = "http://localhost:5173/organizer/bookings"
-                    wa_msg = (
-                        f"🎉 *New Tour Booking Request Received!* 🏔️\n\n"
-                        f"Hello *{organizer.name}*,\n"
-                        f"Traveler *{booking.traveler_name or current_user.name or 'A traveler'}* has requested a reservation for your tour:\n\n"
-                        f"📌 *Booking ID:* #{booking.id[:8]}\n"
-                        f"📦 *Tour Package:* {booking.package_title}\n"
-                        f"📍 *Destination:* {booking.destination}\n"
-                        f"👥 *Seats Reserved:* {booking.travelers} Traveler(s)\n"
-                        f"💰 *Total Amount:* PKR {booking.total_price:,.0f}\n\n"
-                        f"🔗 *Manage in Organizer Portal:* {portal_url}\n\n"
-                        f"— *Friday AI Travel Marketplace*"
-                    )
-                    await wa_tool.send_whatsapp(to_number=org_phone, message=wa_msg)
-                except Exception as we:
-                    logger.warning(f"Failed to dispatch booking WhatsApp to organizer: {we}")
-
-        # Dispatch confirmation to Traveler (Email & WhatsApp)
-        try:
-            traveler_email = booking.traveler_email or getattr(current_user, 'email', None)
-            traveler_phone = booking.traveler_phone or getattr(current_user, 'phone', None)
-            if traveler_email:
-                from app.services.email_service import EmailService
-                email_svc = EmailService()
-                await email_svc.send_booking_confirmation(
+        # In-app notification for organizer
+        if org_user_id:
+            try:
+                notif_service = NotificationService(db)
+                await notif_service.notify_new_booking(
+                    organizer_user_id=org_user_id,
                     booking_id=booking.id,
-                    traveler_email=traveler_email,
-                    traveler_name=booking.traveler_name or current_user.name or "Traveler",
-                    package_title=booking.package_title or "Tour Expedition",
-                    destination=booking.destination or "Pakistan",
-                    total_price=booking.total_price,
-                    travelers=booking.travelers,
-                    organizer_name=organizer.name if organizer else "Verified Host",
-                    start_date=getattr(booking, 'start_date', None),
-                    end_date=getattr(booking, 'end_date', None),
+                    traveler_name=booking.traveler_name or current_user.name or "A traveler",
+                    package_title=booking.package_title or "Tour Package",
                 )
-            if traveler_phone:
-                from app.tools.whatsapp import WhatsAppTool
-                wa_tool = WhatsAppTool()
-                traveler_msg = (
-                    f"✅ *Booking Request Initiated!* 🎒\n\n"
-                    f"Hello *{booking.traveler_name or current_user.name or 'Traveler'}*,\n"
-                    f"Your booking request for *{booking.package_title}* in *{booking.destination}* has been submitted.\n\n"
-                    f"📌 *Booking ID:* #{booking.id[:8]}\n"
-                    f"👥 *Travelers:* {booking.travelers} Seat(s)\n"
-                    f"💰 *Total Due:* PKR {booking.total_price:,.0f}\n\n"
-                    f"Please transfer the amount to the organizer's account and upload your payment proof slip to confirm your reservation.\n\n"
-                    f"— *Friday AI Travel Marketplace*"
-                )
-                await wa_tool.send_whatsapp(to_number=traveler_phone, message=traveler_msg)
-        except Exception as te:
-            logger.warning(f"Failed to dispatch traveler booking notifications: {te}")
+            except Exception as ne:
+                logger.warning(f"Failed to create in-app booking notification: {ne}")
 
+        # Commit DB immediately to make booking permanent
         await db.commit()
+
+        # Capture values before starting background task
+        b_id = booking.id
+        b_title = booking.package_title or "Tour Package"
+        b_dest = booking.destination or "Pakistan"
+        b_total = booking.total_price or 0.0
+        b_trav = booking.travelers or 1
+        t_name = booking.traveler_name or current_user.name or "Verified Traveler"
+        t_email = booking.traveler_email or getattr(current_user, 'email', None)
+        t_phone = booking.traveler_phone or getattr(current_user, 'phone', None)
+        s_date = getattr(booking, 'start_date', None)
+        e_date = getattr(booking, 'end_date', None)
+
+        # Non-blocking async background dispatch for emails & WhatsApp
+        asyncio.create_task(_dispatch_booking_alerts_background(
+            booking_id=b_id,
+            org_email=org_email,
+            org_phone=org_phone,
+            org_name=org_name,
+            traveler_name=t_name,
+            traveler_email=t_email,
+            traveler_phone=t_phone,
+            package_title=b_title,
+            destination=b_dest,
+            total_price=b_total,
+            travelers=b_trav,
+            start_date=s_date,
+            end_date=e_date,
+        ))
+
         response_dto = _format_booking(booking)
         await IdempotencyManager.save_result(
             user_id=current_user.id,

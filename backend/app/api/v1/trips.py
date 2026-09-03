@@ -1,6 +1,7 @@
 """Trips API endpoints with complete Guided AI Trip Planner, Security Controls, Dynamic Images, and Public/Private sharing."""
 
 import uuid
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -462,32 +463,39 @@ async def toggle_trip_like(
     return {"likes_count": trip.likes_count, "liked": True}
 
 
-async def _dispatch_trip_notifications(trip: Trip, db: AsyncSession):
-    """Reliably dispatches itinerary notification emails and WhatsApp alerts to Lead and ALL Companions."""
+async def _dispatch_trip_notifications_background(
+    trip_id: str,
+    trip_title: str,
+    destination: str,
+    duration: int,
+    travelers: int,
+    budget_total: float,
+    lead_name: str,
+    lead_email: Optional[str],
+    lead_phone: Optional[str],
+    companions: list,
+):
+    """Asynchronous background dispatcher for trip notification emails and WhatsApp alerts."""
+    from app.services.email_service import EmailService
+    from app.services.whatsapp_service import WhatsAppService
+
+    cfg = get_settings()
+    frontend_base = cfg.FRONTEND_URL or "https://friday-jet-mu.vercel.app"
+    trip_url = f"{frontend_base}/trips/{trip_id}"
     email_service = EmailService()
     whatsapp_service = WhatsAppService()
-    trip_url = f"http://localhost:5173/trips/{trip.id}"
-
-    prefs = trip.preferences if isinstance(trip.preferences, dict) else {}
-    lead_c = prefs.get("lead_contact", {})
-    companions = prefs.get("companions", [])
-
-    owner_user = await db.get(User, trip.owner_id)
-    lead_name = lead_c.get("name") or (owner_user.name if owner_user else "Lead Traveler")
-    lead_email = lead_c.get("email") or (owner_user.email if owner_user else None)
-    lead_phone = lead_c.get("phone")
 
     # 1. Lead Traveler Notification
     if lead_email:
         try:
             await email_service.send_trip_planned_notification(
-                trip_id=trip.id,
+                trip_id=trip_id,
                 traveler_email=lead_email,
                 traveler_name=lead_name,
-                trip_title=trip.title,
-                destination=trip.destination,
-                travelers_count=trip.travelers or 1,
-                budget_total=trip.budget_total or 0,
+                trip_title=trip_title,
+                destination=destination,
+                travelers_count=travelers,
+                budget_total=budget_total,
             )
             logger.info(f"Dispatched trip planned email to lead traveler: {lead_email}")
         except Exception as e:
@@ -496,11 +504,11 @@ async def _dispatch_trip_notifications(trip: Trip, db: AsyncSession):
     if lead_phone:
         try:
             wa_msg = (
-                f"🎒 *FRIDAY® TRIP PLAN READY: {trip.title}*\n\n"
-                f"Salam {lead_name}! Your custom {trip.duration or 3}-day itinerary to {trip.destination} is generated and ready.\n\n"
-                f"📍 *Destination*: {trip.destination}\n"
-                f"👥 *Travelers*: {trip.travelers} People\n"
-                f"💰 *Budget*: PKR {trip.budget_total:,.0f}\n\n"
+                f"🎒 *FRIDAY® TRIP PLAN READY: {trip_title}*\n\n"
+                f"Salam {lead_name}! Your custom {duration}-day itinerary to {destination} is generated and ready.\n\n"
+                f"📍 *Destination*: {destination}\n"
+                f"👥 *Travelers*: {travelers} People\n"
+                f"💰 *Budget*: PKR {budget_total:,.0f}\n\n"
                 f"🔗 *View Itinerary*: {trip_url}\n\n"
                 f"— *Friday® AI Travel Copilot*"
             )
@@ -509,7 +517,7 @@ async def _dispatch_trip_notifications(trip: Trip, db: AsyncSession):
         except Exception as e:
             logger.warning(f"Failed to send WhatsApp to lead {lead_phone}: {e}")
 
-    # 2. ALL Companions / Co-Travelers Notification (e.g. anime valor, animevalor7@gmail.com)
+    # 2. ALL Companions / Co-Travelers Notification
     if isinstance(companions, list):
         for comp in companions:
             if not isinstance(comp, dict):
@@ -521,13 +529,13 @@ async def _dispatch_trip_notifications(trip: Trip, db: AsyncSession):
             if comp_email:
                 try:
                     await email_service.send_trip_planned_notification(
-                        trip_id=trip.id,
+                        trip_id=trip_id,
                         traveler_email=comp_email,
                         traveler_name=comp_name,
-                        trip_title=trip.title,
-                        destination=trip.destination,
-                        travelers_count=trip.travelers or 1,
-                        budget_total=trip.budget_total or 0,
+                        trip_title=trip_title,
+                        destination=destination,
+                        travelers_count=travelers,
+                        budget_total=budget_total,
                     )
                     logger.info(f"Dispatched trip planned email to co-traveler {comp_name} ({comp_email})")
                 except Exception as e:
@@ -536,11 +544,11 @@ async def _dispatch_trip_notifications(trip: Trip, db: AsyncSession):
             if comp_phone:
                 try:
                     comp_wa_msg = (
-                        f"🎒 *FRIDAY® EXPEDITION INVITATION: {trip.title}*\n\n"
-                        f"Salam {comp_name}! You have been added as a co-traveler by {lead_name} for an expedition to {trip.destination}.\n\n"
-                        f"📍 *Destination*: {trip.destination}\n"
-                        f"👥 *Group Size*: {trip.travelers} Travelers\n"
-                        f"💰 *Estimated Budget*: PKR {trip.budget_total:,.0f}\n\n"
+                        f"🎒 *FRIDAY® EXPEDITION INVITATION: {trip_title}*\n\n"
+                        f"Salam {comp_name}! You have been added as a co-traveler by {lead_name} for an expedition to {destination}.\n\n"
+                        f"📍 *Destination*: {destination}\n"
+                        f"👥 *Group Size*: {travelers} Travelers\n"
+                        f"💰 *Estimated Budget*: PKR {budget_total:,.0f}\n\n"
                         f"🔗 *View Complete Itinerary & Schedule*:\n{trip_url}\n\n"
                         f"— *Friday® AI Travel Copilot*"
                     )
@@ -548,6 +556,40 @@ async def _dispatch_trip_notifications(trip: Trip, db: AsyncSession):
                     logger.info(f"Dispatched WhatsApp to co-traveler {comp_name} ({comp_phone})")
                 except Exception as e:
                     logger.warning(f"Failed to send WhatsApp to co-traveler {comp_name}: {e}")
+
+
+async def _dispatch_trip_notifications(trip: Trip, db: AsyncSession):
+    """Resolves traveler contacts and schedules non-blocking background email & WhatsApp dispatches."""
+    prefs = trip.preferences if isinstance(trip.preferences, dict) else {}
+    lead_c = prefs.get("lead_contact", {})
+    companions = prefs.get("companions", [])
+
+    owner_user = await db.get(User, trip.owner_id)
+    if not owner_user:
+        u_res = await db.execute(
+            select(User).where(
+                (User.id == trip.owner_id) | (User.email == trip.owner_id) | (User.firebase_uid == trip.owner_id)
+            )
+        )
+        owner_user = u_res.scalars().first()
+
+    lead_name = lead_c.get("name") or (owner_user.name if owner_user else "Lead Traveler")
+    lead_email = lead_c.get("email") or (owner_user.email if owner_user else None)
+    lead_phone = lead_c.get("phone") or (getattr(owner_user, 'phone', None) if owner_user else None)
+
+    # Launch background task without blocking the HTTP request
+    asyncio.create_task(_dispatch_trip_notifications_background(
+        trip_id=trip.id,
+        trip_title=trip.title or "Expedition",
+        destination=trip.destination or "Pakistan",
+        duration=trip.duration or 3,
+        travelers=trip.travelers or 1,
+        budget_total=trip.budget_total or 0,
+        lead_name=lead_name,
+        lead_email=lead_email,
+        lead_phone=lead_phone,
+        companions=companions,
+    ))
 
 
 @router.patch("/{trip_id}", response_model=TripResponse)

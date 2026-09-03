@@ -1,6 +1,7 @@
 """Organizers API endpoints — Public catalog & Organizer Dashboard."""
 
 import uuid
+import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -332,46 +333,52 @@ async def create_package_for_organizer(
     saved_pkg = await pkg_repo.create(new_pkg)
     await db.commit()
 
-    # Dispatch package published confirmation email directly to Organizer's authenticated email
-    try:
-        from app.services.email_service import EmailService
-        if org_email:
-            email_svc = EmailService()
-            await email_svc.send_organizer_package_published_email(
-                organizer_email=org_email,
-                organizer_name=org_name,
-                package_id=saved_pkg.id,
-                package_title=saved_pkg.title,
-                destination=saved_pkg.destination,
-                duration_days=saved_pkg.duration_days,
-                price_per_person=saved_pkg.price_per_person,
-            )
-    except Exception as e:
-        logger.warning(f"Failed to dispatch package published email: {e}")
+    # Dispatch package published confirmation email & WhatsApp directly to Organizer in background
+    async def _dispatch_pkg_notifications():
+        from app.core.config import get_settings
+        cfg = get_settings()
+        frontend_base = cfg.FRONTEND_URL or "https://friday-jet-mu.vercel.app"
 
-    # Dispatch package published WhatsApp notification directly to Organizer's verified phone
-    try:
-        from app.tools.whatsapp import WhatsAppTool
-        org_wa_phone = org_phone or current_organizer.contact_phone
-        if org_wa_phone:
-            wa_tool = WhatsAppTool()
-            package_marketplace_url = f"http://localhost:5173/packages/{saved_pkg.id}"
-            organizer_portal_url = "http://localhost:5173/organizer/trips"
-            wa_message = (
-                f"✨ *Your Expedition Has Been Published!* 🚀\n\n"
-                f"Hello *{org_name}*,\n"
-                f"Your tour package *'{saved_pkg.title}'* for *{saved_pkg.destination}* is now live on the Friday Marketplace!\n\n"
-                f"⏱️ *Duration:* {saved_pkg.duration_days} Days\n"
-                f"💰 *Price per Person:* PKR {saved_pkg.price_per_person:,.0f}\n"
-                f"👥 *Max Capacity:* {saved_pkg.max_travelers} Seats\n\n"
-                f"🔗 *View Tour Listing:* {package_marketplace_url}\n"
-                f"📲 *Manage in Workspace:* {organizer_portal_url}\n\n"
-                f"_Travelers across Pakistan can now discover and book seats._\n"
-                f"— *Friday AI Travel Copilot*"
-            )
-            await wa_tool.send_whatsapp(to_number=org_wa_phone, message=wa_message)
-    except Exception as e:
-        logger.warning(f"Failed to dispatch package published WhatsApp alert: {e}")
+        try:
+            from app.services.email_service import EmailService
+            if org_email:
+                email_svc = EmailService()
+                await email_svc.send_organizer_package_published_email(
+                    organizer_email=org_email,
+                    organizer_name=org_name,
+                    package_id=saved_pkg.id,
+                    package_title=saved_pkg.title,
+                    destination=saved_pkg.destination,
+                    duration_days=saved_pkg.duration_days,
+                    price_per_person=saved_pkg.price_per_person,
+                )
+        except Exception as e:
+            logger.warning(f"Failed to dispatch package published email: {e}")
+
+        try:
+            from app.tools.whatsapp import WhatsAppTool
+            org_wa_phone = org_phone or current_organizer.contact_phone
+            if org_wa_phone:
+                wa_tool = WhatsAppTool()
+                package_marketplace_url = f"{frontend_base}/packages/{saved_pkg.id}"
+                organizer_portal_url = f"{frontend_base}/organizer/trips"
+                wa_message = (
+                    f"✨ *Your Expedition Has Been Published!* 🚀\n\n"
+                    f"Hello *{org_name}*,\n"
+                    f"Your tour package *'{saved_pkg.title}'* for *{saved_pkg.destination}* is now live on the Friday Marketplace!\n\n"
+                    f"⏱️ *Duration:* {saved_pkg.duration_days} Days\n"
+                    f"💰 *Price per Person:* PKR {saved_pkg.price_per_person:,.0f}\n"
+                    f"👥 *Max Capacity:* {saved_pkg.max_travelers} Seats\n\n"
+                    f"🔗 *View Tour Listing:* {package_marketplace_url}\n"
+                    f"📲 *Manage in Workspace:* {organizer_portal_url}\n\n"
+                    f"_Travelers across Pakistan can now discover and book seats._\n"
+                    f"— *Friday AI Travel Copilot*"
+                )
+                await wa_tool.send_whatsapp(to_number=org_wa_phone, message=wa_message)
+        except Exception as e:
+            logger.warning(f"Failed to dispatch package published WhatsApp alert: {e}")
+
+    asyncio.create_task(_dispatch_pkg_notifications())
 
     return _format_pkg(saved_pkg)
 
@@ -641,63 +648,77 @@ async def verify_or_reject_payment(
         except Exception as e:
             logger.warning(f"Group enrollment error: {e}")
 
-        # Send confirmed booking & Group Chat invitation email to Traveler
-        try:
-            from app.services.email_service import EmailService
+        # Send confirmed booking & Group Chat invitation email & WhatsApp to Traveler in background
+        traveler_email = booking.traveler_email
+        if not traveler_email and booking.user_id:
+            user_repo = UserRepository(db)
+            u = await user_repo.get_by_id(booking.user_id)
+            if u:
+                traveler_email = u.email
+
+        traveler_phone = getattr(booking, 'traveler_phone', None)
+        if not traveler_phone and booking.user_id:
             from app.repositories.user_repository import UserRepository
-            traveler_email = booking.traveler_email
-            if not traveler_email and booking.user_id:
-                user_repo = UserRepository(db)
-                u = await user_repo.get_by_id(booking.user_id)
-                if u:
-                    traveler_email = u.email
+            user_repo = UserRepository(db)
+            u = await user_repo.get_by_id(booking.user_id)
+            if u and hasattr(u, 'phone'):
+                traveler_phone = u.phone
+
+        appr_b_id = booking.id
+        appr_pkg_id = booking.package_id
+        appr_pkg_title = booking.package_title or "Tour Expedition"
+        appr_dest = booking.destination or "Pakistan"
+        appr_trav_name = booking.traveler_name or "Traveler"
+        appr_trav_count = booking.travelers
+        appr_total = booking.total_price
+        appr_org_name = current_organizer.name or current_organizer.business_name or "Verified Host"
+
+        async def _dispatch_approval_notifications():
+            from app.core.config import get_settings
+            cfg = get_settings()
+            frontend_base = cfg.FRONTEND_URL or "https://friday-jet-mu.vercel.app"
 
             if traveler_email:
-                email_svc = EmailService()
-                await email_svc.send_traveler_booking_approved_email(
-                    traveler_email=traveler_email,
-                    traveler_name=booking.traveler_name or "Traveler",
-                    booking_id=booking.id,
-                    package_id=booking.package_id,
-                    package_title=booking.package_title or "Tour Expedition",
-                    destination=booking.destination or "Pakistan",
-                    travelers=booking.travelers,
-                    total_price=booking.total_price,
-                    organizer_name=current_organizer.name or current_organizer.business_name or "Verified Host",
-                )
-        except Exception as e:
-            logger.warning(f"Failed to dispatch booking approved email to traveler: {e}")
-
-        # Send confirmed booking & Group Chat invitation WhatsApp to Traveler
-        try:
-            from app.tools.whatsapp import WhatsAppTool
-            traveler_phone = getattr(booking, 'traveler_phone', None)
-            if not traveler_phone and booking.user_id:
-                from app.repositories.user_repository import UserRepository
-                user_repo = UserRepository(db)
-                u = await user_repo.get_by_id(booking.user_id)
-                if u and hasattr(u, 'phone'):
-                    traveler_phone = u.phone
+                try:
+                    from app.services.email_service import EmailService
+                    email_svc = EmailService()
+                    await email_svc.send_traveler_booking_approved_email(
+                        traveler_email=traveler_email,
+                        traveler_name=appr_trav_name,
+                        booking_id=appr_b_id,
+                        package_id=appr_pkg_id,
+                        package_title=appr_pkg_title,
+                        destination=appr_dest,
+                        travelers=appr_trav_count,
+                        total_price=appr_total,
+                        organizer_name=appr_org_name,
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to dispatch booking approved email to traveler: {e}")
 
             if traveler_phone:
-                wa_tool = WhatsAppTool()
-                group_chat_url = f"http://localhost:5173/groups/{booking.package_id}"
-                itinerary_url = f"http://localhost:5173/packages/{booking.package_id}"
-                wa_msg = (
-                    f"🎉 *Your Tour Booking is Approved!* 🚀\n\n"
-                    f"Hello *{booking.traveler_name or 'Traveler'}*,\n"
-                    f"Your booking for *'{booking.package_title}'* (*{booking.destination}*) has been confirmed by *{current_organizer.name}*!\n\n"
-                    f"📌 *Booking ID:* #{booking.id[:8]}\n"
-                    f"👥 *Confirmed Seats:* {booking.travelers} Traveler(s)\n"
-                    f"💰 *Total Paid:* PKR {booking.total_price:,.0f}\n\n"
-                    f"💬 *Join Expedition Group Chat:* {group_chat_url}\n"
-                    f"🗺️ *View Tour Itinerary:* {itinerary_url}\n\n"
-                    f"_You are now connected with your tour host and fellow co-travelers._\n"
-                    f"— *Friday AI Travel Copilot*"
-                )
-                await wa_tool.send_whatsapp(to_number=traveler_phone, message=wa_msg)
-        except Exception as e:
-            logger.warning(f"Failed to dispatch booking approved WhatsApp to traveler: {e}")
+                try:
+                    from app.tools.whatsapp import WhatsAppTool
+                    wa_tool = WhatsAppTool()
+                    group_chat_url = f"{frontend_base}/groups/{appr_pkg_id}"
+                    itinerary_url = f"{frontend_base}/packages/{appr_pkg_id}"
+                    wa_msg = (
+                        f"🎉 *Your Tour Booking is Approved!* 🚀\n\n"
+                        f"Hello *{appr_trav_name}*,\n"
+                        f"Your booking for *'{appr_pkg_title}'* (*{appr_dest}*) has been confirmed by *{appr_org_name}*!\n\n"
+                        f"📌 *Booking ID:* #{appr_b_id[:8]}\n"
+                        f"👥 *Confirmed Seats:* {appr_trav_count} Traveler(s)\n"
+                        f"💰 *Total Paid:* PKR {appr_total:,.0f}\n\n"
+                        f"💬 *Join Expedition Group Chat:* {group_chat_url}\n"
+                        f"🗺️ *View Tour Itinerary:* {itinerary_url}\n\n"
+                        f"_You are now connected with your tour host and fellow co-travelers._\n"
+                        f"— *Friday AI Travel Copilot*"
+                    )
+                    await wa_tool.send_whatsapp(to_number=traveler_phone, message=wa_msg)
+                except Exception as e:
+                    logger.warning(f"Failed to dispatch booking approved WhatsApp to traveler: {e}")
+
+        asyncio.create_task(_dispatch_approval_notifications())
     elif req.action == "REJECT":
         booking.payment_status = PaymentStatus.REJECTED
         booking.payment_rejection_reason = req.rejection_reason or "Payment proof was not acceptable."

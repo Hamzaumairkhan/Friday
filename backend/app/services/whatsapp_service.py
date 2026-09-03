@@ -51,7 +51,7 @@ class WhatsAppService:
             clean_to = f"92{clean_to[1:]}"
 
         try:
-            async with httpx.AsyncClient(timeout=8.0) as client:
+            async with httpx.AsyncClient(timeout=3.0) as client:
                 resp = await client.post(
                     f"{self.service_url}/send-message",
                     json={"to": clean_to, "message": message},

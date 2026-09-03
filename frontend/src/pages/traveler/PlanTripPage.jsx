@@ -1271,9 +1271,13 @@ export default function PlanTripPage() {
       });
       setIsPublished(true);
       localStorage.removeItem('friday_trip_draft');
-      toast.success(res.message || 'Expedition published! Plan is locked and dispatches sent.', { id: 'publish-toast' });
-      // Redirect to the locked Trip Details page
-      navigate(`/trips/${generatedTripId}`);
+      if (isPublic) {
+        toast.success('Expedition published to Community Explore Feed! Dispatches sent.', { id: 'publish-toast' });
+        navigate('/explore');
+      } else {
+        toast.success('Expedition saved privately in your Vault! Dispatches sent.', { id: 'publish-toast' });
+        navigate(`/trips/${generatedTripId}`);
+      }
     } catch (err) {
       console.error('Error publishing trip:', err);
       toast.error('Failed to publish expedition.');

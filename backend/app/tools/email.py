@@ -38,9 +38,12 @@ class ResendEmailProvider(BaseEmailProvider):
             resend.api_key = self.api_key
 
             target_to = to.strip()
+            from_addr = self.from_email
+            if not from_addr or "@gmail.com" in from_addr or "todaysfriday" in from_addr:
+                from_addr = "Friday Travel Copilot <onboarding@resend.dev>"
 
             params = {
-                "from": self.from_email,
+                "from": from_addr,
                 "to": [target_to],
                 "subject": subject,
                 "html": html or f"<div style='font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;'>{body}</div>",
@@ -137,7 +140,7 @@ class SmtpEmailProvider(BaseEmailProvider):
             if html:
                 msg.attach(MIMEText(html, "html", "utf-8"))
 
-            with smtplib.SMTP(self.host, self.port) as server:
+            with smtplib.SMTP(self.host, self.port, timeout=5.0) as server:
                 server.starttls()
                 server.login(self.user, self.password)
                 server.sendmail(self.from_email, [target_to], msg.as_string())
@@ -154,33 +157,58 @@ class SmtpEmailProvider(BaseEmailProvider):
 
 
 class EmailTool:
-    """Unified email tool used by booking and notification services with source transparency."""
+    """Unified email tool with resilient dual-mode dispatch (Resend HTTPS + Gmail SMTP fallback)."""
 
     def __init__(self, api_key: Optional[str] = None, from_email: Optional[str] = None, admin_email: Optional[str] = None):
         self.api_key = api_key or settings.RESEND_API_KEY
         raw_from = from_email or settings.EMAIL_FROM or settings.SMTP_USER or "todaysfriday555@gmail.com"
-        if "onboarding@resend.dev" in raw_from:
-            raw_from = settings.SMTP_USER or "todaysfriday555@gmail.com"
         self.from_email = raw_from
         self.admin_email = admin_email or settings.ADMIN_EMAIL
 
-        # Priority 1: Direct SMTP if host/user/password available
-        if settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD:
-            self.provider: BaseEmailProvider = SmtpEmailProvider(
+        # Resend provider (HTTPS port 443 - works everywhere without firewall blocks)
+        self.resend_provider: Optional[ResendEmailProvider] = (
+            ResendEmailProvider(api_key=self.api_key, from_email="Friday Travel Copilot <onboarding@resend.dev>", admin_email=self.admin_email)
+            if self.api_key
+            else None
+        )
+
+        # SMTP provider (Port 587 - Gmail SMTP)
+        self.smtp_provider: Optional[SmtpEmailProvider] = (
+            SmtpEmailProvider(
                 host=settings.SMTP_HOST,
                 port=settings.SMTP_PORT,
                 user=settings.SMTP_USER,
                 password=settings.SMTP_PASSWORD,
                 from_email=self.from_email,
             )
-        elif self.api_key:
-            self.provider = ResendEmailProvider(api_key=self.api_key, from_email=self.from_email, admin_email=self.admin_email)
-        else:
-            self.provider = UnconfiguredEmailProvider()
+            if (settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD)
+            else None
+        )
 
     async def send_email(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
-        """Send an email to organizer or traveler with optional custom HTML formatting."""
-        return await self.provider.send(to=to, subject=subject, body=body, html=html)
+        """Send an email using Resend HTTPS API (fast & firewall-immune) with fallback to Gmail SMTP."""
+        # 1. Try Resend first (Fast HTTP API, works on Railway, Vercel, cloud)
+        if self.resend_provider:
+            res = await self.resend_provider.send(to=to, subject=subject, body=body, html=html)
+            if res.get("success"):
+                return res
+            logger.warning(f"Resend primary delivery failed: {res.get('error')}. Attempting SMTP fallback...")
+
+        # 2. Fallback to direct Gmail SMTP
+        if self.smtp_provider:
+            res = await self.smtp_provider.send(to=to, subject=subject, body=body, html=html)
+            if res.get("success"):
+                return res
+            logger.warning(f"SMTP delivery failed: {res.get('error')}")
+            return res
+
+        return {
+            "success": False,
+            "source": "unconfigured",
+            "source_type": "unavailable",
+            "data": None,
+            "error": "No working email provider available.",
+        }
 
 
 async def send_email(to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
