@@ -94,6 +94,40 @@ async def generate_package_itinerary(req: GenerateItineraryRequest):
     }
 
 
+def _sanitize_https(url: Optional[str]) -> Optional[str]:
+    if not url or not isinstance(url, str):
+        return url
+    if url.startswith("http://"):
+        return url.replace("http://", "https://", 1)
+    return url
+
+
+def _sanitize_activities_https(activities: list) -> list:
+    if not activities or not isinstance(activities, list):
+        return []
+    clean_acts = []
+    for item in activities:
+        if isinstance(item, dict):
+            item_copy = dict(item)
+            if "image_url" in item_copy and item_copy["image_url"]:
+                item_copy["image_url"] = _sanitize_https(item_copy["image_url"])
+            if "activities" in item_copy and isinstance(item_copy["activities"], list):
+                clean_nested = []
+                for sub in item_copy["activities"]:
+                    if isinstance(sub, dict):
+                        sub_copy = dict(sub)
+                        if "image_url" in sub_copy and sub_copy["image_url"]:
+                            sub_copy["image_url"] = _sanitize_https(sub_copy["image_url"])
+                        clean_nested.append(sub_copy)
+                    else:
+                        clean_nested.append(sub)
+                item_copy["activities"] = clean_nested
+            clean_acts.append(item_copy)
+        else:
+            clean_acts.append(item)
+    return clean_acts
+
+
 def _format_public_package(p) -> dict:
     org = getattr(p, 'organizer', None)
     org_name = (getattr(org, 'name', None) if org else None) or getattr(p, 'organizer_name', None) or "Verified Tour Host"
@@ -114,7 +148,7 @@ def _format_public_package(p) -> dict:
         "exclusions": p.exclusions or [],
         "accommodation_type": p.accommodation_type,
         "transportation_type": p.transportation_type,
-        "activities": p.activities or [],
+        "activities": _sanitize_activities_https(p.activities or []),
         "start_date": getattr(p, 'start_date', None),
         "end_date": getattr(p, 'end_date', None),
         "contact_phone": org_phone,
@@ -124,8 +158,8 @@ def _format_public_package(p) -> dict:
         "reviews_count": int(pkg_reviews_count),
         "views_count": int(getattr(p, 'views_count', 0) or 0),
         "is_active": bool(getattr(p, 'is_active', True)),
-        "image_url": p.image_url,
-        "gallery_urls": p.gallery_urls or [],
+        "image_url": _sanitize_https(p.image_url),
+        "gallery_urls": [_sanitize_https(u) for u in (p.gallery_urls or [])],
         "created_at": p.created_at.isoformat() if hasattr(p, 'created_at') and p.created_at else None,
         "updated_at": p.updated_at.isoformat() if hasattr(p, 'updated_at') and p.updated_at else None,
     }
