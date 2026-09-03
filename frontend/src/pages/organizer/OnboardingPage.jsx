@@ -162,7 +162,7 @@ export default function OnboardingPage() {
       await organizersService.updateMyProfile(payload);
       await refreshUser();
       toast.success('Organizer workspace successfully registered and activated!');
-      navigate('/explore');
+      navigate('/organizer/dashboard');
     } catch (err) {
       console.error('Onboarding update failed:', err);
       toast.error(err.message || 'Failed to save onboarding details. Please try again.');

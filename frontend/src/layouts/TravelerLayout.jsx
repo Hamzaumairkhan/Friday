@@ -61,11 +61,11 @@ export default function TravelerLayout() {
       if (res?.organizer_profile?.onboarding_completed) {
         navigate('/organizer/dashboard', { replace: true });
       } else {
-        navigate('/organizer/profile', { replace: true });
+        navigate('/organizer/onboarding', { replace: true });
       }
     } catch (err) {
       console.error('Failed to switch to organizer:', err);
-      navigate('/organizer/profile', { replace: true });
+      navigate('/organizer/onboarding', { replace: true });
     } finally {
       setIsSwitching(false);
     }

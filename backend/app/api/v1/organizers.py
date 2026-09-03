@@ -214,6 +214,12 @@ async def update_my_organizer_profile(
     for k, v in update_data.items():
         setattr(current_organizer, k, v)
 
+    # Verify organizer when they fill out their profile details or submit onboarding
+    if update_data.get("onboarding_completed") or (current_organizer.name and current_organizer.contact_phone):
+        current_organizer.onboarding_completed = True
+        current_organizer.is_verified = True
+        current_organizer.verification_status = "VERIFIED"
+
     # 1. Synchronize linked User entity
     if current_organizer.user_id:
         from app.repositories.user_repository import UserRepository
