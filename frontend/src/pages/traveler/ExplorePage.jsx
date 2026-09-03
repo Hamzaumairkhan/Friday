@@ -731,7 +731,7 @@ export default function ExplorePage() {
                             }}
                             className="flex-1 sm:flex-none bg-[#00261D] hover:bg-[#00261D]/90 text-white rounded-full px-5 sm:px-6 py-3 text-xs uppercase font-bold tracking-wider sm:tracking-widest flex items-center justify-center gap-2 group-hover:gap-3 transition-all cursor-pointer shadow-sm whitespace-nowrap"
                           >
-                            <span>View Trip</span>
+                            <span>{isCommunity ? 'View Itinerary' : 'Book Expedition'}</span>
                             <ArrowRight className="w-3.5 h-3.5" />
                           </button>
                         </div>

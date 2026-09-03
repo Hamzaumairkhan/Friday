@@ -110,7 +110,7 @@ class MockEmailProvider(BaseEmailProvider):
 
 
 class SmtpEmailProvider(BaseEmailProvider):
-    """Direct SMTP email provider (e.g. Gmail SMTP, SendGrid, Amazon SES, or custom SMTP relay)."""
+    """Direct SMTP email provider (Gmail SMTP with dual-port 587 STARTTLS and 465 SSL resilience)."""
 
     def __init__(self, host: str, port: int, user: str, password: str, from_email: str):
         self.host = host
@@ -126,7 +126,7 @@ class SmtpEmailProvider(BaseEmailProvider):
         from email.mime.text import MIMEText
 
         if not to or not to.strip():
-            return {"success": False, "source": "smtp", "source_type": "invalid_input", "data": None, "error": "Recipient empty."}
+            return {"success": False, "source": "smtp", "source_type": "invalid_input", "data": None, "error": "Recipient email cannot be empty."}
 
         target_to = to.strip()
 
@@ -140,8 +140,18 @@ class SmtpEmailProvider(BaseEmailProvider):
             if html:
                 msg.attach(MIMEText(html, "html", "utf-8"))
 
-            with smtplib.SMTP(self.host, self.port, timeout=5.0) as server:
-                server.starttls()
+            # 1. Primary: Port 587 with STARTTLS
+            try:
+                with smtplib.SMTP(self.host, self.port or 587, timeout=8.0) as server:
+                    server.starttls()
+                    server.login(self.user, self.password)
+                    server.sendmail(self.from_email, [target_to], msg.as_string())
+                return True
+            except Exception as e587:
+                logger.warning(f"SMTP port 587 dispatch failed ({e587}), retrying via port 465 SSL...")
+
+            # 2. Fallback: Port 465 with SSL (bypasses cloud outbound port 587 restrictions)
+            with smtplib.SMTP_SSL(self.host, 465, timeout=8.0) as server:
                 server.login(self.user, self.password)
                 server.sendmail(self.from_email, [target_to], msg.as_string())
             return True
@@ -149,65 +159,42 @@ class SmtpEmailProvider(BaseEmailProvider):
         try:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, _send_sync)
-            logger.info(f"Direct SMTP email delivered successfully to {target_to}")
+            logger.info(f"Direct Gmail SMTP email delivered successfully to {target_to}")
             return {"success": True, "source": "smtp", "source_type": "live", "data": {"to": target_to, "subject": subject}, "error": None}
         except Exception as e:
-            logger.error(f"SMTP delivery failed: {e}")
+            logger.error(f"Gmail SMTP delivery failed: {e}")
             return {"success": False, "source": "smtp", "source_type": "live", "data": None, "error": f"SMTP error: {e}"}
 
 
 class EmailTool:
-    """Unified email tool with resilient dual-mode dispatch (Resend HTTPS + Gmail SMTP fallback)."""
+    """Unified email tool using direct Gmail SMTP exclusively as configured by user."""
 
     def __init__(self, api_key: Optional[str] = None, from_email: Optional[str] = None, admin_email: Optional[str] = None):
-        self.api_key = api_key or settings.RESEND_API_KEY
-        raw_from = from_email or settings.EMAIL_FROM or settings.SMTP_USER or "todaysfriday555@gmail.com"
-        self.from_email = raw_from
+        self.from_email = from_email or settings.EMAIL_FROM or settings.SMTP_USER or "todaysfriday555@gmail.com"
         self.admin_email = admin_email or settings.ADMIN_EMAIL
 
-        # Resend provider (HTTPS port 443 - works everywhere without firewall blocks)
-        self.resend_provider: Optional[ResendEmailProvider] = (
-            ResendEmailProvider(api_key=self.api_key, from_email="Friday Travel Copilot <onboarding@resend.dev>", admin_email=self.admin_email)
-            if self.api_key
-            else None
-        )
-
-        # SMTP provider (Port 587 - Gmail SMTP)
+        # Authoritative direct Gmail SMTP provider
         self.smtp_provider: Optional[SmtpEmailProvider] = (
             SmtpEmailProvider(
-                host=settings.SMTP_HOST,
-                port=settings.SMTP_PORT,
-                user=settings.SMTP_USER,
-                password=settings.SMTP_PASSWORD,
+                host=settings.SMTP_HOST or "smtp.gmail.com",
+                port=settings.SMTP_PORT or 587,
+                user=settings.SMTP_USER or "todaysfriday555@gmail.com",
+                password=settings.SMTP_PASSWORD or "ajif ktyg semf bbqi",
                 from_email=self.from_email,
             )
-            if (settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD)
-            else None
         )
 
     async def send_email(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
-        """Send an email using Resend HTTPS API (fast & firewall-immune) with fallback to Gmail SMTP."""
-        # 1. Try Resend first (Fast HTTP API, works on Railway, Vercel, cloud)
-        if self.resend_provider:
-            res = await self.resend_provider.send(to=to, subject=subject, body=body, html=html)
-            if res.get("success"):
-                return res
-            logger.warning(f"Resend primary delivery failed: {res.get('error')}. Attempting SMTP fallback...")
-
-        # 2. Fallback to direct Gmail SMTP
+        """Send an email using direct Gmail SMTP."""
         if self.smtp_provider:
-            res = await self.smtp_provider.send(to=to, subject=subject, body=body, html=html)
-            if res.get("success"):
-                return res
-            logger.warning(f"SMTP delivery failed: {res.get('error')}")
-            return res
+            return await self.smtp_provider.send(to=to, subject=subject, body=body, html=html)
 
         return {
             "success": False,
             "source": "unconfigured",
             "source_type": "unavailable",
             "data": None,
-            "error": "No working email provider available.",
+            "error": "No SMTP credentials configured.",
         }
 
 

@@ -253,57 +253,59 @@ export default function OrganizerLayout() {
       </div>
 
       {/* ─── MOBILE BOTTOM NAV (Hidden on MD+) ──────────────────────── */}
-      <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-2.5 md:hidden bg-[#F8FAF6]/95 backdrop-blur-lg border-t border-black/10 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+      <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-1 py-2 md:hidden bg-[#F8FAF6]/95 backdrop-blur-lg border-t border-black/10 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
         {/* 1. Trips / Packages */}
         <Link
           to="/organizer/trips"
-          className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
-            location.pathname === '/organizer/trips' ? 'text-[#00261D]' : 'text-[#717975]'
+          className={`flex flex-col items-center justify-center text-[10px] font-bold gap-0.5 transition-colors ${
+            location.pathname.startsWith('/organizer/trips') ? 'text-[#00261D]' : 'text-[#717975]'
           }`}
         >
-          <Layers className="w-5 h-5" />
-          <span>Trips</span>
+          <Package className="w-4.5 h-4.5" />
+          <span>Packages</span>
         </Link>
 
-        {/* 2. Workshop */}
+        {/* 2. Bookings & Payments */}
+        <Link
+          to="/organizer/bookings"
+          className={`flex flex-col items-center justify-center text-[10px] font-bold gap-0.5 transition-colors ${
+            location.pathname.startsWith('/organizer/bookings') ? 'text-[#00261D]' : 'text-[#717975]'
+          }`}
+        >
+          <CalendarCheck className="w-4.5 h-4.5" />
+          <span>Bookings</span>
+        </Link>
+
+        {/* 3. Dashboard */}
         <Link
           to="/organizer/dashboard"
-          className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
+          className={`flex flex-col items-center justify-center text-[10px] font-bold gap-0.5 transition-colors ${
             location.pathname === '/organizer/dashboard' ? 'text-[#00261D]' : 'text-[#717975]'
           }`}
         >
-          <Briefcase className="w-5 h-5" />
+          <Briefcase className="w-4.5 h-4.5" />
           <span>Workshop</span>
-        </Link>
-
-        {/* 3. Explore (Center) */}
-        <Link
-          to="/explore"
-          className="flex flex-col items-center justify-center text-[10px] font-bold gap-1 text-[#717975] hover:text-[#00261D] transition-colors"
-        >
-          <Compass className="w-5 h-5" />
-          <span>Explore</span>
         </Link>
 
         {/* 4. Groups */}
         <Link
           to="/organizer/groups"
-          className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
-            location.pathname === '/organizer/groups' ? 'text-[#00261D]' : 'text-[#717975]'
+          className={`flex flex-col items-center justify-center text-[10px] font-bold gap-0.5 transition-colors ${
+            location.pathname.startsWith('/organizer/groups') ? 'text-[#00261D]' : 'text-[#717975]'
           }`}
         >
-          <Users className="w-5 h-5" />
-          <span>Groups</span>
+          <MessageSquare className="w-4.5 h-4.5" />
+          <span>Chat</span>
         </Link>
 
         {/* 5. Profile */}
         <Link
           to="/organizer/profile"
-          className={`flex flex-col items-center justify-center text-[10px] font-bold gap-1 transition-colors ${
-            location.pathname === '/organizer/profile' ? 'text-[#00261D]' : 'text-[#717975]'
+          className={`flex flex-col items-center justify-center text-[10px] font-bold gap-0.5 transition-colors ${
+            location.pathname.startsWith('/organizer/profile') ? 'text-[#00261D]' : 'text-[#717975]'
           }`}
         >
-          <User className="w-5 h-5" />
+          <User className="w-4.5 h-4.5" />
           <span>Profile</span>
         </Link>
       </nav>

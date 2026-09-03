@@ -234,7 +234,7 @@ export default function PackageDetailPage() {
   return (
     <div className="w-full flex-1 flex justify-between min-h-screen">
       {/* ─── CENTER COLUMN: Expedition Details & Feed ───────────────── */}
-      <main className="flex-1 max-w-[800px] flex flex-col min-h-screen border-r border-black/10 bg-[#F8FAF6]">
+      <main className="flex-1 max-w-[800px] flex flex-col min-h-screen border-r border-black/10 bg-[#F8FAF6] pb-32 xl:pb-12">
         {/* Hero Image Section */}
         <div className="relative w-full h-[55vh] md:h-[65vh] bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] overflow-hidden flex items-center justify-center">
           {heroImage ? (
@@ -306,7 +306,103 @@ export default function PackageDetailPage() {
         </div>
 
         {/* Content Below Hero */}
-        <div className="p-6 md:p-10 flex flex-col gap-10 bg-[#F8FAF6]">
+        <div className="p-4 sm:p-6 md:p-10 flex flex-col gap-6 md:gap-10 bg-[#F8FAF6]">
+          {/* ─── MOBILE / TABLET IN-FLOW BOOKING & HOST CARD (Visible below XL) ─── */}
+          <div className="xl:hidden bg-white p-5 sm:p-6 rounded-3xl border border-black/10 shadow-sm space-y-5">
+            <div className="flex justify-between items-end pb-4 border-b border-black/10">
+              <div>
+                <p className="text-[10px] uppercase font-bold tracking-widest text-[#717975] mb-1">
+                  PRICE PER PERSON
+                </p>
+                <p
+                  className="text-3xl sm:text-4xl font-normal text-[#00261D] leading-none"
+                  style={{ fontFamily: "'Instrument Serif', serif" }}
+                >
+                  PKR {Number(pkg.price_per_person || 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] uppercase font-bold tracking-widest text-[#717975] mb-1">
+                  AVAILABILITY
+                </p>
+                <p className="text-xs font-semibold text-[#420E00]">
+                  <span className="font-bold">{pkg.seats_booked || 2}/{pkg.max_travelers || 20}</span> seats filled
+                </p>
+              </div>
+            </div>
+
+            {/* Travel Summary Rows */}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="flex items-center gap-2 text-[#191C1A]">
+                <Calendar className="w-4 h-4 text-[#717975] shrink-0" />
+                <span>{pkg.duration_days || 5} Days Expedition</span>
+              </div>
+              <div className="flex items-center justify-between text-[#191C1A]">
+                <span className="flex items-center gap-2 text-[#717975]">
+                  <Users className="w-4 h-4 shrink-0" /> {travelersCount} Traveler(s)
+                </span>
+                <button
+                  onClick={() => setBookDialogOpen(true)}
+                  className="underline text-xs font-bold text-[#00261D] cursor-pointer"
+                >
+                  Edit
+                </button>
+              </div>
+            </div>
+
+            {/* CTA Button */}
+            {isOrganizer ? (
+              <div className="w-full bg-amber-50 border border-amber-200 text-amber-900 py-3.5 rounded-2xl text-xs font-bold uppercase tracking-wider text-center">
+                Organizers cannot book trips
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <button
+                  onClick={() => setBookDialogOpen(true)}
+                  className="w-full bg-[#00261D] hover:bg-[#00261D]/90 text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                >
+                  <Sparkles className="w-4 h-4 text-[#BBEAD5]" />
+                  <span>Book This Expedition</span>
+                </button>
+                <p className="text-[11px] text-[#717975] text-center">
+                  Instant confirmation · Direct host bank transfer
+                </p>
+              </div>
+            )}
+
+            {/* Host Badge (Mobile) */}
+            <div className="pt-4 border-t border-black/10 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-[#00261D] text-white flex items-center justify-center text-sm font-bold shrink-0">
+                  {(organizer?.name || pkg.organizer_name || 'H').charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold text-[#00261D] flex items-center gap-1 uppercase tracking-wider">
+                    VERIFIED HOST
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                  </p>
+                  <p className="text-xs font-bold text-[#191C1A] truncate">
+                    {organizer?.name || pkg.organizer_name || 'Verified Tour Host'}
+                  </p>
+                </div>
+              </div>
+
+              {(organizer?.contact_phone || pkg.contact_phone) && (
+                <a
+                  href={`https://wa.me/${(organizer?.contact_phone || pkg.contact_phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${organizer?.name || pkg.organizer_name}, I am interested in your '${pkg.title}' tour package on Friday!`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3.5 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex items-center gap-1.5 shrink-0 hover:bg-emerald-100 transition-colors"
+                  title="Chat directly on WhatsApp"
+                >
+                  <Phone className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>WhatsApp Host</span>
+                </a>
+              )}
+            </div>
+          </div>
+
           {/* Overview Tabs */}
           <div className="flex gap-6 border-b border-black/10 pb-4 overflow-x-auto no-scrollbar text-xs font-bold uppercase tracking-wider">
             <button
@@ -960,6 +1056,38 @@ export default function PackageDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ─── MOBILE FLOATING STICKY BOTTOM BAR (Positioned right above bottom nav on mobile/tablet) ──── */}
+      <div className="fixed bottom-[56px] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-black/10 px-4 py-2.5 xl:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.08)] flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase font-bold tracking-wider text-[#717975] leading-none mb-0.5">
+            Price Per Person
+          </p>
+          <div className="flex items-baseline gap-1.5">
+            <span
+              className="text-xl sm:text-2xl font-normal text-[#00261D]"
+              style={{ fontFamily: "'Instrument Serif', serif" }}
+            >
+              PKR {Number(pkg.price_per_person || 0).toLocaleString()}
+            </span>
+            <span className="text-[10px] text-[#717975]">({pkg.duration_days || 5}D)</span>
+          </div>
+        </div>
+
+        {isOrganizer ? (
+          <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
+            Organizer Account
+          </span>
+        ) : (
+          <button
+            onClick={() => setBookDialogOpen(true)}
+            className="px-6 py-2.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-2 cursor-pointer shrink-0 active:scale-98 transition-all"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#BBEAD5]" />
+            <span>Book Trip</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
