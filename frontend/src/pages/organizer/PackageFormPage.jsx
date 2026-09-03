@@ -191,7 +191,7 @@ export default function PackageFormPage() {
         if (freshProfile) {
           const verifiedName = freshProfile.name || freshProfile.business_name || backendUser?.business_name || backendUser?.name || 'Verified Tour Host';
           const verifiedPhone = freshProfile.contact_phone || freshProfile.phone || backendUser?.phone || '';
-          
+
           setFormData((prev) => ({
             ...prev,
             organizer_name: verifiedName,
@@ -914,11 +914,10 @@ export default function PackageFormPage() {
                   onChange={(e) => updateField('destination', e.target.value)}
                   placeholder="e.g. Hunza Valley, Gilgit-Baltistan"
                   required
-                  className={`w-full bg-[#F8FAF6] border rounded-2xl px-4 py-3 text-sm text-[#00261D] focus:outline-none ${
-                    !geoValidation.isValid
+                  className={`w-full bg-[#F8FAF6] border rounded-2xl px-4 py-3 text-sm text-[#00261D] focus:outline-none ${!geoValidation.isValid
                       ? 'border-amber-500 focus:border-amber-600 bg-amber-50/20'
                       : 'border-black/10 focus:border-[#00261D]'
-                  }`}
+                    }`}
                 />
 
                 {/* Verified Location Badge */}
@@ -1094,11 +1093,10 @@ export default function PackageFormPage() {
                     key={opt}
                     type="button"
                     onClick={() => updateField('accommodation_type', opt)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                      formData.accommodation_type === opt
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${formData.accommodation_type === opt
                         ? 'bg-[#00261D] text-white shadow-2xs'
                         : 'bg-[#F8FAF6] text-[#00261D] border border-black/10 hover:border-[#00261D]'
-                    }`}
+                      }`}
                   >
                     {opt}
                   </button>
@@ -1124,11 +1122,10 @@ export default function PackageFormPage() {
                     key={opt}
                     type="button"
                     onClick={() => updateField('transportation_type', opt)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                      formData.transportation_type === opt
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${formData.transportation_type === opt
                         ? 'bg-[#00261D] text-white shadow-2xs'
                         : 'bg-[#F8FAF6] text-[#00261D] border border-black/10 hover:border-[#00261D]'
-                    }`}
+                      }`}
                   >
                     {opt}
                   </button>
@@ -1398,25 +1395,25 @@ export default function PackageFormPage() {
             <button
               type="button"
               onClick={handleBackClick}
-              className="px-6 py-3.5 rounded-full border border-black/15 text-xs font-bold uppercase tracking-wider hover:bg-black/5 transition-colors cursor-pointer text-[#00261D] w-full sm:w-auto"
+              className="px-6 py-3.5 rounded-full border border-black/15 text-xs font-bold uppercase tracking-wider hover:bg-black/5 transition-colors cursor-pointer text-[#00261D] w-full sm:w-auto text-center whitespace-nowrap"
             >
-              Cancel / Back
+              Cancel
             </button>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-10 py-4.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-sm font-bold uppercase tracking-wider transition-all hover:scale-101 shadow-md flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 w-full sm:w-auto"
+              className="px-8 py-3.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs sm:text-sm font-bold uppercase tracking-wider transition-all hover:scale-101 shadow-md flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 w-full sm:w-auto whitespace-nowrap"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin text-[#BBEAD5]" />
-                  <span>Generating Schedule & Creating Package...</span>
+                  <Loader2 className="w-4 h-4 animate-spin text-[#BBEAD5]" />
+                  <span>Creating Package...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-5 h-5 text-[#BBEAD5]" />
-                  <span>{isEditing ? 'Save Changes' : '✨ Generate & Create Tour Package with Friday AI'}</span>
+                  <Sparkles className="w-4 h-4 text-[#BBEAD5]" />
+                  <span>{isEditing ? 'Save Changes' : 'Create Package'}</span>
                 </>
               )}
             </button>

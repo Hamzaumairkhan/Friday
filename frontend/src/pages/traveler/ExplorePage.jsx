@@ -693,11 +693,11 @@ export default function ExplorePage() {
                             <button
                               type="button"
                               onClick={(e) => handleCloneCommunityTrip(e, pkg.id)}
-                              className="w-full sm:w-auto bg-[#E7F7EE] hover:bg-[#D4F0E2] text-[#00261D] rounded-full px-4 py-3 text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
-                              title="Copy & edit this itinerary for your group"
+                              className="flex-1 sm:flex-none bg-[#E7F7EE] hover:bg-[#D4F0E2] text-[#00261D] rounded-full px-4 py-3 text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98 whitespace-nowrap"
+                              title="Copy this itinerary"
                             >
                               <Copy className="w-3.5 h-3.5 text-emerald-800" />
-                              <span>Copy & Edit</span>
+                              <span>Copy Trip</span>
                             </button>
                           )}
 
@@ -707,7 +707,7 @@ export default function ExplorePage() {
                               e.stopPropagation();
                               navigate(targetLink, { state: { from: 'explore' } });
                             }}
-                            className="w-full sm:w-auto bg-[#00261D] hover:bg-[#00261D]/90 text-white rounded-full px-6 py-3 text-xs uppercase font-bold tracking-widest flex items-center justify-center gap-2 group-hover:gap-3 transition-all cursor-pointer shadow-sm"
+                            className="flex-1 sm:flex-none bg-[#00261D] hover:bg-[#00261D]/90 text-white rounded-full px-5 sm:px-6 py-3 text-xs uppercase font-bold tracking-wider sm:tracking-widest flex items-center justify-center gap-2 group-hover:gap-3 transition-all cursor-pointer shadow-sm whitespace-nowrap"
                           >
                             <span>View Trip</span>
                             <ArrowRight className="w-3.5 h-3.5" />

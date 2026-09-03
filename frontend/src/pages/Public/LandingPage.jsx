@@ -405,7 +405,13 @@ export default function LandingPage() {
       <section className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#042B21] text-white relative overflow-hidden border-t border-white/10">
         <TopographicCanvas variant="dark" className="opacity-30" />
 
-        <div className="max-w-7xl mx-auto w-full relative z-10 space-y-16">
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="max-w-7xl mx-auto w-full relative z-10 space-y-16"
+        >
           {/* Organizer Problem Headline with TextRepel */}
           <div className="text-center max-w-4xl mx-auto space-y-4">
             <span className="text-xs uppercase tracking-[0.25em] font-bold text-[#BBEAD5] block">
@@ -483,14 +489,20 @@ export default function LandingPage() {
               </ul>
             </div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ════════════════════════════════════════════════════════════════════
           3. HOME — SOLUTION & 6-STAGE WHEEL CAROUSEL
       ════════════════════════════════════════════════════════════════════ */}
-      <section className="py-24 sm:py-32 bg-[#F0F2ED] border-y border-black/10 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+      <section className="py-24 sm:py-32 bg-[#F0F2ED] border-y border-black/10 relative overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12"
+        >
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <span className="text-xs uppercase tracking-[0.25em] font-bold text-emerald-900 block">
               The Friday Architecture
@@ -510,13 +522,19 @@ export default function LandingPage() {
 
           {/* Rotating 6-Stage Wheel Carousel with Inertial Drag & Curved Labels */}
           <WheelCarousel items={ARCHITECTURE_STAGES} />
-        </div>
+        </motion.div>
       </section>
 
       {/* ════════════════════════════════════════════════════════════════════
           4. HOME — REALISTIC AI EXPERIENCE
       ════════════════════════════════════════════════════════════════════ */}
-      <section className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+      <motion.section
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full"
+      >
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-12">
           <span className="text-xs uppercase tracking-[0.25em] font-bold text-[#717975] block">
             Live AI Simulation
@@ -536,7 +554,7 @@ export default function LandingPage() {
 
         {/* Live Friday Thinking Console Demo */}
         <LiveAiConversationDemo />
-      </section>
+      </motion.section>
 
       {/* ════════════════════════════════════════════════════════════════════
           5. HOME — HOW IT WORKS (IMAGE TRAIL MOUSE INTERPOLATION)
@@ -582,7 +600,13 @@ export default function LandingPage() {
       {/* ════════════════════════════════════════════════════════════════════
           6. HOME — FINAL CTA
       ════════════════════════════════════════════════════════════════════ */}
-      <section className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center space-y-8">
+      <motion.section
+        initial={{ opacity: 0, y: 40, scale: 0.98 }}
+        whileInView={{ opacity: 1, y: 0, scale: 1 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center space-y-8"
+      >
         <span className="text-xs uppercase tracking-[0.3em] font-bold text-emerald-800 block">
           READY FOR YOUR NEXT ESCAPE?
         </span>
@@ -597,7 +621,7 @@ export default function LandingPage() {
         <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Link to={isAuthenticated ? (role === 'ORGANIZER' ? '/organizer/dashboard' : '/plan-trip') : '/register?redirect=/plan-trip'}>
             <button
-              className="px-9 py-4 rounded-full text-xs font-bold uppercase tracking-widest bg-[#00261D] text-white hover:bg-[#00261D]/90 transition-all shadow-xl hover:scale-105 cursor-pointer flex items-center gap-2"
+              className="px-9 py-4 rounded-full text-xs font-bold uppercase tracking-widest bg-[#00261D] text-white hover:bg-[#00261D]/90 transition-all shadow-xl hover:scale-105 cursor-pointer flex items-center gap-2 whitespace-nowrap"
               style={{ fontFamily: 'Inter, sans-serif' }}
             >
               <Sparkles className="w-4 h-4 text-[#BBEAD5]" />
@@ -606,14 +630,14 @@ export default function LandingPage() {
           </Link>
           <Link to={isAuthenticated ? '/explore' : '/register?redirect=/explore'}>
             <button
-              className="px-9 py-4 rounded-full text-xs font-bold uppercase tracking-widest bg-white text-[#00261D] border border-black/15 hover:bg-slate-50 transition-all shadow-xs hover:scale-105 cursor-pointer"
+              className="px-9 py-4 rounded-full text-xs font-bold uppercase tracking-widest bg-white text-[#00261D] border border-black/15 hover:bg-slate-50 transition-all shadow-xs hover:scale-105 cursor-pointer whitespace-nowrap"
               style={{ fontFamily: 'Inter, sans-serif' }}
             >
               <span>Explore Marketplace</span>
             </button>
           </Link>
         </div>
-      </section>
+      </motion.section>
     </div>
   );
 }

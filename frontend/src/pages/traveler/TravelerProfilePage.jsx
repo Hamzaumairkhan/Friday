@@ -331,13 +331,13 @@ export default function TravelerProfilePage() {
             <button
               onClick={handleSwitchToOrganizer}
               disabled={isUpgrading}
-              className="bg-[#BBEAD5] hover:bg-[#a6e2c8] text-[#00261D] px-8 py-4 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-3 transition-all hover:scale-105 shadow-md disabled:opacity-50 cursor-pointer shrink-0"
+              className="w-full sm:w-auto bg-[#BBEAD5] hover:bg-[#a6e2c8] text-[#00261D] px-6 sm:px-8 py-3.5 sm:py-4 rounded-full text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-all hover:scale-105 shadow-md disabled:opacity-50 cursor-pointer shrink-0 whitespace-nowrap"
               style={{ fontFamily: 'Inter, sans-serif' }}
             >
               {isUpgrading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-[#00261D]" />
-                  <span>Switching Account...</span>
+                  <span>Switching...</span>
                 </>
               ) : (
                 <>

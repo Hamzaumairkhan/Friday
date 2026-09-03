@@ -799,19 +799,19 @@ export default function PackageDetailPage() {
             </div>
           </div>
 
-          <DialogFooter className="flex gap-3">
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2.5 sm:gap-3 pt-2">
             <button
               onClick={() => setBookDialogOpen(false)}
-              className="px-6 py-2.5 rounded-full border border-black/10 text-xs font-semibold"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-full border border-black/10 text-xs font-semibold cursor-pointer whitespace-nowrap"
             >
               Cancel
             </button>
             <button
               onClick={handleCreateBooking}
               disabled={isBooking}
-              className="px-8 py-2.5 rounded-full bg-black text-white text-xs font-semibold shadow-md flex items-center gap-2 cursor-pointer"
+              className="w-full sm:w-auto px-6 sm:px-8 py-2.5 rounded-full bg-black text-white text-xs font-semibold shadow-md flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
             >
-              {isBooking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm & Proceed to Payment'}
+              {isBooking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm & Pay'}
             </button>
           </DialogFooter>
         </DialogContent>

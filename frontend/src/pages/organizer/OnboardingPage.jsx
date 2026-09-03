@@ -525,12 +525,12 @@ export default function OnboardingPage() {
                 updateField('payment_method', 'BANK');
                 updateField('payment_wallet_type', 'BANK');
               }}
-              className={`flex-1 py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 py-3 px-3 sm:px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap text-xs sm:text-sm font-bold ${
                 formData.payment_method === 'BANK' ? 'bg-[#00261D] text-white shadow-2xs' : 'text-[#717975] hover:text-[#00261D]'
               }`}
             >
               <CreditCard className="w-4 h-4" />
-              <span>Commercial Bank Account / IBAN</span>
+              <span>Bank Account</span>
             </button>
             <button
               type="button"
@@ -540,12 +540,12 @@ export default function OnboardingPage() {
                   updateField('payment_wallet_type', 'JazzCash');
                 }
               }}
-              className={`flex-1 py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 py-3 px-3 sm:px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap text-xs sm:text-sm font-bold ${
                 formData.payment_method === 'WALLET' ? 'bg-[#00261D] text-white shadow-2xs' : 'text-[#717975] hover:text-[#00261D]'
               }`}
             >
               <Wallet className="w-4 h-4" />
-              <span>Mobile Wallet / Digital Provider</span>
+              <span>Mobile Wallet</span>
             </button>
           </div>
 
@@ -726,17 +726,17 @@ export default function OnboardingPage() {
             <button
               type="submit"
               disabled={isSubmitting || !isAllValid}
-              className="w-full py-4 sm:py-5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-sm sm:text-base font-bold uppercase tracking-wider transition-all hover:scale-101 shadow-xl flex items-center justify-center gap-3 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full py-4 sm:py-5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs sm:text-sm font-bold uppercase tracking-wider transition-all hover:scale-101 shadow-xl flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Registering Your Workspace...</span>
+                  <span>Activating Workspace...</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-5 h-5 text-[#BBEAD5]" />
-                  <span>Complete & Launch Workspace</span>
+                  <span>Submit & Activate</span>
                 </>
               )}
             </button>

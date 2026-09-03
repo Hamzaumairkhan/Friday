@@ -110,7 +110,13 @@ export default function PricingPage() {
       {/* ════════════════════════════════════════════════════════════════════
           2. PRICING 3-CARD GRID: PLAN 00 (FREE) • PLAN 01 (TRAVELER) • PLAN 02 (ORGANIZER)
       ════════════════════════════════════════════════════════════════════ */}
-      <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+      <motion.section
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full"
+      >
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
           {/* ── PLAN 00: FREE STARTER ── */}
           <motion.div
@@ -348,19 +354,25 @@ export default function PricingPage() {
 
             <button
               onClick={() => handlePlanSelect('Organizer')}
-              className="w-full py-3.5 rounded-full bg-[#BBEAD5] hover:bg-white text-[#00261D] text-xs font-bold uppercase tracking-wider transition-all shadow-lg hover:scale-101 cursor-pointer flex items-center justify-center gap-1.5"
+              className="w-full py-3.5 rounded-full bg-[#BBEAD5] hover:bg-white text-[#00261D] text-xs font-bold uppercase tracking-wider transition-all shadow-lg hover:scale-101 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap"
             >
               <span>Upgrade to Organizer</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* ════════════════════════════════════════════════════════════════════
           3. FEATURE COMPARISON MATRIX TABLE
       ════════════════════════════════════════════════════════════════════ */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full">
+      <motion.section
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full"
+      >
         <div className="text-center space-y-3 mb-12">
           <span className="text-xs uppercase tracking-[0.25em] font-bold text-emerald-800 block">
             Transparent Breakdown
@@ -420,12 +432,18 @@ export default function PricingPage() {
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* ════════════════════════════════════════════════════════════════════
           4. PRICING FINAL CTA (Pure White Text Verified)
       ════════════════════════════════════════════════════════════════════ */}
-      <section className="relative py-24 sm:py-32 bg-[#00261D] text-white px-4 sm:px-6 lg:px-8 overflow-hidden text-center">
+      <motion.section
+        initial={{ opacity: 0, y: 40, scale: 0.98 }}
+        whileInView={{ opacity: 1, y: 0, scale: 1 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="relative py-24 sm:py-32 bg-[#00261D] text-white px-4 sm:px-6 lg:px-8 overflow-hidden text-center"
+      >
         <TopographicCanvas variant="dark" className="opacity-40" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
 
@@ -450,7 +468,7 @@ export default function PricingPage() {
           <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link to="/plan-trip">
               <button
-                className="px-9 py-4 rounded-full text-xs font-bold uppercase tracking-widest bg-[#BBEAD5] text-[#00261D] hover:bg-white transition-all shadow-2xl hover:scale-105 cursor-pointer flex items-center gap-2"
+                className="px-9 py-4 rounded-full text-xs font-bold uppercase tracking-widest bg-[#BBEAD5] text-[#00261D] hover:bg-white transition-all shadow-2xl hover:scale-105 cursor-pointer flex items-center gap-2 whitespace-nowrap"
                 style={{ fontFamily: 'Inter, sans-serif' }}
               >
                 <span>Start Planning →</span>
@@ -459,7 +477,7 @@ export default function PricingPage() {
 
             <Link to="/explore">
               <button
-                className="px-9 py-4 rounded-full text-xs font-bold uppercase tracking-widest bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-all shadow-lg hover:scale-105 cursor-pointer"
+                className="px-9 py-4 rounded-full text-xs font-bold uppercase tracking-widest bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-all shadow-lg hover:scale-105 cursor-pointer whitespace-nowrap"
                 style={{ fontFamily: 'Inter, sans-serif' }}
               >
                 <span>Explore Trips</span>
@@ -467,7 +485,7 @@ export default function PricingPage() {
             </Link>
           </div>
         </div>
-      </section>
+      </motion.section>
     </div>
   );
 }

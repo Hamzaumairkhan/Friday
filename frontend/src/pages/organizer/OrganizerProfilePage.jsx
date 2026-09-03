@@ -487,7 +487,7 @@ export default function OrganizerProfilePage() {
                 className="px-8 py-3 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider transition-all hover:scale-101 shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-[#BBEAD5]" />}
-                <span>Save All Profile Changes</span>
+                <span className="whitespace-nowrap">Save Changes</span>
               </button>
             </div>
           )}
@@ -513,14 +513,14 @@ export default function OrganizerProfilePage() {
               type="button"
               onClick={handleSwitchRole}
               disabled={isSwitching}
-              className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider transition-all hover:scale-102 shadow-sm flex items-center justify-center gap-2.5 cursor-pointer shrink-0 disabled:opacity-50"
+              className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider transition-all hover:scale-102 shadow-sm flex items-center justify-center gap-2.5 cursor-pointer shrink-0 disabled:opacity-50 whitespace-nowrap"
             >
               {isSwitching ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <User className="w-4 h-4 text-[#BBEAD5]" />
               )}
-              <span>Switch to Traveler Account</span>
+              <span>Switch to Traveler</span>
             </button>
           </div>
         </form>

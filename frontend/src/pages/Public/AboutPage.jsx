@@ -171,16 +171,22 @@ export default function AboutPage() {
       </section>
 
       {/* ════════════════════════════════════════════════════════════════════
-          2. THE STORY — HOW A TRIP ACTUALLY HAPPENS
+          2. THE FRIDAY MISSION
       ════════════════════════════════════════════════════════════════════ */}
       <section className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center"
+        >
           <div className="lg:col-span-6 space-y-6">
             <span className="text-xs uppercase tracking-[0.25em] font-bold text-emerald-800 block">
-              The Origin Story
+              // OUR PURPOSE
             </span>
             <TextRepel
-              text="How a trip actually happens (and why it gets scattered)."
+              text="Why we built Friday."
               as="h2"
               className="text-4xl sm:text-6xl font-normal text-[#00261D] leading-tight"
               style={{ fontFamily: "'Instrument Serif', serif" }}
@@ -189,13 +195,10 @@ export default function AboutPage() {
             />
             <div className="space-y-4 text-base text-[#555E59] leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
               <p>
-                A trip begins simply. “Let’s head north next week.” But within hours, the chaos starts: Where should we go? Has anyone visited recently? What’s actually worth seeing? How much will it cost? What’s the road condition? Who is coming? Where do we keep all the details?
+                In Pakistan, planning a journey across Gilgit-Baltistan, Kashmir, Swat, or Balochistan usually means navigating endless uncertainty.
               </p>
               <p>
-                Suddenly, planning gets scattered across Instagram bookmarks, Google Maps, notes apps, Excel budget calculators, and chaotic WhatsApp groups.
-              </p>
-              <p>
-                For local trip organizers, it’s even harder: running full expeditions through scattered chat messages, manually answering repetitive questions, and tracking payment screenshots on spreadsheets.
+                You ask in scattered WhatsApp groups for hotel numbers. You cross-check mountain road reports on Facebook. You manually balance jeep fuel budgets in notes apps. And when an organizer leads a group, they juggle customer spreadsheets and lost payment slips.
               </p>
               <p className="font-semibold text-[#00261D]">
                 We built Friday so every trip has a single, dedicated home.
@@ -220,14 +223,20 @@ export default function AboutPage() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ════════════════════════════════════════════════════════════════════
           3. TWO SIDES OF FRIDAY (FOR TRAVELERS & FOR ORGANIZERS)
       ════════════════════════════════════════════════════════════════════ */}
-      <section className="py-24 sm:py-32 bg-[#F0F2ED] border-y border-black/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+      <section className="py-24 sm:py-32 bg-[#F0F2ED] border-y border-black/10 overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16"
+        >
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <span className="text-xs uppercase tracking-[0.25em] font-bold text-emerald-900 block">
               The Complete Ecosystem
@@ -279,7 +288,7 @@ export default function AboutPage() {
                 </li>
               </ul>
               <Link to="/plan-trip" className="block pt-2">
-                <button className="w-full py-3.5 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#00261D]/90 transition-all cursor-pointer">
+                <button className="w-full py-3.5 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#00261D]/90 transition-all cursor-pointer whitespace-nowrap">
                   Plan a Trip Now →
                 </button>
               </Link>
@@ -318,13 +327,13 @@ export default function AboutPage() {
                 </li>
               </ul>
               <Link to="/pricing" className="block pt-2">
-                <button className="w-full py-3.5 rounded-full bg-[#BBEAD5] text-[#00261D] text-xs font-bold uppercase tracking-wider hover:bg-white transition-all cursor-pointer">
+                <button className="w-full py-3.5 rounded-full bg-[#BBEAD5] text-[#00261D] text-xs font-bold uppercase tracking-wider hover:bg-white transition-all cursor-pointer whitespace-nowrap">
                   View Organizer Plans →
                 </button>
               </Link>
             </div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ════════════════════════════════════════════════════════════════════
@@ -370,8 +379,14 @@ export default function AboutPage() {
       {/* ════════════════════════════════════════════════════════════════════
           5. PAKISTAN DIVERSITY SHOWCASE
       ════════════════════════════════════════════════════════════════════ */}
-      <section className="py-24 sm:py-32 bg-white border-y border-black/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+      <section className="py-24 sm:py-32 bg-white border-y border-black/10 overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16"
+        >
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <span className="text-xs uppercase tracking-[0.25em] font-bold text-emerald-800 block">
               Land of Infinite Wonder
@@ -391,7 +406,14 @@ export default function AboutPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {PAKISTAN_DESTINATIONS.map((dest, idx) => (
-              <div key={idx} className="rounded-3xl overflow-hidden border border-black/10 bg-[#F8FAF6] shadow-xs group">
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 25 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: idx * 0.15 }}
+                className="rounded-3xl overflow-hidden border border-black/10 bg-[#F8FAF6] shadow-xs group"
+              >
                 <div className="relative h-64 overflow-hidden bg-[#00261D]">
                   <img
                     src={dest.image}
@@ -403,16 +425,23 @@ export default function AboutPage() {
                   <h3 className="text-xl font-bold text-[#00261D]">{dest.title}</h3>
                   <p className="text-xs text-[#717975] leading-relaxed">{dest.desc}</p>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ════════════════════════════════════════════════════════════════════
           6. CONTACT SECTION (id="contact")
       ════════════════════════════════════════════════════════════════════ */}
-      <section id="contact" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full">
+      <motion.section
+        id="contact"
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full"
+      >
         <div className="text-center space-y-4 mb-12">
           <span className="text-xs uppercase tracking-[0.25em] font-bold text-emerald-800 block">
             Get in Touch
@@ -493,7 +522,7 @@ export default function AboutPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-4 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-md hover:scale-101 cursor-pointer"
+              className="w-full py-4 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-md hover:scale-101 cursor-pointer whitespace-nowrap"
             >
               {isSubmitting ? (
                 <span>Sending Message...</span>
@@ -505,7 +534,7 @@ export default function AboutPage() {
             </button>
           </form>
         </div>
-      </section>
+      </motion.section>
     </div>
   );
 }
