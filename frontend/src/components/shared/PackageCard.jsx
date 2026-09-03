@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Clock, ShieldCheck, Star, Eye } from 'lucide-react';
-import { getDestinationFallback } from '../../utils/imageService';
+import { getContextualEmoji } from '../../utils/contextualEmoji';
 
 export default function PackageCard({ pkg, organizer }) {
   const navigate = useNavigate();
+  const [imageFailed, setImageFailed] = useState(false);
 
-  const defaultImage = getDestinationFallback(pkg?.destination, pkg?.id);
-  const imageUrl = pkg?.image_url || defaultImage;
+  const imageUrl = pkg?.image_url;
+  const showEmoji = !imageUrl || imageFailed;
+  const emoji = getContextualEmoji(pkg?.destination, pkg?.title);
 
   return (
     <article
@@ -14,19 +17,17 @@ export default function PackageCard({ pkg, organizer }) {
       className="group bg-white rounded-3xl border border-black/10 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col justify-between cursor-pointer"
     >
       {/* 400px Image Container with Film Matte Overlay */}
-      <div className="relative h-72 sm:h-96 w-full overflow-hidden bg-gradient-to-br from-emerald-950 via-[#00261D] to-slate-900 flex items-center justify-center">
-        {imageUrl ? (
+      <div className="relative h-72 sm:h-96 w-full overflow-hidden bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] flex items-center justify-center">
+        {!showEmoji ? (
           <img
             src={imageUrl}
             alt={pkg?.title || 'Tour Package'}
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
+            onError={() => setImageFailed(true)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
           />
         ) : (
           <div className="flex flex-col items-center justify-center text-center p-6 text-emerald-200">
-            <span className="text-6xl mb-2 select-none">🏔️</span>
+            <span className="text-6xl mb-2 select-none">{emoji}</span>
             <span className="text-xs uppercase tracking-widest font-semibold opacity-70">
               {pkg?.destination || 'Expedition'}
             </span>

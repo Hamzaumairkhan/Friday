@@ -37,7 +37,8 @@ import { packagesService } from '../../services/packages';
 import { tripsService } from '../../services/trips';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
-import { getDestinationFallback, searchDestinationImages, DESTINATION_WEB_PHOTOS } from '../../utils/imageService';
+import { searchDestinationImages } from '../../utils/imageService';
+import { getContextualEmoji } from '../../utils/contextualEmoji';
 import toast from 'react-hot-toast';
 
 const renderWeatherIcon = (iconName, className = 'w-5 h-5') => {
@@ -612,7 +613,7 @@ export default function PackageFormPage() {
         }
       }
 
-      const resolvedCoverImg = formData.image_url || getDestinationFallback(formData.destination.trim());
+      const resolvedCoverImg = formData.image_url || null;
 
       const payload = {
         title: formData.title.trim(),
@@ -984,11 +985,16 @@ export default function PackageFormPage() {
                       </span>
                       <button
                         type="button"
-                        onClick={() => {
-                          const nextSeed = Math.floor(Math.random() * 1000);
-                          const newImg = getDestinationFallback(formData.destination, nextSeed);
-                          updateField('image_url', newImg);
-                          toast.success('Switched to another authentic Pakistan photo!');
+                        onClick={async () => {
+                          const photos = await searchDestinationImages(formData.destination, formData.destination);
+                          if (photos && photos.length > 0) {
+                            const randomIdx = Math.floor(Math.random() * photos.length);
+                            updateField('image_url', photos[randomIdx]);
+                            toast.success('Updated cover photo from live web research!');
+                          } else {
+                            updateField('image_url', null);
+                            toast.error('No more unique web photos found for this destination.');
+                          }
                         }}
                         className="text-[11px] font-bold text-emerald-900 hover:text-emerald-700 flex items-center gap-1 cursor-pointer bg-white px-2.5 py-1 rounded-full border border-black/10 shadow-2xs"
                       >
@@ -996,17 +1002,30 @@ export default function PackageFormPage() {
                         <span>Shuffle Photo</span>
                       </button>
                     </div>
-                    <div className="relative h-44 sm:h-52 rounded-xl overflow-hidden bg-[#00261D] border border-black/10">
-                      <img
-                        src={formData.image_url || getDestinationFallback(formData.destination)}
-                        alt={formData.destination}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = getDestinationFallback(formData.destination, 42);
-                        }}
-                      />
-                      <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[10px] font-medium px-2.5 py-1 rounded-lg">
-                        📍 Real destination photography for {formData.destination}
+                    <div className="relative h-44 sm:h-52 rounded-xl overflow-hidden bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] border border-black/10 flex items-center justify-center">
+                      {formData.image_url ? (
+                        <img
+                          src={formData.image_url}
+                          alt={formData.destination}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const el = e.currentTarget.nextElementSibling;
+                            if (el) el.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className="w-full h-full flex flex-col items-center justify-center text-center p-4 text-emerald-200"
+                        style={{ display: formData.image_url ? 'none' : 'flex' }}
+                      >
+                        <span className="text-5xl mb-1 select-none">{getContextualEmoji(formData.destination, formData.title)}</span>
+                        <span className="text-[10px] uppercase tracking-widest font-semibold opacity-70">
+                          {formData.destination || 'Expedition'}
+                        </span>
+                      </div>
+                      <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[10px] font-medium px-2.5 py-1 rounded-lg pointer-events-none">
+                        📍 Live Photography for {formData.destination}
                       </div>
                     </div>
                   </div>

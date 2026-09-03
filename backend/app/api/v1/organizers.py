@@ -276,12 +276,21 @@ async def create_package_for_organizer(
     resolved_img = req.image_url
     if not resolved_img or "stitch_asset" in str(resolved_img):
         try:
-            from app.services.dynamic_research_service import fetch_real_web_photos_multi
-            web_photos = await fetch_real_web_photos_multi(f"{req.destination} Pakistan travel", req.destination, limit=4)
-            if web_photos:
-                resolved_img = web_photos[0]
+            from app.services.dynamic_research_service import fetch_real_web_photos_multi, is_valid_direct_image_url
+            from app.services.image_reservation_service import claim_unique_image
+            web_photos = await fetch_real_web_photos_multi(f"{req.destination} Pakistan travel", req.destination, limit=8)
+            valid_candidates = [p for p in web_photos if is_valid_direct_image_url(p) and not str(p).startswith("/images/stitch/")]
+            claimed = await claim_unique_image(
+                candidate_urls=valid_candidates,
+                entity_type="package",
+                entity_id=pkg_id,
+                destination=req.destination,
+                session=db,
+            )
+            resolved_img = claimed
         except Exception as e:
             logger.warning(f"Failed to fetch dynamic web photo for package {req.destination}: {e}")
+            resolved_img = None
 
     # Resolve authoritative organizer profile & contacts
     from app.repositories.user_repository import UserRepository

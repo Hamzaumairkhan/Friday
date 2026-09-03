@@ -23,10 +23,11 @@ import {
 } from 'lucide-react';
 import { bookingsService } from '../../services/bookings';
 import { tripsService } from '../../services/trips';
+import { useAuth } from '../../context/AuthContext';
+import { getContextualEmoji } from '../../utils/contextualEmoji';
 import StatusBadge from '../../components/shared/StatusBadge';
 import EmptyState from '../../components/shared/EmptyState';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
-import { getDestinationFallback } from '../../utils/imageService';
 import toast from 'react-hot-toast';
 
 export default function MyTripsPage() {
@@ -78,7 +79,7 @@ export default function MyTripsPage() {
                 duration: localDraft.duration_days || 3,
                 budget_total: localDraft.budget_total || 25000,
                 status: 'DRAFT',
-                image_url: getDestinationFallback(localDraft.destination, 'draft-local'),
+                image_url: null,
                 start_date: localDraft.departure_date,
                 created_at: new Date().toISOString(),
                 is_local_draft: true,
@@ -277,9 +278,8 @@ export default function MyTripsPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {publishedTrips.map((trip) => {
-                  const defaultThumb = getDestinationFallback(trip.destination, trip.id || trip.title);
                   const isStitch = !trip.image_url || trip.image_url.startsWith('/images/stitch/');
-                  const cardImage = isStitch ? defaultThumb : (trip.image_url || defaultThumb);
+                  const validImage = isStitch ? null : trip.image_url;
                   return (
                     <div
                       key={trip.id}
@@ -287,18 +287,29 @@ export default function MyTripsPage() {
                       className="rounded-3xl border border-black/10 bg-white overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer hover:border-black/30"
                     >
                       {/* Destination Image Preview Header */}
-                      <div className="relative w-full h-40 bg-[#00261D] overflow-hidden">
-                        <img
-                          src={cardImage}
-                          alt={trip.destination || 'Trip'}
-                          onError={(e) => {
-                            if (e.currentTarget.src !== defaultThumb) {
-                              e.currentTarget.src = defaultThumb;
-                            }
-                          }}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                      <div className="relative w-full h-40 bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] overflow-hidden flex items-center justify-center">
+                        {validImage ? (
+                          <img
+                            src={validImage}
+                            alt={trip.destination || 'Trip'}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const el = e.currentTarget.nextElementSibling;
+                              if (el) el.style.display = 'flex';
+                            }}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        ) : null}
+                        <div
+                          className="w-full h-full flex flex-col items-center justify-center text-center p-4 text-emerald-200"
+                          style={{ display: validImage ? 'none' : 'flex' }}
+                        >
+                          <span className="text-4xl mb-1 select-none">{getContextualEmoji(trip.destination, trip.title)}</span>
+                          <span className="text-[10px] uppercase tracking-widest font-semibold opacity-70">
+                            {trip.destination || 'Expedition'}
+                          </span>
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent pointer-events-none" />
 
                         {/* Visibility Pill */}
                         <div className="absolute top-3 left-3">
@@ -415,27 +426,37 @@ export default function MyTripsPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {draftTrips.map((trip) => {
-                  const defaultThumb = getDestinationFallback(trip.destination, trip.id || trip.title);
                   const isStitch = !trip.image_url || trip.image_url.startsWith('/images/stitch/');
-                  const cardImage = isStitch ? defaultThumb : (trip.image_url || defaultThumb);
+                  const validImage = isStitch ? null : trip.image_url;
                   return (
                     <div
                       key={trip.id}
                       className="rounded-3xl border-2 border-dashed border-amber-300 bg-amber-50/20 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
                     >
                       {/* Destination Image Preview Header */}
-                      <div className="relative w-full h-40 bg-[#00261D] overflow-hidden">
-                        <img
-                          src={cardImage}
-                          alt={trip.destination || 'Trip'}
-                          onError={(e) => {
-                            if (e.currentTarget.src !== defaultThumb) {
-                              e.currentTarget.src = defaultThumb;
-                            }
-                          }}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                      <div className="relative w-full h-40 bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] overflow-hidden flex items-center justify-center">
+                        {validImage ? (
+                          <img
+                            src={validImage}
+                            alt={trip.destination || 'Trip'}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const el = e.currentTarget.nextElementSibling;
+                              if (el) el.style.display = 'flex';
+                            }}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80"
+                          />
+                        ) : null}
+                        <div
+                          className="w-full h-full flex flex-col items-center justify-center text-center p-4 text-emerald-200"
+                          style={{ display: validImage ? 'none' : 'flex' }}
+                        >
+                          <span className="text-4xl mb-1 select-none">{getContextualEmoji(trip.destination, trip.title)}</span>
+                          <span className="text-[10px] uppercase tracking-widest font-semibold opacity-70">
+                            {trip.destination || 'Expedition'}
+                          </span>
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
 
                         {/* Draft Status Badge */}
                         <div className="absolute top-3 left-3">

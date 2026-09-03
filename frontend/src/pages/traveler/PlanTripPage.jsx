@@ -49,7 +49,7 @@ import {
 import { tripsService } from '../../services/trips';
 import { packagesService } from '../../services/packages';
 import { useAuth } from '../../context/AuthContext';
-import { getDestinationFallback } from '../../utils/imageService';
+import { getContextualEmoji } from '../../utils/contextualEmoji';
 import toast from 'react-hot-toast';
 
 const renderWeatherIcon = (iconName, className = 'w-5 h-5') => {
@@ -1754,7 +1754,7 @@ export default function PlanTripPage() {
     const destName = trip.destination || destination;
     const rawImage = trip.image_url;
     const isInvalidImage = !rawImage || rawImage.includes('instagram') || rawImage.includes('fbsbx') || rawImage.includes('panoramic_lake') || rawImage.includes('stitch_asset_6') || rawImage.startsWith('/images/stitch/');
-    const heroImage = isInvalidImage ? getDestinationFallback(destName, trip.id || destName) : rawImage;
+    const heroImage = isInvalidImage ? null : rawImage;
 
     return (
       <div className="w-full flex-1 flex justify-center min-h-screen bg-[#F8FAF6]">
@@ -1776,16 +1776,29 @@ export default function PlanTripPage() {
           {/* Editorial Heading & Trip Overview Hero with Real Web Photo Banner */}
           <div className="bg-white rounded-2xl sm:rounded-3xl overflow-hidden border border-black/10 shadow-xs">
             {/* Real Web Photography Banner */}
-            <div className="relative h-52 sm:h-72 w-full bg-[#00261D] overflow-hidden">
-              <img
-                src={heroImage}
-                alt={destName}
-                onError={(e) => {
-                  e.currentTarget.src = getDestinationFallback(destName);
-                }}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
+            <div className="relative h-52 sm:h-72 w-full bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] overflow-hidden flex items-center justify-center">
+              {heroImage ? (
+                <img
+                  src={heroImage}
+                  alt={destName}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    const el = e.currentTarget.nextElementSibling;
+                    if (el) el.style.display = 'flex';
+                  }}
+                  className="w-full h-full object-cover"
+                />
+              ) : null}
+              <div
+                className="w-full h-full flex flex-col items-center justify-center text-center p-6 text-emerald-200"
+                style={{ display: heroImage ? 'none' : 'flex' }}
+              >
+                <span className="text-6xl sm:text-7xl mb-2 select-none">{getContextualEmoji(destName, trip.title)}</span>
+                <span className="text-xs uppercase tracking-widest font-semibold opacity-70">
+                  {destName || 'Expedition'}
+                </span>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
               <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 text-white space-y-1 sm:space-y-1.5">
                 <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-white/20 backdrop-blur-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[#BBEAD5] inline-block">
                   Live Web Researched Route

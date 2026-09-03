@@ -21,7 +21,7 @@ import { packagesService } from '../../services/packages';
 import { organizersService } from '../../services/organizers';
 import { tripsService } from '../../services/trips';
 import { useAuth } from '../../context/AuthContext';
-import { getDestinationFallback } from '../../utils/imageService';
+import { getContextualEmoji } from '../../utils/contextualEmoji';
 import EmptyState from '../../components/shared/EmptyState';
 import { Skeleton } from '../../components/ui/skeleton';
 import toast from 'react-hot-toast';
@@ -80,7 +80,7 @@ export default function ExplorePage() {
           budget_total: totalBudget,
           start_date: ct.start_date || null,
           end_date: ct.end_date || null,
-          image_url: ct.image_url || getDestinationFallback(ct.destination, ct.id),
+          image_url: ct.image_url || null,
           is_public_community: true,
           max_group_size: travelersCount,
           difficulty: 'Flexible',
@@ -489,15 +489,28 @@ export default function ExplorePage() {
                     className="group bg-white rounded-3xl border border-black/10 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col justify-between cursor-pointer"
                   >
                     {/* 400px Image Container with Film Matte Overlay */}
-                    <div className="relative h-72 sm:h-96 w-full overflow-hidden bg-[#00261D]">
-                      <img
-                        src={pkg.image_url || getDestinationFallback(pkg.destination, pkg.id)}
-                        alt={pkg.title}
-                        onError={(e) => {
-                          e.currentTarget.src = getDestinationFallback(pkg.destination, (pkg.id || '') + 'fallback');
-                        }}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
-                      />
+                    <div className="relative h-72 sm:h-96 w-full overflow-hidden bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] flex items-center justify-center">
+                      {pkg.image_url ? (
+                        <img
+                          src={pkg.image_url}
+                          alt={pkg.title}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const el = e.currentTarget.nextElementSibling;
+                            if (el) el.style.display = 'flex';
+                          }}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
+                        />
+                      ) : null}
+                      <div
+                        className="w-full h-full flex flex-col items-center justify-center text-center p-6 text-emerald-200"
+                        style={{ display: pkg.image_url ? 'none' : 'flex' }}
+                      >
+                        <span className="text-6xl mb-2 select-none">{getContextualEmoji(pkg.destination, pkg.title)}</span>
+                        <span className="text-xs uppercase tracking-widest font-semibold opacity-70">
+                          {pkg.destination || 'Expedition'}
+                        </span>
+                      </div>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
 
                       {/* Badges: Public / Organizer + Travel Dates (Top-Left) */}
@@ -854,15 +867,25 @@ export default function ExplorePage() {
                     state={{ from: 'explore' }}
                     className="group flex items-center gap-3.5 p-2.5 rounded-2xl border border-black/10 bg-white hover:border-[#00261D] hover:shadow-md transition-all cursor-pointer block"
                   >
-                    <div className="relative shrink-0">
-                      <img
-                        src={item.image_url || getDestinationFallback(item.destination, item.id)}
-                        alt={item.title}
-                        onError={(e) => {
-                          e.currentTarget.src = getDestinationFallback(item.destination, (item.id || '') + 'fallback');
-                        }}
-                        className="w-14 h-14 rounded-xl object-cover shadow-2xs group-hover:scale-105 transition-transform duration-300"
-                      />
+                    <div className="relative shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] flex items-center justify-center">
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.title}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const el = e.currentTarget.nextElementSibling;
+                            if (el) el.style.display = 'flex';
+                          }}
+                          className="w-full h-full object-cover shadow-2xs group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : null}
+                      <div
+                        className="w-full h-full flex items-center justify-center text-xl select-none"
+                        style={{ display: item.image_url ? 'none' : 'flex' }}
+                      >
+                        {getContextualEmoji(item.destination, item.title)}
+                      </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">

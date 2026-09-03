@@ -12,6 +12,7 @@ from app.models.conversation import Conversation, Message
 from app.models.agent_run import AgentRun
 from app.models.notification import Notification, NotificationType
 from app.models.trip_group import TripGroup, TripGroupMember, TripGroupMessage, GroupMemberRole
+from app.models.image_reservation import ImageReservation
 
 __all__ = [
     "User", "UserRole",
@@ -26,4 +27,5 @@ __all__ = [
     "AgentRun",
     "Notification", "NotificationType",
     "TripGroup", "TripGroupMember", "TripGroupMessage", "GroupMemberRole",
+    "ImageReservation",
 ]

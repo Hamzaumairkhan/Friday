@@ -27,7 +27,7 @@ import { useAuth } from '../../context/AuthContext';
 import MessageBubble from '../shared/MessageBubble';
 import UserAvatar from '../shared/UserAvatar';
 import { playNotificationSound } from '../../utils/notificationSound';
-import { getDestinationFallback } from '../../utils/imageService';
+import { getContextualEmoji } from '../../utils/contextualEmoji';
 import toast from 'react-hot-toast';
 
 export default function WhatsAppTripMessenger({
@@ -227,7 +227,7 @@ export default function WhatsAppTripMessenger({
     activeGroupDetails?.image_url ||
     selectedGroup?.image_url ||
     selectedGroup?.cover_image ||
-    getDestinationFallback(activeDestination);
+    null;
 
   return (
     <div className="w-full max-w-7xl mx-auto h-[820px] max-h-[88vh] bg-white rounded-3xl border border-black/10 shadow-xl overflow-hidden flex flex-col md:flex-row">
@@ -326,8 +326,7 @@ export default function WhatsAppTripMessenger({
                   })
                 : '';
 
-              const fallbackImg = getDestinationFallback(group.destination || group.title);
-              const groupImg = group.image_url || group.cover_image || fallbackImg;
+              const groupImg = group.image_url || group.cover_image || null;
 
               return (
                 <div
@@ -343,15 +342,25 @@ export default function WhatsAppTripMessenger({
                   }`}
                 >
                   {/* Group Thumbnail Photo */}
-                  <div className="relative shrink-0">
-                    <img
-                      src={groupImg}
-                      alt={group.title}
-                      onError={(e) => {
-                        e.currentTarget.src = fallbackImg;
-                      }}
-                      className="w-12 h-12 rounded-full object-cover border border-black/10 shadow-2xs"
-                    />
+                  <div className="relative shrink-0 w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] border border-black/10 flex items-center justify-center">
+                    {groupImg ? (
+                      <img
+                        src={groupImg}
+                        alt={group.title}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          const el = e.currentTarget.nextElementSibling;
+                          if (el) el.style.display = 'flex';
+                        }}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : null}
+                    <div
+                      className="w-full h-full flex items-center justify-center text-lg select-none"
+                      style={{ display: groupImg ? 'none' : 'flex' }}
+                    >
+                      {getContextualEmoji(group.destination, group.title)}
+                    </div>
                     <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white" />
                   </div>
 
@@ -414,14 +423,26 @@ export default function WhatsAppTripMessenger({
                 </button>
 
                 {/* Group Avatar */}
-                <img
-                  src={activeImg}
-                  alt={activeTitle}
-                  onError={(e) => {
-                    e.currentTarget.src = getDestinationFallback(activeDestination);
-                  }}
-                  className="w-10 h-10 rounded-full object-cover border border-black/10 shrink-0 shadow-2xs"
-                />
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] border border-black/10 shrink-0 flex items-center justify-center">
+                  {activeImg ? (
+                    <img
+                      src={activeImg}
+                      alt={activeTitle}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const el = e.currentTarget.nextElementSibling;
+                        if (el) el.style.display = 'flex';
+                      }}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : null}
+                  <div
+                    className="w-full h-full flex items-center justify-center text-base select-none"
+                    style={{ display: activeImg ? 'none' : 'flex' }}
+                  >
+                    {getContextualEmoji(activeDestination, activeTitle)}
+                  </div>
+                </div>
 
                 {/* Group Details */}
                 <div className="min-w-0">

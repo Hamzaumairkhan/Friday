@@ -26,7 +26,7 @@ import { packagesService } from '../../services/packages';
 import { organizersService } from '../../services/organizers';
 import { bookingsService } from '../../services/bookings';
 import { tripsService } from '../../services/trips';
-import { getDestinationFallback } from '../../utils/imageService';
+import { getContextualEmoji } from '../../utils/contextualEmoji';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
@@ -169,8 +169,7 @@ export default function PackageDetailPage() {
     );
   }
 
-  const defaultHero = getDestinationFallback(pkg.destination, pkg.id);
-  const heroImage = pkg.image_url || defaultHero;
+  const heroImage = pkg.image_url;
 
   let itinerary = [];
   if (Array.isArray(pkg.activities) && pkg.activities.length > 0 && typeof pkg.activities[0] === 'object') {
@@ -187,7 +186,7 @@ export default function PackageDetailPage() {
             end_time: '',
             location: pkg.destination,
             category: 'EXPLORATION',
-            image_url: getDestinationFallback(pkg.destination, (pkg.id || '') + i + aIdx),
+            image_url: null,
             map_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a + ', ' + pkg.destination)}`,
           };
         }
@@ -199,7 +198,7 @@ export default function PackageDetailPage() {
           end_time: a.end_time || '',
           location: loc,
           category: a.category || 'SIGHTSEEING',
-          image_url: a.image_url || getDestinationFallback(loc || a.title || pkg.destination, (pkg.id || '') + i + aIdx),
+          image_url: a.image_url || null,
           map_url: a.map_url || a.notes || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((a.title || loc) + ', ' + pkg.destination)}`,
         };
       }),
@@ -216,14 +215,14 @@ export default function PackageDetailPage() {
             end_time: '',
             location: pkg.destination,
             category: 'EXPLORATION',
-            image_url: getDestinationFallback(pkg.destination, (pkg.id || '') + i + aIdx),
+            image_url: null,
             map_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a + ', ' + pkg.destination)}`,
           };
         }
         const loc = a.location || pkg.destination;
         return {
           ...a,
-          image_url: a.image_url || getDestinationFallback(loc || a.title || pkg.destination, (pkg.id || '') + i + aIdx),
+          image_url: a.image_url || null,
           map_url: a.map_url || a.notes || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((a.title || loc) + ', ' + pkg.destination)}`,
         };
       }),
@@ -237,15 +236,28 @@ export default function PackageDetailPage() {
       {/* ─── CENTER COLUMN: Expedition Details & Feed ───────────────── */}
       <main className="flex-1 max-w-[800px] flex flex-col min-h-screen border-r border-black/10 bg-[#F8FAF6]">
         {/* Hero Image Section */}
-        <div className="relative w-full h-[55vh] md:h-[65vh] bg-[#00261D] overflow-hidden">
-          <img
-            src={heroImage}
-            alt={pkg.title}
-            onError={(e) => {
-              e.currentTarget.src = defaultHero;
-            }}
-            className="w-full h-full object-cover opacity-90"
-          />
+        <div className="relative w-full h-[55vh] md:h-[65vh] bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] overflow-hidden flex items-center justify-center">
+          {heroImage ? (
+            <img
+              src={heroImage}
+              alt={pkg.title}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const el = e.currentTarget.nextElementSibling;
+                if (el) el.style.display = 'flex';
+              }}
+              className="w-full h-full object-cover opacity-90"
+            />
+          ) : null}
+          <div
+            className="w-full h-full flex flex-col items-center justify-center text-center p-8 text-emerald-200"
+            style={{ display: heroImage ? 'none' : 'flex' }}
+          >
+            <span className="text-8xl mb-4 select-none">{getContextualEmoji(pkg.destination, pkg.title)}</span>
+            <span className="text-sm uppercase tracking-widest font-semibold opacity-70">
+              {pkg.destination || 'Expedition'}
+            </span>
+          </div>
           {/* Dark Matte Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 

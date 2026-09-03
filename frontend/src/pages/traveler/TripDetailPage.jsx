@@ -37,7 +37,6 @@ import {
 } from 'lucide-react';
 import { tripsService } from '../../services/trips';
 import { useAuth } from '../../context/AuthContext';
-import { getDestinationFallback } from '../../utils/imageService';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import EmptyState from '../../components/shared/EmptyState';
 import toast from 'react-hot-toast';
@@ -523,10 +522,6 @@ export default function TripDetailPage() {
     );
   }
 
-  const defaultHero = getDestinationFallback(trip?.destination, trip?.id || trip?.title);
-  const rawImage = trip?.image_url;
-  const isInvalidImage = !rawImage || rawImage.includes('instagram') || rawImage.includes('fbsbx') || rawImage.includes('panoramic_lake') || rawImage.includes('stitch_asset_6') || rawImage.startsWith('/images/stitch/');
-  const heroImage = isInvalidImage ? defaultHero : rawImage;
   const days = itinerary?.days || [];
 
   const tripMembersList = (() => {

@@ -161,7 +161,10 @@ async def search_destination_images(
 
 
 def _format_trip_response(t, members_override=None) -> TripResponse:
+    from app.services.dynamic_research_service import is_valid_direct_image_url
     img = getattr(t, 'image_url', None)
+    if img and (str(img).startswith("/images/stitch/") or not is_valid_direct_image_url(str(img))):
+        img = None
     prefs = t.preferences if isinstance(t.preferences, dict) else {}
     
     members = []
@@ -600,8 +603,31 @@ async def generate_guided_trip_plan(
         budget_total=budget_total,
         accommodation_preference=req.accommodation_preference or "comfortable",
     )
-    if not img_url or img_url.startswith("/images/stitch/"):
-        img_url = researched_hero or img_url
+
+    # 5b. Globally Unique Image Reservation
+    from app.services.dynamic_research_service import is_valid_direct_image_url
+    from app.services.image_reservation_service import claim_unique_image
+
+    trip_id = str(uuid.uuid4())
+    candidates = []
+    if researched_hero and is_valid_direct_image_url(researched_hero):
+        candidates.append(researched_hero)
+    if web_images:
+        candidates.extend(w for w in web_images if is_valid_direct_image_url(w))
+    if img_url and is_valid_direct_image_url(img_url) and img_url not in candidates:
+        candidates.append(img_url)
+
+    # Filter out stitch assets or invalid URLs
+    valid_candidates = [c for c in candidates if c and not str(c).startswith("/images/stitch/")]
+
+    claimed_url = await claim_unique_image(
+        candidate_urls=valid_candidates,
+        entity_type="trip",
+        entity_id=trip_id,
+        destination=dest,
+        session=db,
+    )
+    img_url = claimed_url
 
     # 6. Compute Deterministic Budget Breakdown
     if req.accommodation_preference == "none":
@@ -678,6 +704,7 @@ async def generate_guided_trip_plan(
         logger.warning(f"Could not attach weather to trip metadata: {e}")
 
     trip = Trip(
+        id=trip_id,
         owner_id=user_id,
         title=title,
         destination=dest,

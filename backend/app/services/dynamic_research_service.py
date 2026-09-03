@@ -431,6 +431,71 @@ async def verify_place_location_live(
     }
 
 
+IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.webp', '.avif')
+DISALLOWED_IMAGE_DOMAINS = (
+    "lookaside.instagram.com", "lookaside.fbsbx.com", "facebook.com", "instagram.com",
+    "tiktok.com", "twitter.com", "x.com"
+)
+
+
+def is_valid_direct_image_url(url: str) -> bool:
+    """Strictly validates that a URL points to a genuine, direct image resource."""
+    if not url or not isinstance(url, str):
+        return False
+    clean = url.strip()
+    if not (clean.startswith("http://") or clean.startswith("https://")):
+        return False
+    try:
+        parsed = urllib.parse.urlparse(clean)
+        netloc = parsed.netloc.lower()
+        path = parsed.path.lower()
+
+        # Reject crawler links or social walled gardens
+        if any(d in netloc for d in DISALLOWED_IMAGE_DOMAINS):
+            return False
+
+        # Direct file extension
+        if any(path.endswith(ext) for ext in IMAGE_EXTENSIONS):
+            return True
+
+        # Recognized image CDNs / thumbnail generators
+        if "upload.wikimedia.org" in netloc and ("/thumb/" in path or any(ext in path for ext in IMAGE_EXTENSIONS)):
+            return True
+        if "images.unsplash.com" in netloc or "res.cloudinary.com" in netloc:
+            return True
+        if "dynamic-media-cdn.tripadvisor.com" in netloc or "media.tacdn.com" in netloc:
+            return True
+        if "cdn.tourradar.com" in netloc or "media.istockphoto.com" in netloc:
+            return True
+        if "images.trvl-media.com" in netloc:
+            return True
+
+        # If URL query contains image extension format
+        query = parsed.query.lower()
+        if any(ext.replace('.', '') in query for ext in IMAGE_EXTENSIONS):
+            return True
+
+        return False
+    except Exception:
+        return False
+
+
+def generate_diversified_image_queries(topic: str, destination: str) -> List[str]:
+    """Generate diversified search queries across multiple landmarks, angles, and viewpoints."""
+    clean_d = destination.strip()
+    clean_t = topic.strip()
+
+    variations = [
+        f"{clean_t} {clean_d} Pakistan travel photography",
+        f"{clean_d} Pakistan scenic landscape panorama",
+        f"{clean_d} tourism valley mountain lake viewpoint",
+        f"{clean_d} Pakistan landmark nature trail photography",
+    ]
+    if clean_t.lower() != clean_d.lower():
+        variations.insert(0, f"{clean_t} {clean_d} authentic photo")
+    return variations
+
+
 async def fetch_wikimedia_images(query: str, limit: int = 5) -> List[str]:
     """Dynamically search and fetch authentic photography from Wikimedia Commons API."""
     clean_q = re.sub(r"[^\w\s]", "", query).strip()
@@ -453,8 +518,7 @@ async def fetch_wikimedia_images(query: str, limit: int = 5) -> List[str]:
                 pages = data.get("query", {}).get("pages", {})
                 for _, page_info in pages.items():
                     thumb = page_info.get("thumbnail", {}).get("source")
-                    if thumb and thumb.startswith("http"):
-                        # Filter out flags, maps, diagrams
+                    if thumb and is_valid_direct_image_url(thumb):
                         lower_thumb = thumb.lower()
                         if not any(bad in lower_thumb for bad in BAD_TOKENS):
                             images.append(thumb)
@@ -467,14 +531,14 @@ async def fetch_wikimedia_images(query: str, limit: int = 5) -> List[str]:
 async def fetch_real_web_photos_multi(
     query_topic: str,
     destination: str,
-    limit: int = 6,
+    limit: int = 8,
 ) -> List[str]:
     """
     Pure Dynamic Live Web Image Research:
-    1. Query Tavily Search with 'include_images=True' for the targeted topic & destination.
+    1. Query Tavily Search with 'include_images=True' across diversified search angles.
     2. Query Wikimedia Commons API for authentic verified high-resolution photography.
-    3. Filter out invalid tokens / foreign mismatches.
-    4. Return verified live URLs or empty list (NEVER fake static fallback lists).
+    3. Filter out non-image resources, social crawler links, and foreign mismatches.
+    4. Return verified live direct image URLs or empty list (NEVER fake static fallback lists).
     """
     clean_topic = query_topic.strip()
     clean_dest = destination.strip()
@@ -484,44 +548,50 @@ async def fetch_real_web_photos_multi(
         return _PHOTO_MULTI_CACHE[cache_key]
 
     results: List[str] = []
+    queries = generate_diversified_image_queries(clean_topic, clean_dest)
 
-    # 1. Tavily Live Image Discovery
+    # 1. Tavily Live Image Discovery across diversified queries
     tavily_api_key = getattr(settings, "TAVILY_API_KEY", None)
     if tavily_api_key and tavily_api_key != "your_tavily_api_key_here":
         try:
-            search_query = f"{clean_topic} {clean_dest} Pakistan travel photography"
             async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.post(
-                    "https://api.tavily.com/search",
-                    json={
-                        "api_key": tavily_api_key,
-                        "query": search_query,
-                        "include_images": True,
-                        "search_depth": "basic",
-                        "max_results": 5,
-                    },
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    raw_images = data.get("images", [])
-                    for img in raw_images:
-                        if isinstance(img, str) and img.startswith("http"):
-                            img_lower = img.lower()
-                            if not any(bad in img_lower for bad in BAD_TOKENS) and not any(f in img_lower for f in FOREIGN_KEYWORDS):
-                                if img not in results:
-                                    results.append(img)
+                for q in queries[:2]:
+                    if len(results) >= limit * 2:
+                        break
+                    resp = await client.post(
+                        "https://api.tavily.com/search",
+                        json={
+                            "api_key": tavily_api_key,
+                            "query": q,
+                            "include_images": True,
+                            "search_depth": "basic",
+                            "max_results": 5,
+                        },
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        raw_images = data.get("images", [])
+                        for img in raw_images:
+                            if isinstance(img, str) and is_valid_direct_image_url(img):
+                                img_lower = img.lower()
+                                if not any(bad in img_lower for bad in BAD_TOKENS) and not any(f in img_lower for f in FOREIGN_KEYWORDS):
+                                    if img not in results:
+                                        results.append(img)
         except Exception as e:
             logger.debug(f"Tavily live image search skipped: {e}")
 
     # 2. Wikimedia Commons Live Search
     if len(results) < limit:
-        wiki_images = await fetch_wikimedia_images(f"{clean_topic} {clean_dest}", limit=limit)
-        for w_img in wiki_images:
-            if w_img not in results:
-                results.append(w_img)
+        for q in queries[:2]:
+            wiki_images = await fetch_wikimedia_images(q, limit=limit)
+            for w_img in wiki_images:
+                if is_valid_direct_image_url(w_img) and w_img not in results:
+                    results.append(w_img)
+            if len(results) >= limit:
+                break
 
-    _PHOTO_MULTI_CACHE[cache_key] = results[:limit]
-    return results[:limit]
+    _PHOTO_MULTI_CACHE[cache_key] = results
+    return results
 
 
 class DynamicDestinationResearchService:
