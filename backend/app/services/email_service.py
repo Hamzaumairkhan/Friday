@@ -427,7 +427,11 @@ class EmailService:
         </div>
         """
 
-        html_body = _get_base_layout(content=content_html, preheader=f"Your Friday account was switched to {role_label}")
+        html_body = _get_base_layout(
+            title=subject,
+            preheader=f"Your Friday account was switched to {role_label}",
+            content_html=content_html,
+        )
 
         return await self.email_tool.send_email(
             to=recipient_email,

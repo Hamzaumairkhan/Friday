@@ -57,12 +57,17 @@ export default function TravelerLayout() {
   const handleSwitchToOrganizer = async () => {
     setIsSwitching(true);
     try {
-      await upgradeToOrganizer();
+      const res = await upgradeToOrganizer();
+      if (res?.organizer_profile?.onboarding_completed) {
+        navigate('/organizer/dashboard', { replace: true });
+      } else {
+        navigate('/organizer/profile', { replace: true });
+      }
     } catch (err) {
       console.error('Failed to switch to organizer:', err);
+      navigate('/organizer/profile', { replace: true });
     } finally {
       setIsSwitching(false);
-      navigate('/organizer/dashboard', { replace: true });
     }
   };
 
