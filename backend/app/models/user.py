@@ -21,5 +21,6 @@ class User(Base, IDMixin, TimestampMixin):
     full_name = Column(String, nullable=True)
     hashed_password = Column(String, nullable=True)
     profile_picture = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
     role = Column(SAEnum(UserRole), default=UserRole.TRAVELER, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)

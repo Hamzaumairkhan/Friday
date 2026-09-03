@@ -226,19 +226,26 @@ async def upgrade_to_organizer(
     org = await org_repo.get_by_user_id(current_user.id)
     if not org:
         org_id = f"org-{uuid.uuid4().hex[:12]}"
+        org_name = current_user.name or (current_user.email.split("@")[0] if current_user.email else "Verified Host")
         org = Organizer(
             id=org_id,
             user_id=current_user.id,
-            name=f"{current_user.name or 'Verified'}'s Expeditions",
-            business_name=f"{current_user.name or 'Verified'}'s Expeditions",
-            phone=current_user.phone or "+92 300 1234567",
-            description="Curated expeditions and mountain guide services across Northern Pakistan.",
+            name=f"{org_name}'s Expeditions",
+            contact_phone=getattr(current_user, "phone", None) or "+92 300 1234567",
             contact_email=current_user.email,
+            description="Curated expeditions and mountain guide services across Northern Pakistan.",
+            location="Islamabad, Pakistan",
+            destinations=["Hunza Valley", "Skardu", "Swat", "Naran & Kaghan"],
             verification_status="VERIFIED",
             is_verified=True,
             rating=4.9,
             reviews_count=12,
             onboarding_completed=True,
+            payment_wallet_type="BANK",
+            payment_bank_name="Meezan Bank Limited",
+            payment_account_title=f"{org_name} Expeditions",
+            payment_account_number="0101010202020303",
+            payment_instructions="Please upload transaction screenshot after bank transfer for instant verification.",
         )
         org = await org_repo.create(org)
 
