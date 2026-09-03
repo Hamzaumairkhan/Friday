@@ -19,11 +19,13 @@ import {
   User,
   Briefcase,
   ArrowRightLeft,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from '../components/shared/NotificationBell';
 import StatusBadge from '../components/shared/StatusBadge';
 import ScrollToTop from '../components/shared/ScrollToTop';
+import ReportIssueModal from '../components/shared/ReportIssueModal';
 import { notificationsService } from '../services/notifications';
 
 export default function OrganizerLayout() {
@@ -33,6 +35,7 @@ export default function OrganizerLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isSwitching, setIsSwitching] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const fetchUnread = async () => {
     try {
@@ -186,6 +189,19 @@ export default function OrganizerLayout() {
           </button>
         </div>
 
+        {/* Report Issue Action */}
+        <div className="px-4 py-2 border-t border-black/5 flex items-center justify-between text-xs">
+          <button
+            type="button"
+            onClick={() => setIsReportModalOpen(true)}
+            className="hover:text-amber-800 flex items-center gap-1.5 text-xs text-amber-700 cursor-pointer font-semibold transition-colors"
+            title="Report a bug or issue"
+          >
+            <AlertCircle className="w-3.5 h-3.5 text-amber-700" />
+            <span>Report Issue</span>
+          </button>
+        </div>
+
         {/* Footer / Logout */}
         <div className="p-4 border-t border-black/10 flex items-center justify-between text-xs text-[#717975]">
           <div className="flex flex-col truncate max-w-[150px]">
@@ -234,7 +250,15 @@ export default function OrganizerLayout() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <button
+              type="button"
+              onClick={() => setIsReportModalOpen(true)}
+              className="w-8 h-8 rounded-full bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center cursor-pointer transition-all active:scale-95 shadow-2xs"
+              title="Report an Issue or Bug"
+            >
+              <AlertCircle className="w-4 h-4 text-amber-800" />
+            </button>
             <NotificationBell />
             <Link
               to="/explore"
@@ -309,6 +333,9 @@ export default function OrganizerLayout() {
           <span>Profile</span>
         </Link>
       </nav>
+
+      {/* User Issue & Feedback Reporting Modal */}
+      <ReportIssueModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
     </div>
   );
 }

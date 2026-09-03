@@ -461,33 +461,33 @@ export default function PackageDetailPage() {
               </h2>
 
               {itinerary.length > 0 ? (
-                <div className="relative pl-6 md:pl-8 border-l border-black/20 flex flex-col gap-8">
+                <div className="relative pl-4 sm:pl-6 md:pl-8 border-l border-black/20 flex flex-col gap-8 w-full max-w-full">
                   {itinerary.map((item, idx) => (
-                    <div key={idx} className="relative">
+                    <div key={idx} className="relative w-full max-w-full">
                       {/* Terracotta Dot */}
-                      <div className="absolute -left-[31px] md:-left-[39px] w-4 h-4 rounded-full bg-[#420E00] border-4 border-[#F8FAF6]" />
+                      <div className="absolute -left-[23px] sm:-left-[31px] md:-left-[39px] w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-[#420E00] border-3 sm:border-4 border-[#F8FAF6]" />
 
                       <span className="text-[11px] font-bold text-[#420E00] uppercase tracking-widest mb-1 block">
                         DAY {item.day || idx + 1}
                       </span>
                       <h4
-                        className="text-2xl font-normal text-[#00261D] mb-2"
+                        className="text-2xl font-normal text-[#00261D] mb-2 break-words"
                         style={{ fontFamily: "'Instrument Serif', serif" }}
                       >
                         {item.title}
                       </h4>
-                      <p className="text-xs sm:text-sm text-[#414845] leading-relaxed mb-3" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      <p className="text-xs sm:text-sm text-[#414845] leading-relaxed mb-3 break-words" style={{ fontFamily: 'Inter, sans-serif' }}>
                         {item.description}
                       </p>
 
                       {item.activities && item.activities.length > 0 && (
-                        <div className="space-y-3 pt-2">
+                        <div className="space-y-3 pt-2 w-full max-w-full">
                           {item.activities.map((act, actIdx) => (
                             <div
                               key={actIdx}
-                              className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-2xl bg-white border border-black/10 gap-3.5 hover:border-black/20 hover:shadow-xs transition-all group"
+                              className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-white border border-black/10 gap-3.5 hover:border-black/20 hover:shadow-xs transition-all group w-full max-w-full overflow-hidden"
                             >
-                              <div className="flex items-start sm:items-center gap-3.5 w-full sm:w-auto flex-1">
+                              <div className="flex items-start sm:items-center gap-3.5 w-full sm:w-auto flex-1 min-w-0">
                                 {/* Activity Real Web Photography Thumbnail */}
                                 {(() => {
                                   const rawActThumb = act.image_url || heroImage;
@@ -535,12 +535,12 @@ export default function PackageDetailPage() {
                                     )}
                                   </div>
 
-                                  <h5 className="text-sm font-bold text-[#00261D]">
+                                  <h5 className="text-sm font-bold text-[#00261D] break-words">
                                     {act.title}
                                   </h5>
 
                                   {act.description && (
-                                    <p className="text-xs text-[#555E59] leading-relaxed line-clamp-2">
+                                    <p className="text-xs text-[#555E59] leading-relaxed break-words pt-0.5">
                                       {act.description}
                                     </p>
                                   )}

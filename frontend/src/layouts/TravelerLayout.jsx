@@ -14,12 +14,14 @@ import {
   LogOut,
   Briefcase,
   ArrowRightLeft,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import AuthModal from '../components/auth/AuthModal';
 import NotificationBell from '../components/shared/NotificationBell';
 import UserAvatar from '../components/shared/UserAvatar';
 import ScrollToTop from '../components/shared/ScrollToTop';
+import ReportIssueModal from '../components/shared/ReportIssueModal';
 import { notificationsService } from '../services/notifications';
 
 export default function TravelerLayout() {
@@ -28,6 +30,7 @@ export default function TravelerLayout() {
   const { user, backendUser, organizerProfile, role, signOut, upgradeToOrganizer, switchToTraveler } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [isSwitching, setIsSwitching] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const fetchUnread = async () => {
     try {
@@ -290,13 +293,23 @@ export default function TravelerLayout() {
             </button>
           </nav>
 
-          <div className="flex gap-4 px-4 text-[11px] text-[#717975]">
-            <Link to="/about" className="hover:text-[#00261D] flex items-center gap-1">
-              <HelpCircle className="w-3 h-3" /> Help
-            </Link>
-            <Link to="/about" className="hover:text-[#00261D] flex items-center gap-1">
-              <Shield className="w-3 h-3" /> Privacy
-            </Link>
+          <div className="flex items-center justify-between px-4 text-[11px] text-[#717975]">
+            <div className="flex gap-3">
+              <Link to="/about" className="hover:text-[#00261D] flex items-center gap-1">
+                <HelpCircle className="w-3 h-3" /> Help
+              </Link>
+              <Link to="/about" className="hover:text-[#00261D] flex items-center gap-1">
+                <Shield className="w-3 h-3" /> Privacy
+              </Link>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsReportModalOpen(true)}
+              className="hover:text-amber-800 flex items-center gap-1 text-[11px] text-amber-700 cursor-pointer font-medium"
+              title="Report a bug or issue"
+            >
+              <AlertCircle className="w-3 h-3" /> Report Issue
+            </button>
           </div>
         </div>
       </aside>
@@ -310,7 +323,15 @@ export default function TravelerLayout() {
               Friday®
             </span>
           </Link>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsReportModalOpen(true)}
+              className="w-8 h-8 rounded-full bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center cursor-pointer transition-all active:scale-95 shadow-2xs"
+              title="Report an Issue or Bug"
+            >
+              <AlertCircle className="w-4 h-4 text-amber-800" />
+            </button>
             <NotificationBell />
             <Link to={isOrganizer ? "/organizer/profile" : "/profile"}>
               <UserAvatar
@@ -416,6 +437,9 @@ export default function TravelerLayout() {
 
       {/* Global Auth Modal */}
       <AuthModal />
+
+      {/* User Issue & Feedback Reporting Modal */}
+      <ReportIssueModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
     </div>
   );
 }

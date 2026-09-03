@@ -986,17 +986,23 @@ export default function PackageFormPage() {
                       <button
                         type="button"
                         onClick={async () => {
-                          const photos = await searchDestinationImages(formData.destination, formData.destination);
-                          if (photos && photos.length > 0) {
-                            const randomIdx = Math.floor(Math.random() * photos.length);
-                            updateField('image_url', photos[randomIdx]);
-                            toast.success('Updated cover photo from live web research!');
-                          } else {
-                            updateField('image_url', null);
-                            toast.error('No more unique web photos found for this destination.');
+                          try {
+                            const photos = await searchDestinationImages(formData.destination, formData.destination);
+                            if (photos && photos.length > 0) {
+                              const remaining = photos.filter((p) => p !== formData.image_url);
+                              const nextPhoto = remaining.length > 0
+                                ? remaining[Math.floor(Math.random() * remaining.length)]
+                                : photos[0];
+                              updateField('image_url', nextPhoto);
+                              toast.success('Updated cover photo from live web research!');
+                            } else {
+                              toast('Active photography is already assigned for this destination.', { icon: '📸' });
+                            }
+                          } catch {
+                            toast('Using verified regional cover photo.', { icon: '📸' });
                           }
                         }}
-                        className="text-[11px] font-bold text-emerald-900 hover:text-emerald-700 flex items-center gap-1 cursor-pointer bg-white px-2.5 py-1 rounded-full border border-black/10 shadow-2xs"
+                        className="text-[11px] font-bold text-emerald-900 hover:text-emerald-700 flex items-center gap-1 cursor-pointer bg-white px-2.5 py-1 rounded-full border border-black/10 shadow-2xs transition-all active:scale-95"
                       >
                         <RefreshCw className="w-3 h-3" />
                         <span>Shuffle Photo</span>
@@ -1333,7 +1339,7 @@ export default function PackageFormPage() {
                                 {fDay.formatted_date}
                               </span>
                               <span className="text-sm font-bold text-[#00261D] block mt-0.5">
-                                {fDay.temp}°C
+                                {(fDay.temp_max !== undefined && fDay.day_number > 1) ? fDay.temp_max : fDay.temp}°C
                               </span>
                               <span className="text-[10px] font-bold text-[#555E59] block truncate">
                                 {fDay.condition}

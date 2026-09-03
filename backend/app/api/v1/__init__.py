@@ -12,6 +12,7 @@ from app.api.v1.packages import router as packages_router
 from app.api.v1.bookings import router as bookings_router
 from app.api.v1.notifications import router as notifications_router
 from app.api.v1.reviews import router as reviews_router
+from app.api.v1.complaints import router as complaints_router
 
 v1_router = APIRouter(prefix="/api/v1")
 
@@ -26,3 +27,4 @@ v1_router.include_router(packages_router)
 v1_router.include_router(bookings_router)
 v1_router.include_router(notifications_router)
 v1_router.include_router(reviews_router)
+v1_router.include_router(complaints_router)

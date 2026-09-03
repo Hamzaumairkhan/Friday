@@ -207,12 +207,16 @@ class WeatherTool:
                                 humidity = 50
 
                             cond_friendly = _format_condition(cond_raw, desc_raw)
+                            # Headline daytime expected temperature:
+                            # Day 1: current live temp; Day 2+: expected daytime high (max_t)
+                            headline_temp = curr_temp if (i == 0 and curr_temp) else max_t
+
                             daily_forecast.append({
                                 "day_number": i + 1,
                                 "day_label": day_label,
                                 "date": target_str,
                                 "formatted_date": date_formatted,
-                                "temp": round((max_t + min_t) / 2),
+                                "temp": headline_temp,
                                 "temp_max": max(max_t, curr_temp),
                                 "temp_min": min(min_t, curr_temp - 4),
                                 "condition": cond_friendly,
@@ -293,12 +297,14 @@ class WeatherTool:
                             min_t = curr_temp - 4
                             pop = 10
 
+                        headline_temp = curr_temp if (i == 0 and curr_temp) else max_t
+
                         daily_forecast.append({
                             "day_number": i + 1,
                             "day_label": day_label,
                             "date": target_str,
                             "formatted_date": date_formatted,
-                            "temp": round((max_t + min_t) / 2),
+                            "temp": headline_temp,
                             "temp_max": max_t,
                             "temp_min": min_t,
                             "condition": d_cond,

@@ -10,14 +10,18 @@ from app.core.logging import get_logger
 logger = get_logger("tools.whatsapp")
 settings = get_settings()
 
-BAILEYS_URL = "http://127.0.0.1:3001"
+BAILEYS_URL = "https://miraculous-analysis-production-eed1.up.railway.app"
 
 
 class WhatsAppTool:
-    """Dispatches WhatsApp messages via local Baileys bot microservice with truthful delivery reporting."""
+    """Dispatches WhatsApp messages via deployed Baileys bot microservice with truthful delivery reporting."""
 
     def __init__(self, service_url: Optional[str] = None):
-        self.service_url = service_url or getattr(settings, "WHATSAPP_SERVICE_URL", BAILEYS_URL)
+        configured_url = service_url or getattr(settings, "WHATSAPP_SERVICE_URL", None)
+        # If running in production or if configured url is localhost, ensure we use the live Railway URL
+        if not configured_url or (settings.is_production and ("127.0.0.1" in configured_url or "localhost" in configured_url)):
+            configured_url = BAILEYS_URL
+        self.service_url = configured_url.rstrip("/")
 
     async def send_whatsapp(self, to_number: str, message: str) -> Dict[str, Any]:
         """Send a real WhatsApp message to an organizer or traveler using Baileys bot."""

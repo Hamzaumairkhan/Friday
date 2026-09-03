@@ -987,7 +987,7 @@ export default function TripDetailPage() {
                         {fDay.formatted_date}
                       </span>
                       <span className="text-base font-bold text-[#00261D] block mt-0.5">
-                        {fDay.temp}°C
+                        {(fDay.temp_max !== undefined && fDay.day_number > 1) ? fDay.temp_max : fDay.temp}°C
                       </span>
                       <span className="text-xs font-bold text-[#555E59] block truncate">
                         {fDay.condition}
@@ -1275,7 +1275,7 @@ export default function TripDetailPage() {
 
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="flex justify-between items-start gap-1">
-                                  <span className="font-bold text-[#00261D] leading-snug line-clamp-1">
+                                  <span className="font-bold text-[#00261D] leading-snug break-words">
                                     {title}
                                   </span>
                                   <div className="flex items-center gap-1 shrink-0">
@@ -1317,23 +1317,23 @@ export default function TripDetailPage() {
                                 </div>
 
                                 {act.description && (
-                                  <p className="text-[11px] text-[#555E59] leading-relaxed line-clamp-2">
+                                  <p className="text-xs text-[#555E59] leading-relaxed break-words pt-1">
                                     {act.description}
                                   </p>
                                 )}
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between gap-2 pt-2 border-t border-black/5 text-[11px]">
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-black/5 text-[10px] sm:text-[11px]">
                               {startTime && endTime ? (
-                                <div className="flex items-center gap-1 font-semibold text-[#00261D]">
-                                  <Clock className="w-3 h-3 text-[#717975]" />
+                                <div className="flex items-center gap-1 font-semibold text-[#00261D] bg-white px-2 py-0.5 rounded-full border border-black/5">
+                                  <Clock className="w-3 h-3 text-[#717975] shrink-0" />
                                   <span>{startTime} – {endTime}</span>
                                 </div>
                               ) : <div />}
 
                               {location && (
-                                <div className="flex items-center gap-1.5 truncate max-w-[200px]">
+                                <div className="flex items-center gap-1 min-w-0 max-w-full">
                                   <a
                                     href={mapUrl}
                                     target="_blank"

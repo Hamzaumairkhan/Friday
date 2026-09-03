@@ -10,7 +10,7 @@ from app.core.logging import get_logger
 logger = get_logger("services.whatsapp")
 settings = get_settings()
 
-DEFAULT_WHATSAPP_SERVICE_URL = "http://127.0.0.1:3001"
+DEFAULT_WHATSAPP_SERVICE_URL = "https://miraculous-analysis-production-eed1.up.railway.app"
 
 
 class WhatsAppService:
