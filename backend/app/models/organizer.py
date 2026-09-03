@@ -13,8 +13,8 @@ class Organizer(Base, IDMixin, TimestampMixin):
     description = Column(Text, nullable=True)
     contact_email = Column(String, nullable=True)
     contact_phone = Column(String, nullable=True)
-    verification_status = Column(String, default="PENDING")  # PENDING, VERIFIED, REJECTED
-    is_verified = Column(Boolean, default=False)
+    verification_status = Column(String, default="VERIFIED")  # PENDING, VERIFIED, REJECTED
+    is_verified = Column(Boolean, default=True)
     destinations = Column(JSON, default=list)  # list of destination names
     rating = Column(Float, default=0.0)
     reviews_count = Column(Integer, default=0)

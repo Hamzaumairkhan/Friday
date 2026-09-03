@@ -21,6 +21,7 @@ import {
   Phone,
   Eye,
   Navigation,
+  Copy,
 } from 'lucide-react';
 import { packagesService } from '../../services/packages';
 import { organizersService } from '../../services/organizers';
@@ -55,12 +56,58 @@ export default function PackageDetailPage() {
   const [bookingNotes, setBookingNotes] = useState('');
   const [isBooking, setIsBooking] = useState(false);
 
-  const fetchPackageReviews = async (pid) => {
+  const [isCloning, setIsCloning] = useState(false);
+
+  const handleClonePackage = async () => {
+    if (!pkg?.id) return;
+    setIsCloning(true);
     try {
-      const revs = await packagesService.getReviews(pid || packageId);
-      setReviews(revs || []);
-    } catch (e) {
-      console.error('Error fetching reviews:', e);
+      toast.loading('Copying tour package into workspace...', { id: 'clone-pkg' });
+      const res = await organizersService.clonePackage(pkg.id);
+      const cloned = res?.data || res;
+      toast.success('Tour package copied! Opening editor...', { id: 'clone-pkg' });
+      navigate(`/organizer/trips/${cloned.id}/edit`);
+    } catch (err) {
+      console.error('Clone error:', err);
+      toast.error(err.response?.data?.detail || err.message || 'Failed to duplicate package.', { id: 'clone-pkg' });
+    } finally {
+      setIsCloning(false);
+    }
+  };
+
+  const handleCopyItineraryToVault = async () => {
+    if (!pkg?.id) return;
+    setIsCloning(true);
+    try {
+      toast.loading('Copying itinerary to My Trips...', { id: 'copy-vault' });
+      const tripPayload = {
+        destination: pkg.destination || 'Pakistan',
+        duration_days: pkg.duration_days || 5,
+        budget_pkr: pkg.price_per_person || 50000,
+        notes: `Cloned from tour package: ${pkg.title}`,
+        days: (itinerary || []).map((d, i) => ({
+          day_number: d.day_number || d.day || i + 1,
+          title: d.title || `Day ${i + 1}`,
+          description: d.description || '',
+          activities: (d.activities || []).map((a) => ({
+            title: typeof a === 'string' ? a : a.title,
+            description: a.description || '',
+            start_time: a.start_time || '09:00 AM',
+            end_time: a.end_time || '12:00 PM',
+            location: a.location || pkg.destination,
+            category: a.category || 'SIGHTSEEING',
+            estimated_cost: a.estimated_cost || 0,
+          })),
+        })),
+      };
+      const created = await tripsService.createTrip(tripPayload);
+      toast.success('Itinerary copied to your personal trips!', { id: 'copy-vault' });
+      navigate(`/trips/${created.id || created.data?.id}`);
+    } catch (err) {
+      console.error('Copy itinerary error:', err);
+      toast.error('Could not copy itinerary right now.', { id: 'copy-vault' });
+    } finally {
+      setIsCloning(false);
     }
   };
 
@@ -261,13 +308,40 @@ export default function PackageDetailPage() {
           {/* Dark Matte Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-          {/* Back Button (Mobile/Tablet) */}
-          <button
-            onClick={() => navigate('/explore')}
-            className="absolute top-4 left-4 lg:hidden w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-[#00261D] shadow-sm cursor-pointer"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+          {/* Top Actions Floating Bar (Desktop & Mobile) */}
+          <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 pointer-events-auto">
+            <button
+              onClick={() => navigate(-1)}
+              className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center text-[#00261D] shadow-md hover:bg-white transition-all cursor-pointer"
+              title="Back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-2">
+              {isOrganizer ? (
+                <button
+                  onClick={handleClonePackage}
+                  disabled={isCloning}
+                  className="px-4 py-2 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#00261D]/90 transition-all shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  title="Copy & Edit Tour Package"
+                >
+                  {isCloning ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#BBEAD5]" /> : <Copy className="w-3.5 h-3.5 text-[#BBEAD5]" />}
+                  <span>Copy & Edit</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleCopyItineraryToVault}
+                  disabled={isCloning}
+                  className="px-4 py-2 rounded-full bg-white/90 backdrop-blur-md text-[#00261D] text-xs font-bold hover:bg-white transition-all shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  title="Copy itinerary to My Trips"
+                >
+                  {isCloning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5 text-[#00261D]" />}
+                  <span>Copy Itinerary</span>
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Hero Content */}
           <div className="absolute bottom-0 left-0 w-full p-6 md:p-10 flex flex-col justify-end text-white">
@@ -934,23 +1008,43 @@ export default function PackageDetailPage() {
 
           {/* CTA Button */}
           {isOrganizer ? (
-            <div className="w-full bg-amber-50 border border-amber-200 text-amber-900 py-4 rounded-xl text-xs font-bold uppercase tracking-widest text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
-              Organizers cannot book trips
+            <div className="space-y-2.5">
+              <button
+                onClick={handleClonePackage}
+                disabled={isCloning}
+                className="w-full bg-[#00261D] text-white py-3.5 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-[#00261D]/90 transition-all cursor-pointer shadow-md flex items-center justify-center gap-2 active:scale-98"
+                style={{ fontFamily: 'Inter, sans-serif' }}
+              >
+                {isCloning ? <Loader2 className="w-4 h-4 animate-spin text-[#BBEAD5]" /> : <Copy className="w-4 h-4 text-[#BBEAD5]" />}
+                <span>Copy & Edit Package</span>
+              </button>
+              <p className="text-[11px] text-[#717975] text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+                Clone this tour package into your organizer workshop.
+              </p>
             </div>
           ) : (
-          <>
-          <button
-            onClick={() => setBookDialogOpen(true)}
-            className="w-full bg-[#00261D] text-white py-4 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-[#00261D]/90 transition-all cursor-pointer shadow-md"
-            style={{ fontFamily: 'Inter, sans-serif' }}
-          >
-            Book this trip
-          </button>
+            <div className="space-y-2.5">
+              <button
+                onClick={() => setBookDialogOpen(true)}
+                className="w-full bg-[#00261D] text-white py-3.5 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-[#00261D]/90 transition-all cursor-pointer shadow-md"
+                style={{ fontFamily: 'Inter, sans-serif' }}
+              >
+                Book this trip
+              </button>
 
-          <p className="text-[11px] text-[#717975] text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
-            You won't be charged yet.
-          </p>
-          </>
+              <button
+                onClick={handleCopyItineraryToVault}
+                disabled={isCloning}
+                className="w-full bg-[#F8FAF6] border border-black/10 text-[#00261D] py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-slate-100 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-98"
+              >
+                {isCloning ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-800" /> : <Copy className="w-3.5 h-3.5 text-emerald-800" />}
+                <span>Copy Itinerary to My Trips</span>
+              </button>
+
+              <p className="text-[11px] text-[#717975] text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+                You won't be charged yet.
+              </p>
+            </div>
           )}
         </div>
 
@@ -1074,19 +1168,37 @@ export default function PackageDetailPage() {
           </div>
         </div>
 
-        {isOrganizer ? (
-          <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
-            Organizer Account
-          </span>
-        ) : (
-          <button
-            onClick={() => setBookDialogOpen(true)}
-            className="px-6 py-2.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-2 cursor-pointer shrink-0 active:scale-98 transition-all"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#BBEAD5]" />
-            <span>Book Trip</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isOrganizer ? (
+            <button
+              onClick={handleClonePackage}
+              disabled={isCloning}
+              className="px-5 py-2.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-98 transition-all"
+              title="Copy & Edit Tour Package"
+            >
+              {isCloning ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#BBEAD5]" /> : <Copy className="w-3.5 h-3.5 text-[#BBEAD5]" />}
+              <span>Copy Package</span>
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={handleCopyItineraryToVault}
+                disabled={isCloning}
+                className="p-2.5 rounded-full bg-[#F8FAF6] border border-black/10 text-[#00261D] hover:bg-slate-100 transition-all shadow-2xs flex items-center justify-center cursor-pointer shrink-0"
+                title="Copy Itinerary to My Trips"
+              >
+                {isCloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4 text-[#00261D]" />}
+              </button>
+              <button
+                onClick={() => setBookDialogOpen(true)}
+                className="px-5 sm:px-6 py-2.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-98 transition-all"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#BBEAD5]" />
+                <span>Book Trip</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

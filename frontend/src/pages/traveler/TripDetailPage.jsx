@@ -235,14 +235,10 @@ export default function TripDetailPage() {
   // ─── Clone / Copy Trip into User's Private Workspace ───────────────────
   const handleCopyTrip = async () => {
     if (!trip) return;
-    if (isOrganizer) {
-      toast.error('Organizers cannot copy traveler trip itineraries. Only traveler accounts can clone community trips.');
-      return;
-    }
     setIsCopying(true);
     try {
       const cloned = await tripsService.cloneTrip(trip.id);
-      toast.success(cloned.message || 'Trip cloned! Redirecting to your custom draft editor...');
+      toast.success(cloned.message || 'Trip copied! Redirecting to your draft...');
       const targetId = cloned.id || cloned.trip?.id;
       navigate(`/plan-trip?tripId=${targetId}`);
     } catch (err) {
@@ -626,6 +622,17 @@ export default function TripDetailPage() {
                 </div>
               )}
 
+              {/* Duplicate / Copy Trip for Owner */}
+              <button
+                onClick={handleCopyTrip}
+                disabled={isCopying}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-black/10 bg-white hover:bg-slate-50 text-xs font-bold uppercase tracking-wider text-[#00261D] transition-colors shadow-2xs cursor-pointer active:scale-98"
+                title="Duplicate this trip into a new draft"
+              >
+                {isCopying ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" /> : <Copy className="w-3.5 h-3.5 text-emerald-700" />}
+                <span>Duplicate Trip</span>
+              </button>
+
               {/* Edit Trip Details (Disabled/Locked after uploading) */}
               {isLocked ? (
                 <div className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-100 border border-black/10 text-xs font-bold uppercase tracking-wider text-[#717975]" title="Published itineraries are locked for editing">
@@ -643,7 +650,7 @@ export default function TripDetailPage() {
               )}
             </>
           ) : (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <span className="px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-[#717975] border border-black/5">
                 {trip.is_public ? 'Community Itinerary' : 'Private Itinerary (View Only)'}
               </span>
@@ -652,11 +659,11 @@ export default function TripDetailPage() {
                   Copying Disabled
                 </span>
               )}
-              {(!isOwner && !isOrganizer && Boolean(trip.is_public) && trip.allow_cloning !== false) && (
+              {Boolean(trip.is_public) && trip.allow_cloning !== false && (
                 <button
                   onClick={handleCopyTrip}
                   disabled={isCopying}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#00261D]/90 transition-all shadow-sm cursor-pointer hover:scale-102 active:scale-98"
+                  className="flex items-center gap-1.5 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#00261D]/90 transition-all shadow-sm cursor-pointer hover:scale-102 active:scale-98"
                 >
                   {isCopying ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#BBEAD5]" /> : <Copy className="w-3.5 h-3.5 text-[#BBEAD5]" />}
                   <span>Copy & Edit Trip →</span>
@@ -1598,6 +1605,54 @@ export default function TripDetailPage() {
           </div>
         </div>
       )}
+
+      {/* ─── MOBILE FLOATING STICKY ACTION BAR ──── */}
+      <div className="fixed bottom-[56px] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-black/10 px-4 py-2.5 lg:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.08)] flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase font-bold tracking-wider text-[#717975] leading-none mb-0.5 truncate">
+            {trip.destination || 'Expedition'}
+          </p>
+          <p className="text-sm font-bold text-[#00261D] truncate">
+            {trip.duration || 3} Days Itinerary
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {isOwner ? (
+            <>
+              <button
+                onClick={handleCopyTrip}
+                disabled={isCopying}
+                className="px-3.5 py-2 rounded-full border border-black/10 bg-[#F8FAF6] text-[#00261D] text-xs font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+                title="Duplicate Trip"
+              >
+                {isCopying ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" /> : <Copy className="w-3.5 h-3.5 text-emerald-700" />}
+                <span>Duplicate</span>
+              </button>
+              {!isLocked && (
+                <button
+                  onClick={() => setIsEditingTrip(!isEditingTrip)}
+                  className="px-3.5 py-2 rounded-full bg-[#00261D] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-[#BBEAD5]" />
+                  <span>{isEditingTrip ? 'Close' : 'Edit'}</span>
+                </button>
+              )}
+            </>
+          ) : (
+            Boolean(trip.is_public) && trip.allow_cloning !== false && (
+              <button
+                onClick={handleCopyTrip}
+                disabled={isCopying}
+                className="px-5 py-2.5 rounded-full bg-[#00261D] text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+              >
+                {isCopying ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#BBEAD5]" /> : <Copy className="w-3.5 h-3.5 text-[#BBEAD5]" />}
+                <span>Copy Trip</span>
+              </button>
+            )
+          )}
+        </div>
+      </div>
     </div>
   );
 }

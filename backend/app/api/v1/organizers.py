@@ -32,12 +32,20 @@ router = APIRouter(prefix="/organizers", tags=["Organizers Marketplace & Dashboa
 
 
 def _format_org(o: Organizer) -> OrganizerResponse:
+    # Ensure active organizers on Friday default to VERIFIED
+    status = o.verification_status
+    if not status or status == "PENDING":
+        status = "VERIFIED"
+    verified = o.is_verified if o.is_verified is not None else True
+    if status == "VERIFIED":
+        verified = True
+
     return OrganizerResponse(
         id=o.id,
         name=o.name,
         description=o.description,
-        verification_status=o.verification_status,
-        is_verified=o.is_verified,
+        verification_status=status,
+        is_verified=verified,
         destinations=o.destinations or [],
         rating=o.rating or 0.0,
         reviews_count=o.reviews_count or 0,
@@ -195,8 +203,15 @@ class BookingStatusUpdateRequest(BaseModel):
 @router.get("/me", response_model=OrganizerResponse)
 async def get_my_organizer_profile(
     current_organizer: Organizer = Depends(get_current_organizer),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Retrieve the authenticated organizer's profile."""
+    """Retrieve the authenticated organizer's profile, self-healing status to VERIFIED."""
+    if current_organizer.verification_status != "REJECTED":
+        if current_organizer.verification_status != "VERIFIED" or not current_organizer.is_verified:
+            current_organizer.verification_status = "VERIFIED"
+            current_organizer.is_verified = True
+            await db.commit()
+            await db.refresh(current_organizer)
     return _format_org(current_organizer)
 
 

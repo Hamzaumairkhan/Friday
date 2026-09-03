@@ -128,7 +128,7 @@ export default function OrganizerLayout() {
             {organizerProfile?.name || backendUser?.name || 'My Tour Company'}
           </h4>
           <div className="flex items-center gap-2 pt-0.5">
-            <StatusBadge status={organizerProfile?.verification_status || 'VERIFIED'} type="verification" />
+            <StatusBadge status={(organizerProfile?.verification_status === 'REJECTED') ? 'REJECTED' : 'VERIFIED'} type="verification" />
           </div>
         </div>
 
