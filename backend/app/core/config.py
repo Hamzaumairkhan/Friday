@@ -71,8 +71,8 @@ class Settings(BaseSettings):
     SMTP_USER: Optional[str] = "todaysfriday555@gmail.com"
     SMTP_PASSWORD: Optional[str] = "ajif ktyg semf bbqi"
 
-    # WHATSAPP (Isolated local Baileys microservice)
-    WHATSAPP_SERVICE_URL: str = "http://127.0.0.1:3001"
+    # WHATSAPP (Live Railway Baileys microservice / Local microservice)
+    WHATSAPP_SERVICE_URL: str = "https://miraculous-analysis-production-eed1.up.railway.app"
 
     # CLOUDINARY (Optional Image Storage for Production)
     CLOUDINARY_CLOUD_NAME: Optional[str] = None
