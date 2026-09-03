@@ -246,17 +246,17 @@ export default function OrganizerBookingsPage() {
         />
       ) : (
         <div className="bg-white rounded-3xl border border-black/10 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none]">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-black/10 bg-[#F8FAF6] text-[11px] uppercase font-bold text-[#6F6F6F] tracking-wider">
-                  <th className="py-4 px-6">Traveler</th>
-                  <th className="py-4 px-6">Tour Package</th>
-                  <th className="py-4 px-6">Seats</th>
-                  <th className="py-4 px-6">Total Due</th>
-                  <th className="py-4 px-6">Payment Proof</th>
-                  <th className="py-4 px-6">Status</th>
-                  <th className="py-4 px-6 text-right">Actions</th>
+                <tr className="border-b border-black/10 bg-[#F8FAF6] text-[10px] uppercase font-bold text-[#6F6F6F] tracking-wider">
+                  <th className="py-3 px-3.5">Traveler</th>
+                  <th className="py-3 px-3">Tour Package</th>
+                  <th className="py-3 px-3">Seats</th>
+                  <th className="py-3 px-3">Total Due</th>
+                  <th className="py-3 px-3">Payment Proof</th>
+                  <th className="py-3 px-3">Status</th>
+                  <th className="py-3 px-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/5 text-xs text-[#191C1A]">
@@ -277,53 +277,53 @@ export default function OrganizerBookingsPage() {
                   const travelerName = (!isPlaceholder && rawName) ? rawName : (emailDerived || 'Verified Traveler');
                   return (
                     <tr key={b.id} className="hover:bg-[#F8FAF6] transition-colors">
-                      <td className="py-4 px-6 font-bold text-[#00261D]">
-                        <div className="flex items-center gap-3">
+                      <td className="py-2.5 px-3.5 font-bold text-[#00261D]">
+                        <div className="flex items-center gap-2.5">
                           {b.traveler_profile_picture ? (
                             <img
                               src={b.traveler_profile_picture}
                               alt={travelerName}
-                              className="w-9 h-9 rounded-full object-cover border border-black/10 shrink-0"
+                              className="w-7.5 h-7.5 rounded-full object-cover border border-black/10 shrink-0"
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <div className="w-9 h-9 rounded-full bg-[#00261D] flex items-center justify-center text-white text-sm font-bold shrink-0">
+                            <div className="w-7.5 h-7.5 rounded-full bg-[#00261D] flex items-center justify-center text-white text-xs font-bold shrink-0">
                               {travelerName.charAt(0).toUpperCase()}
                             </div>
                           )}
-                          <div>
-                            <p className="font-bold text-[#00261D]">{travelerName}</p>
+                          <div className="min-w-0">
+                            <p className="font-bold text-[#00261D] text-xs truncate max-w-[120px] xl:max-w-[150px]">{travelerName}</p>
                             {b.traveler_email && (
-                              <p className="text-[10px] text-[#717975] font-normal">{b.traveler_email}</p>
+                              <p className="text-[10px] text-[#717975] font-normal truncate max-w-[120px] xl:max-w-[150px]">{b.traveler_email}</p>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-6 max-w-xs truncate font-medium text-[#00261D]">
+                      <td className="py-2.5 px-3 max-w-[130px] xl:max-w-[170px] truncate font-medium text-[#00261D] text-xs">
                         {b.package_title}
                       </td>
-                      <td className="py-4 px-6 text-[#717975]">{b.travelers} Seats</td>
-                      <td className="py-4 px-6 font-bold font-mono text-[#00261D]">
+                      <td className="py-2.5 px-3 text-[#717975] text-xs whitespace-nowrap">{b.travelers} Seat(s)</td>
+                      <td className="py-2.5 px-3 font-bold font-mono text-[#00261D] text-xs whitespace-nowrap">
                         PKR {Number(b.total_price || 0).toLocaleString()}
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="py-2.5 px-3">
                         {b.payment_proof_url ? (
                           <button
                             onClick={() => {
                               setSelectedBooking(b);
                               setProofModalOpen(true);
                             }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#E7E9E5] text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all cursor-pointer shadow-2xs"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#E7E9E5] text-[#00261D] hover:bg-[#00261D] hover:text-white transition-all cursor-pointer shadow-2xs whitespace-nowrap"
                           >
-                            <Eye className="w-3.5 h-3.5" /> View Slip
+                            <Eye className="w-3 h-3" /> View Slip
                           </button>
                         ) : (
-                          <span className="text-[11px] text-[#717975]">No slip uploaded</span>
+                          <span className="text-[10px] text-[#717975] whitespace-nowrap">No slip</span>
                         )}
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="py-2.5 px-3">
                         <span
-                          className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ${
                             b.payment_status === 'VERIFIED'
                               ? 'bg-emerald-100 text-emerald-900'
                               : b.payment_status === 'PROOF_UPLOADED'
@@ -336,12 +336,12 @@ export default function OrganizerBookingsPage() {
                           {b.payment_status || 'PENDING'}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-right space-x-2 whitespace-nowrap">
+                      <td className="py-2.5 px-3.5 text-right space-x-1.5 whitespace-nowrap">
                         {b.payment_status !== 'VERIFIED' && (
                           <button
                             onClick={() => handleVerifyPayment(b.id)}
                             disabled={processingAction}
-                            className="px-4 py-1.5 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
+                            className="px-2.5 py-1 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
                           >
                             Verify & Confirm
                           </button>
@@ -353,7 +353,7 @@ export default function OrganizerBookingsPage() {
                               setRejectModalOpen(true);
                             }}
                             disabled={processingAction}
-                            className="px-3 py-1.5 rounded-full border border-red-200 text-red-700 text-[11px] font-bold uppercase tracking-wider hover:bg-red-50 transition-colors cursor-pointer"
+                            className="px-2 py-1 rounded-full border border-red-200 text-red-700 text-[10px] font-bold uppercase tracking-wider hover:bg-red-50 transition-colors cursor-pointer"
                           >
                             Reject
                           </button>
@@ -364,10 +364,10 @@ export default function OrganizerBookingsPage() {
                             setDeleteModalOpen(true);
                           }}
                           disabled={processingAction}
-                          className="p-1.5 rounded-full text-red-600 hover:bg-red-50 hover:text-red-800 transition-colors cursor-pointer inline-flex items-center justify-center align-middle"
+                          className="p-1 rounded-full text-red-600 hover:bg-red-50 hover:text-red-800 transition-colors cursor-pointer inline-flex items-center justify-center align-middle"
                           title="Delete Reservation"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </td>
                     </tr>

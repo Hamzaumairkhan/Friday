@@ -130,7 +130,7 @@ class SmtpEmailProvider(BaseEmailProvider):
         def _send_sync():
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
-            msg["From"] = self.from_email
+            msg["From"] = f"Friday Travel Marketplace <{self.from_email}>"
             msg["To"] = target_to
 
             msg.attach(MIMEText(body, "plain", "utf-8"))
@@ -158,10 +158,13 @@ class EmailTool:
 
     def __init__(self, api_key: Optional[str] = None, from_email: Optional[str] = None, admin_email: Optional[str] = None):
         self.api_key = api_key or settings.RESEND_API_KEY
-        self.from_email = from_email or settings.EMAIL_FROM
+        raw_from = from_email or settings.EMAIL_FROM or settings.SMTP_USER or "todaysfriday555@gmail.com"
+        if "onboarding@resend.dev" in raw_from:
+            raw_from = settings.SMTP_USER or "todaysfriday555@gmail.com"
+        self.from_email = raw_from
         self.admin_email = admin_email or settings.ADMIN_EMAIL
 
-        # Priority 1: SMTP if configured
+        # Priority 1: Direct SMTP if host/user/password available
         if settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD:
             self.provider: BaseEmailProvider = SmtpEmailProvider(
                 host=settings.SMTP_HOST,
