@@ -14,17 +14,24 @@ export default function PackageCard({ pkg, organizer }) {
       className="group bg-white rounded-3xl border border-black/10 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col justify-between cursor-pointer"
     >
       {/* 400px Image Container with Film Matte Overlay */}
-      <div className="relative h-72 sm:h-96 w-full overflow-hidden bg-slate-100">
-        <img
-          src={imageUrl}
-          alt={pkg?.title || 'Tour Package'}
-          onError={(e) => {
-            if (!e.currentTarget.src.includes(defaultImage)) {
-              e.currentTarget.src = defaultImage;
-            }
-          }}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
-        />
+      <div className="relative h-72 sm:h-96 w-full overflow-hidden bg-gradient-to-br from-emerald-950 via-[#00261D] to-slate-900 flex items-center justify-center">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={pkg?.title || 'Tour Package'}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center text-center p-6 text-emerald-200">
+            <span className="text-6xl mb-2 select-none">🏔️</span>
+            <span className="text-xs uppercase tracking-widest font-semibold opacity-70">
+              {pkg?.destination || 'Expedition'}
+            </span>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
 
         {/* Organizer Badge */}

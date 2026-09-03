@@ -2,14 +2,43 @@
 
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from app.database.seed import seed_initial_data_async
+from app.models.organizer import Organizer
+from app.models.package import Package
 from tests.conftest import TestSessionLocal
+
+
+async def _create_test_marketplace_data(session):
+    for i in range(3):
+        org_id = f"test-org-{i}"
+        existing = await session.get(Organizer, org_id)
+        if not existing:
+            session.add(Organizer(
+                id=org_id,
+                name=f"Test Host {i}",
+                contact_email=f"host{i}@test.pk",
+                destinations=["Hunza", "Skardu"],
+                is_verified=True,
+            ))
+    for j in range(4):
+        pkg_id = f"test-pkg-{j}"
+        existing_pkg = await session.get(Package, pkg_id)
+        if not existing_pkg:
+            session.add(Package(
+                id=pkg_id,
+                organizer_id="test-org-0",
+                title=f"Test Tour {j}",
+                destination="Hunza",
+                duration_days=5,
+                price_per_person=35000.0,
+                is_active=True,
+            ))
+    await session.commit()
 
 
 def test_marketplace_matching(run_async):
     async def _test():
         async with TestSessionLocal() as session:
-            await seed_initial_data_async(session=session)
+            await _create_test_marketplace_data(session)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             # Query list of organizers
@@ -30,7 +59,7 @@ def test_marketplace_matching(run_async):
 def test_organizer_match_for_trip(run_async, auth_headers):
     async def _test():
         async with TestSessionLocal() as session:
-            await seed_initial_data_async(session=session)
+            await _create_test_marketplace_data(session)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             # Create a trip to Hunza

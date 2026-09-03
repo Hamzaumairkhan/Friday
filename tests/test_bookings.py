@@ -2,14 +2,33 @@
 
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from app.database.seed import seed_initial_data_async
+from app.models.organizer import Organizer
+from app.models.package import Package
 from tests.conftest import TestSessionLocal
 
 
 def test_create_and_view_booking(run_async, auth_headers):
     async def _test():
         async with TestSessionLocal() as session:
-            await seed_initial_data_async(session=session)
+            test_org = Organizer(
+                id="org-test-booking",
+                name="Booking Test Expeditions",
+                contact_email="booking@test.pk",
+                destinations=["Hunza"],
+                is_verified=True,
+            )
+            test_pkg = Package(
+                id="pkg-test-booking-1",
+                organizer_id="org-test-booking",
+                title="Hunza Test Tour",
+                destination="Hunza",
+                duration_days=4,
+                price_per_person=40000.0,
+                is_active=True,
+            )
+            session.add(test_org)
+            session.add(test_pkg)
+            await session.commit()
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             # 1. Create a trip

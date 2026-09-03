@@ -3,7 +3,8 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from app.database.seed import seed_initial_data_async
+from app.models.organizer import Organizer
+from app.models.package import Package
 
 
 def test_health_endpoint(run_async):
@@ -80,11 +81,33 @@ def test_api_trip_budget_summary(run_async, auth_headers):
     run_async(_test())
 
 
+async def _create_test_api_records(session):
+    test_org = Organizer(
+        id="org-api-test",
+        name="API Test Host",
+        contact_email="api@test.pk",
+        destinations=["Hunza"],
+        is_verified=True,
+    )
+    test_pkg = Package(
+        id="pkg-api-test",
+        organizer_id="org-api-test",
+        title="API Test Tour",
+        destination="Hunza",
+        duration_days=4,
+        price_per_person=35000.0,
+        is_active=True,
+    )
+    session.add(test_org)
+    session.add(test_pkg)
+    await session.commit()
+
+
 def test_api_organizers_and_packages(run_async, auth_headers, test_db_session):
-    """Verify listing seed organizers and packages."""
+    """Verify listing organizers and packages."""
     async def _test():
         async with test_db_session() as session:
-            await seed_initial_data_async(session=session)
+            await _create_test_api_records(session)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             # 1. List Organizers
@@ -109,10 +132,10 @@ def test_api_organizers_and_packages(run_async, auth_headers, test_db_session):
 
 
 def test_api_bookings_workflow(run_async, auth_headers, test_db_session):
-    """Verify creating a booking against a seed package."""
+    """Verify creating a booking against a package."""
     async def _test():
         async with test_db_session() as session:
-            await seed_initial_data_async(session=session)
+            await _create_test_api_records(session)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             # Get packages to find pkg id

@@ -21,7 +21,6 @@ from app.core.logging import setup_logging, get_logger
 from app.core.exceptions import FridayError, friday_error_handler
 from app.database.database import init_db, get_db
 from app.api.v1 import v1_router
-from app.database.seed import seed_initial_data_async
 
 setup_logging()
 logger = get_logger("main")
@@ -32,18 +31,11 @@ whatsapp_proc = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifecycle hook for DB initialization, seed data, and Baileys WhatsApp service."""
+    """Application lifecycle hook for DB initialization and Baileys WhatsApp service."""
     global whatsapp_proc
 
     logger.info("Initializing Friday database...")
     await init_db()
-    if not settings.is_production:
-        try:
-            await seed_initial_data_async()
-        except Exception as e:
-            logger.warning(f"Seed data notice: {e}")
-    else:
-        logger.info("Production mode detected: skipping demo/seed data insertion.")
 
     # Auto-start Baileys WhatsApp bot microservice if not already running (in dev/local environments)
     if not settings.is_production:

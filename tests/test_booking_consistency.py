@@ -3,14 +3,33 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from app.database.seed import seed_initial_data_async
+from app.models.organizer import Organizer
+from app.models.package import Package
 
 
 def test_booking_derives_immutable_package_metadata(run_async, auth_headers, test_db_session):
     """1. Booking must derive destination, duration, and price strictly from Package, not from trip or client."""
     async def _test():
         async with test_db_session() as session:
-            await seed_initial_data_async(session=session)
+            test_org = Organizer(
+                id="org-test-consistency",
+                name="Consistency Expeditions",
+                contact_email="cons@test.pk",
+                destinations=["Hunza"],
+                is_verified=True,
+            )
+            test_pkg = Package(
+                id="pkg-test-5d",
+                organizer_id="org-test-consistency",
+                title="Hunza 5-Day Expedition",
+                destination="Hunza",
+                duration_days=5,
+                price_per_person=45000.0,
+                is_active=True,
+            )
+            session.add(test_org)
+            session.add(test_pkg)
+            await session.commit()
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             # Create a Trip for Hunza (4 days)
@@ -18,10 +37,10 @@ def test_booking_derives_immutable_package_metadata(run_async, auth_headers, tes
             assert trip_res.status_code == 201
             trip_id = trip_res.json()["id"]
 
-            # Book the Hunza 5-day package (pkg-hunza-5d)
+            # Book the package (pkg-test-5d)
             booking_payload = {
                 "trip_id": trip_id,
-                "package_id": "pkg-hunza-5d",
+                "package_id": "pkg-test-5d",
                 "travelers": 2,
                 "notes": "Vegetarian meals only",
             }
@@ -43,9 +62,6 @@ def test_booking_derives_immutable_package_metadata(run_async, auth_headers, tes
 def test_historical_booking_immutable_to_future_package_edits(run_async, test_db_session):
     """2. Editing a package later must NEVER alter historical booking snapshot data."""
     async def _test():
-        async with test_db_session() as session:
-            await seed_initial_data_async(session=session)
-
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             # Register organizer and traveler
             reg_o = await ac.post("/api/v1/auth/register", json={"email": "org.hist@friday.pk", "name": "Org Hist", "role": "ORGANIZER", "organizer_name": "Hist Tours"})

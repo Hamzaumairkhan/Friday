@@ -3,7 +3,6 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from app.database.seed import seed_initial_data_async
 
 
 def test_user_registration_as_traveler(run_async):
@@ -192,9 +191,6 @@ def test_organizer_verification_status_is_protected(run_async):
 def test_organizer_booking_management_and_idor(run_async, test_db_session):
     """11 & 12. User books package, Organizer views booking and updates status."""
     async def _test():
-        async with test_db_session() as session:
-            await seed_initial_data_async(session=session)
-
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             # 1. Register Traveler
             reg_u = await ac.post("/api/v1/auth/register", json={"email": "booking.traveler@friday.pk", "name": "Booking Traveler", "role": "TRAVELER"})

@@ -18,7 +18,6 @@ from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.core.config import get_settings
 from app.database.database import init_db
-from app.database.seed import seed_initial_data_async
 from app.services.budget_service import BudgetService
 from app.tools.weather import WeatherTool
 from app.tools.places import PlacesTool
@@ -43,15 +42,14 @@ async def run_comprehensive_smoke_tests():
     passed = 0
     total = 20
 
-    # 1. Database & Seeding
-    print("\n[CHECK 1/20] Database Initialization & Idempotent Seeding...")
+    # 1. Database Initialization
+    print("\n[CHECK 1/20] Database Initialization (Zero Seed System)...")
     try:
         await init_db()
-        await seed_initial_data_async()
-        print("   ✅ DB initialized and initial packages/organizers seeded successfully.")
+        print("   ✅ DB schema initialized cleanly without dummy/seed data.")
         passed += 1
     except Exception as e:
-        print(f"   ❌ DB/Seed failed: {e}")
+        print(f"   ❌ DB init failed: {e}")
 
     # 2. Data directory anchoring check
     print("\n[CHECK 2/20] Database & ChromaDB Anchoring in backend/data/...")

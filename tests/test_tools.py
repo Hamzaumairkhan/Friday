@@ -9,7 +9,7 @@ from app.tools.restaurants import RestaurantsTool
 from app.tools.organizers import OrganizersTool
 from app.tools.web_search import WebSearchTool
 from app.tools.email import EmailTool
-from app.database.seed import seed_initial_data_async
+from app.models.organizer import Organizer
 
 
 def test_weather_tool(run_async):
@@ -97,7 +97,16 @@ def test_restaurants_tool(run_async):
 def test_organizers_tool(run_async, test_db_session):
     async def _test():
         async with test_db_session() as session:
-            await seed_initial_data_async(session=session)
+            test_org = Organizer(
+                id="org-test-hunza",
+                name="Hunza Explorers & Treks",
+                description="Mountain guide host",
+                contact_email="hunza@test.pk",
+                destinations=["Hunza", "Gilgit"],
+                is_verified=True,
+            )
+            session.add(test_org)
+            await session.commit()
         tool = OrganizersTool(session_factory=test_db_session)
         res = await tool.search_organizers("Hunza")
         assert res["success"] is True
