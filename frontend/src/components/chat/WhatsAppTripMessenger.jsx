@@ -22,6 +22,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { groupsService } from '../../services/groups';
+import { notificationsService } from '../../services/notifications';
 import { useAuth } from '../../context/AuthContext';
 import MessageBubble from '../shared/MessageBubble';
 import UserAvatar from '../shared/UserAvatar';
@@ -135,6 +136,29 @@ export default function WhatsAppTripMessenger({
       return () => clearInterval(interval);
     }
   }, [selectedGroup, currentUserId]);
+
+  // Auto-clear unread chat notifications for this group upon viewing
+  useEffect(() => {
+    if (!selectedGroup) return;
+    const autoClearChatNotifs = async () => {
+      try {
+        const notifs = await notificationsService.listNotifications();
+        if (Array.isArray(notifs)) {
+          const targetId = selectedGroup.package_id || selectedGroup.id;
+          const chatNotifs = notifs.filter(
+            (n) => !n.is_read && (n.type === 'NEW_GROUP_MESSAGE' || n.related_trip_id === targetId || n.related_trip_id === selectedGroup.id)
+          );
+          if (chatNotifs.length > 0) {
+            for (const notif of chatNotifs) {
+              await notificationsService.markAsRead(notif.id);
+            }
+            window.dispatchEvent(new Event('friday_notifications_updated'));
+          }
+        }
+      } catch {}
+    };
+    autoClearChatNotifs();
+  }, [selectedGroup]);
 
   // Auto-scroll to bottom of chat
   useEffect(() => {

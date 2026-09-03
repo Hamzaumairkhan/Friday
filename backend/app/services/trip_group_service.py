@@ -56,16 +56,11 @@ class TripGroupService:
         """Verify user is either the trip's organizer or a traveler with a CONFIRMED booking."""
         user_role = user.role.value if hasattr(user.role, 'value') else str(user.role).upper()
 
-        # 1. Check if user is the trip's organizer
+        # 1. Check if user is STRICTLY the trip's package organizer
         org = await self.organizer_repo.get_by_user_id(user.id)
-        if org and (org.id == group.organizer_id or org.user_id == user.id):
+        if org and org.id == group.organizer_id:
             await self.repo.add_member(group.id, user.id, role=GroupMemberRole.ORGANIZER)
             return "ORGANIZER"
-
-        if user_role == UserRole.ORGANIZER.value or user_role == "ORGANIZER":
-            if org and org.id == group.organizer_id:
-                await self.repo.add_member(group.id, user.id, role=GroupMemberRole.ORGANIZER)
-                return "ORGANIZER"
 
         # 2. Check if user is a traveler with a CONFIRMED booking for this package
         booking_result = await self.db.execute(
@@ -103,7 +98,7 @@ class TripGroupService:
                 members_data.append({
                     "id": m.id,
                     "user_id": m.user_id,
-                    "name": m.user.name or ("Organizer" if m.role == GroupMemberRole.ORGANIZER else "Traveler"),
+                    "name": m.user.name or ("Admin" if m.role == GroupMemberRole.ORGANIZER else "User"),
                     "profile_picture": m.user.profile_picture,
                     "role": m.role.value if hasattr(m.role, 'value') else m.role,
                     "joined_at": m.joined_at.isoformat() if m.joined_at else "",
@@ -130,34 +125,43 @@ class TripGroupService:
         await self.verify_access(group, current_user)
         messages = await self.repo.list_messages(group.id)
 
-        return [
-            {
+        refreshed_group = await self.repo.get_by_id(group.id)
+        group_org_user_id = refreshed_group.organizer.user_id if refreshed_group.organizer else None
+
+        result_messages = []
+        for msg in messages:
+            # Strictly determine sender_role: only the group package host is ORGANIZER (Admin)
+            actual_role = "ORGANIZER" if (group_org_user_id and msg.sender_id == group_org_user_id) else "TRAVELER"
+            result_messages.append({
                 "id": msg.id,
                 "group_id": msg.group_id,
                 "sender_id": msg.sender_id,
                 "sender_name": msg.sender_name,
-                "sender_role": msg.sender_role,
+                "sender_role": actual_role,
                 "sender_profile_picture": (msg.sender.profile_picture if msg.sender and hasattr(msg.sender, 'profile_picture') else None) or (f"https://api.dicebear.com/7.x/initials/svg?seed={msg.sender_name}"),
                 "message": msg.message,
                 "created_at": msg.created_at.isoformat() if msg.created_at else "",
-            }
-            for msg in messages
-        ]
+            })
+        return result_messages
 
     async def post_message(self, package_id: str, message_text: str, current_user: User) -> Dict[str, Any]:
         if not message_text or not message_text.strip():
             raise ValidationError("Message cannot be empty.")
 
         group = await self.get_or_create_for_package(package_id)
-        sender_role = await self.verify_access(group, current_user)
+        await self.verify_access(group, current_user)
 
-        sender_name = current_user.name or ("Organizer" if sender_role == "ORGANIZER" else "Traveler")
+        refreshed_group = await self.repo.get_by_id(group.id)
+        group_org_user_id = refreshed_group.organizer.user_id if refreshed_group.organizer else None
+        actual_sender_role = "ORGANIZER" if (group_org_user_id and current_user.id == group_org_user_id) else "TRAVELER"
+
+        sender_name = current_user.name or ("Admin" if actual_sender_role == "ORGANIZER" else "User")
 
         msg = await self.repo.create_message(
             group_id=group.id,
             sender_id=current_user.id,
             sender_name=sender_name,
-            sender_role=sender_role,
+            sender_role=actual_sender_role,
             message=message_text.strip(),
         )
 

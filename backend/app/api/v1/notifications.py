@@ -77,3 +77,30 @@ async def mark_all_notifications_read(
     count = await repo.mark_all_read(current_user.id)
     await db.commit()
     return {"marked_read": count}
+
+
+@router.delete("/{notification_id}")
+async def delete_notification(
+    notification_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a single notification owned by current user."""
+    repo = NotificationRepository(db)
+    success = await repo.delete(notification_id, current_user.id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found.")
+    await db.commit()
+    return {"success": True, "deleted_id": notification_id}
+
+
+@router.delete("")
+async def clear_all_notifications(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Clear all notifications for current user."""
+    repo = NotificationRepository(db)
+    count = await repo.clear_all(current_user.id)
+    await db.commit()
+    return {"success": True, "cleared_count": count}

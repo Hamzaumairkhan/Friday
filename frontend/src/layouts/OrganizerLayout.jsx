@@ -43,8 +43,12 @@ export default function OrganizerLayout() {
 
   useEffect(() => {
     fetchUnread();
-    const interval = setInterval(fetchUnread, 10000);
-    return () => clearInterval(interval);
+    window.addEventListener('friday_notifications_updated', fetchUnread);
+    const interval = setInterval(fetchUnread, 8000);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('friday_notifications_updated', fetchUnread);
+    };
   }, []);
 
   const handleSwitchToTraveler = async () => {

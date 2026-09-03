@@ -27,11 +27,23 @@ export default function MessageBubble({ message, isOwnMessage, currentUserAvatar
           <span className={`font-bold ${isOwnMessage ? 'text-[#00261D]' : isOrganizer ? 'text-emerald-800' : 'text-slate-800'}`}>
             {isOwnMessage ? 'You' : message.sender_name}
           </span>
-          {isOrganizer && (
-            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-              <ShieldCheck className="w-2.5 h-2.5 text-emerald-800" /> Host & Admin
-            </span>
-          )}
+          <span
+            className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold border ${
+              isOrganizer
+                ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                : 'bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+          >
+            {isOrganizer ? (
+              <>
+                <ShieldCheck className="w-2.5 h-2.5 text-emerald-800" /> Admin
+              </>
+            ) : (
+              <>
+                <User className="w-2.5 h-2.5 text-slate-600" /> User
+              </>
+            )}
+          </span>
         </div>
 
         {/* Speech Bubble */}

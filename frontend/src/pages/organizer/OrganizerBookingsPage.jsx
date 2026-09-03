@@ -17,6 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { organizersService } from '../../services/organizers';
+import { notificationsService } from '../../services/notifications';
 import EmptyState from '../../components/shared/EmptyState';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -54,6 +55,25 @@ export default function OrganizerBookingsPage() {
 
   useEffect(() => {
     fetchBookings();
+
+    // Auto-mark booking & payment notifications as read upon visiting ledger
+    const autoClearBookingNotifs = async () => {
+      try {
+        const notifs = await notificationsService.listNotifications();
+        if (Array.isArray(notifs)) {
+          const bookingNotifs = notifs.filter(
+            (n) => !n.is_read && (n.related_booking_id || n.type?.includes('BOOKING') || n.type?.includes('PAYMENT'))
+          );
+          if (bookingNotifs.length > 0) {
+            for (const notif of bookingNotifs) {
+              await notificationsService.markAsRead(notif.id);
+            }
+            window.dispatchEvent(new Event('friday_notifications_updated'));
+          }
+        }
+      } catch {}
+    };
+    autoClearBookingNotifs();
   }, []);
 
   const handleVerifyPayment = async (bookingId) => {
