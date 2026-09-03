@@ -393,16 +393,34 @@ export default function PackageDetailPage() {
                             >
                               <div className="flex items-start sm:items-center gap-3.5 w-full sm:w-auto flex-1">
                                 {/* Activity Real Web Photography Thumbnail */}
-                                <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-xl overflow-hidden shrink-0 bg-[#00261D] border border-black/10">
-                                  <img
-                                    src={act.image_url || heroImage}
-                                    alt={act.title}
-                                    onError={(e) => {
-                                      e.currentTarget.src = heroImage;
-                                    }}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                  />
-                                </div>
+                                {(() => {
+                                  const rawActThumb = act.image_url || heroImage;
+                                  const isInvalidActThumb = !rawActThumb || rawActThumb.includes('instagram') || rawActThumb.includes('fbsbx') || rawActThumb.includes('panoramic_lake') || rawActThumb.includes('stitch_asset_6') || rawActThumb.startsWith('/images/stitch/');
+                                  const actThumb = isInvalidActThumb ? null : rawActThumb;
+
+                                  return (
+                                    <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-xl overflow-hidden shrink-0 bg-[#00261D] border border-black/10 flex items-center justify-center">
+                                      {actThumb ? (
+                                        <img
+                                          src={actThumb}
+                                          alt={act.title}
+                                          onError={(e) => {
+                                            e.currentTarget.style.display = 'none';
+                                            const el = e.currentTarget.nextElementSibling;
+                                            if (el) el.style.display = 'flex';
+                                          }}
+                                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                        />
+                                      ) : null}
+                                      <div
+                                        className="w-full h-full flex items-center justify-center text-lg select-none"
+                                        style={{ display: actThumb ? 'none' : 'flex' }}
+                                      >
+                                        <span>{getContextualEmoji(pkg.destination, act.title, act.category)}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
 
                                 <div className="min-w-0 flex-1 space-y-1">
                                   <div className="flex items-center gap-2 flex-wrap">

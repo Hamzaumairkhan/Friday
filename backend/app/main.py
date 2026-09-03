@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 from fastapi import FastAPI, Depends, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -92,6 +93,16 @@ from app.core.middleware import RequestIdMiddleware
 
 # Exception handlers
 app.add_exception_handler(FridayError, friday_error_handler)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Fallback exception handler ensuring structured 500 JSON with CORS compliance."""
+    logger.exception(f"Unhandled server error on {request.method} {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred. Please try again or contact Friday support."},
+    )
 
 # Tracing & Telemetry Middleware
 app.add_middleware(RequestIdMiddleware)

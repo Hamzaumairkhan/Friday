@@ -37,6 +37,7 @@ import OrganizerBookingsPage from '../pages/organizer/OrganizerBookingsPage';
 import OrganizerProfilePage from '../pages/organizer/OrganizerProfilePage';
 import OrganizerGroupsPage from '../pages/organizer/OrganizerGroupsPage';
 import OrganizerGroupPage from '../pages/organizer/OrganizerGroupPage';
+import ErrorBoundary from '../components/shared/ErrorBoundary';
 
 const router = createBrowserRouter([
   // Standalone Auth Page (Single unified entry point)
@@ -47,6 +48,7 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: <MainLayout />,
+    errorElement: <ErrorBoundary />,
     children: [
       { path: '', element: <LandingPage /> },
       { path: 'about', element: <AboutPage /> },
@@ -72,6 +74,7 @@ const router = createBrowserRouter([
         <TravelerLayout />
       </ProtectedRoute>
     ),
+    errorElement: <ErrorBoundary />,
     children: [
       { path: 'explore', element: <ExplorePage /> },
       { path: 'explore/:packageId', element: <PackageDetailPage /> },
@@ -155,6 +158,7 @@ const router = createBrowserRouter([
         </RoleRoute>
       </ProtectedRoute>
     ),
+    errorElement: <ErrorBoundary />,
     children: [
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'trips', element: <OrganizerTripsPage /> },

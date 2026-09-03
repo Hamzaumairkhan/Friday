@@ -681,6 +681,46 @@ class DynamicDestinationResearchService:
         }
 
     @classmethod
+    def get_slot_options(cls, destination: str = "") -> Dict[str, Any]:
+        """
+        Generate 4 curated options (A, B, C, D: Let Friday Decide) dynamically for ANY destination.
+        Completely generic, handles single city, multi-destination combos (e.g. Islamabad & Rawalpindi),
+        whitespace, casing, or any regional location in Pakistan.
+        """
+        dest_clean = (destination or "").strip()
+        dest_display = dest_clean if dest_clean else "Your Destination"
+
+        return {
+            "morning": {
+                "label": "Morning Exploration (08:30 AM – 12:00 PM)",
+                "options": [
+                    {"id": "opt_a", "title": f"Scenic Highlights & Nature Walk ({dest_display})", "category": "SIGHTSEEING"},
+                    {"id": "opt_b", "title": f"Historical Landmarks & Cultural Heritage Walk ({dest_display})", "category": "CULTURE"},
+                    {"id": "opt_c", "title": f"Active Exploration & Sightseeing Excursion ({dest_display})", "category": "ADVENTURE"},
+                    {"id": "opt_d", "title": "Let Friday Decide (AI Dynamically Optimizes All Slots)", "category": "RECOMMENDED"},
+                ],
+            },
+            "afternoon": {
+                "label": "Afternoon Adventure & Heritage (02:00 PM – 05:00 PM)",
+                "options": [
+                    {"id": "opt_a", "title": f"Iconic Viewpoints & Photography Excursion ({dest_display})", "category": "SIGHTSEEING"},
+                    {"id": "opt_b", "title": f"Regional Heritage Site & Artisan Walk ({dest_display})", "category": "CULTURE"},
+                    {"id": "opt_c", "title": f"Local Crafts & Traditional Bazaar Walk ({dest_display})", "category": "SHOPPING"},
+                    {"id": "opt_d", "title": "Let Friday Decide (AI Dynamically Optimizes All Slots)", "category": "RECOMMENDED"},
+                ],
+            },
+            "evening": {
+                "label": "Golden Hour & Evening Vistas (05:30 PM – 09:30 PM)",
+                "options": [
+                    {"id": "opt_a", "title": f"Sunset Ridge Panorama & Golden Hour Photography ({dest_display})", "category": "SIGHTSEEING"},
+                    {"id": "opt_b", "title": f"Traditional Dinner & Local Culinary Experience ({dest_display})", "category": "FOOD"},
+                    {"id": "opt_c", "title": f"Evening Food Street & Karak Chai Stroll ({dest_display})", "category": "FOOD"},
+                    {"id": "opt_d", "title": "Let Friday Decide (AI Dynamically Optimizes All Slots)", "category": "RECOMMENDED"},
+                ],
+            },
+        }
+
+    @classmethod
     async def fetch_poi_image(
         cls,
         poi_title: str,

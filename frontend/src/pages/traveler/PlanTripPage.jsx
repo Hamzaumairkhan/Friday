@@ -588,42 +588,74 @@ export default function PlanTripPage() {
     evening: 'option_d',
   });
 
-  // Fetch Weather Advisory when Destination or Departure Date changes
+  // Fetch Weather Advisory when Destination or Departure Date changes (with 500ms debounce & stale-request cancellation)
   useEffect(() => {
-    if (destination.trim() && departureDate) {
-      let daysCount = parseInt(customDays) || 3;
-      if (departureDate && returnDate) {
-        const diff = Math.ceil((new Date(returnDate) - new Date(departureDate)) / (1000 * 60 * 60 * 24)) + 1;
-        if (diff > 0) daysCount = diff;
-      } else if (durationOption === '1_day') {
-        daysCount = 1;
-      } else if (durationOption === '2-3_days') {
-        daysCount = 3;
-      } else if (durationOption === '4-6_days') {
-        daysCount = 5;
-      } else if (durationOption === '7+_days') {
-        daysCount = 7;
-      }
+    const trimmedDest = destination.trim();
+    if (!trimmedDest || trimmedDest.length < 2 || !departureDate) {
+      setWeatherAdvisory(null);
+      return;
+    }
 
+    let daysCount = parseInt(customDays) || 3;
+    if (departureDate && returnDate) {
+      const diff = Math.ceil((new Date(returnDate) - new Date(departureDate)) / (1000 * 60 * 60 * 24)) + 1;
+      if (diff > 0) daysCount = diff;
+    } else if (durationOption === '1_day') {
+      daysCount = 1;
+    } else if (durationOption === '2-3_days') {
+      daysCount = 3;
+    } else if (durationOption === '4-6_days') {
+      daysCount = 5;
+    } else if (durationOption === '7+_days') {
+      daysCount = 7;
+    }
+
+    let isCurrent = true;
+    const timer = setTimeout(() => {
       setIsCheckingWeather(true);
       tripsService
-        .checkWeather(destination.trim(), departureDate, daysCount)
-        .then((res) => setWeatherAdvisory(res))
-        .catch(() => setWeatherAdvisory(null))
-        .finally(() => setIsCheckingWeather(false));
-    } else {
-      setWeatherAdvisory(null);
-    }
+        .checkWeather(trimmedDest, departureDate, daysCount)
+        .then((res) => {
+          if (isCurrent) setWeatherAdvisory(res);
+        })
+        .catch(() => {
+          if (isCurrent) setWeatherAdvisory(null);
+        })
+        .finally(() => {
+          if (isCurrent) setIsCheckingWeather(false);
+        });
+    }, 500);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
   }, [destination, departureDate, customDays, returnDate, durationOption]);
 
-  // Fetch 4 Slot Options when destination changes
+  // Fetch 4 Slot Options when destination changes (with 500ms debounce & stale-request cancellation)
   useEffect(() => {
-    if (destination.trim()) {
-      tripsService
-        .getSlotOptions(destination.trim())
-        .then((res) => setSlotOptions(res))
-        .catch(() => setSlotOptions(null));
+    const trimmedDest = destination.trim();
+    if (!trimmedDest || trimmedDest.length < 2) {
+      setSlotOptions(null);
+      return;
     }
+
+    let isCurrent = true;
+    const timer = setTimeout(() => {
+      tripsService
+        .getSlotOptions(trimmedDest)
+        .then((res) => {
+          if (isCurrent) setSlotOptions(res);
+        })
+        .catch(() => {
+          if (isCurrent) setSlotOptions(null);
+        });
+    }, 500);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
   }, [destination]);
 
   // Auto-adjust accommodation selection based on realistic Pakistan market rates

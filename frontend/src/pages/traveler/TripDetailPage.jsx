@@ -40,6 +40,7 @@ import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import EmptyState from '../../components/shared/EmptyState';
 import toast from 'react-hot-toast';
+import { getContextualEmoji } from '../../utils/contextualEmoji';
 
 const renderWeatherIcon = (iconName, className = 'w-5 h-5') => {
   switch (iconName) {
@@ -524,6 +525,10 @@ export default function TripDetailPage() {
 
   const days = itinerary?.days || [];
 
+  const rawHeroImage = trip?.image_url;
+  const isInvalidHeroImage = !rawHeroImage || rawHeroImage.includes('instagram') || rawHeroImage.includes('fbsbx') || rawHeroImage.includes('panoramic_lake') || rawHeroImage.includes('stitch_asset_6') || rawHeroImage.startsWith('/images/stitch/');
+  const heroImage = isInvalidHeroImage ? null : rawHeroImage;
+
   const tripMembersList = (() => {
     if (trip?.members && Array.isArray(trip.members) && trip.members.length > 0) {
       return trip.members;
@@ -860,16 +865,29 @@ export default function TripDetailPage() {
 
       {/* ─── Hero Overview Card ────────────────────────────────────── */}
       <div className="bg-white rounded-3xl overflow-hidden border border-black/10 shadow-xs">
-        <div className="relative h-64 sm:h-80 w-full bg-[#00261D] overflow-hidden">
-          <img
-            src={heroImage}
-            alt={trip.destination}
-            onError={(e) => {
-              e.currentTarget.src = defaultHero;
-            }}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        <div className="relative h-64 sm:h-80 w-full bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] overflow-hidden flex items-center justify-center">
+          {heroImage ? (
+            <img
+              src={heroImage}
+              alt={trip.destination}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const el = e.currentTarget.nextElementSibling;
+                if (el) el.style.display = 'flex';
+              }}
+              className="w-full h-full object-cover"
+            />
+          ) : null}
+          <div
+            className="w-full h-full flex flex-col items-center justify-center text-center p-6 text-emerald-200"
+            style={{ display: heroImage ? 'none' : 'flex' }}
+          >
+            <span className="text-6xl sm:text-7xl mb-2 select-none">{getContextualEmoji(trip.destination, trip.title)}</span>
+            <span className="text-xs uppercase tracking-widest font-semibold opacity-70">
+              {trip.destination || 'Expedition'}
+            </span>
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
           <div className="absolute bottom-6 left-6 right-6 text-white space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold uppercase tracking-wider text-[#BBEAD5] flex items-center gap-1.5">
@@ -1223,7 +1241,9 @@ export default function TripDetailPage() {
                         const cost = act.estimated_cost;
                         const category = act.category;
                         const mapUrl = act.notes || act.map_url || (act.latitude && act.longitude ? `https://www.google.com/maps/search/?api=1&query=${act.latitude},${act.longitude}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location || trip.destination + ' Pakistan')}`);
-                        const actThumb = act.image_url || heroImage;
+                        const rawActThumb = act.image_url || heroImage;
+                        const isInvalidActThumb = !rawActThumb || rawActThumb.includes('instagram') || rawActThumb.includes('fbsbx') || rawActThumb.includes('panoramic_lake') || rawActThumb.includes('stitch_asset_6') || rawActThumb.startsWith('/images/stitch/');
+                        const actThumb = isInvalidActThumb ? null : rawActThumb;
 
                         return (
                           <div
@@ -1232,15 +1252,25 @@ export default function TripDetailPage() {
                           >
                             <div className="flex items-start gap-3">
                               {/* Activity Image Thumbnail */}
-                              <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-[#00261D] border border-black/10 shadow-2xs">
-                                <img
-                                  src={actThumb}
-                                  alt={title}
-                                  onError={(e) => {
-                                    e.currentTarget.src = heroImage;
-                                  }}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                />
+                              <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-[#00261D] border border-black/10 shadow-2xs flex items-center justify-center">
+                                {actThumb ? (
+                                  <img
+                                    src={actThumb}
+                                    alt={title}
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                      const el = e.currentTarget.nextElementSibling;
+                                      if (el) el.style.display = 'flex';
+                                    }}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                ) : null}
+                                <div
+                                  className="w-full h-full flex items-center justify-center text-lg select-none"
+                                  style={{ display: actThumb ? 'none' : 'flex' }}
+                                >
+                                  <span>{getContextualEmoji(trip.destination, title, category)}</span>
+                                </div>
                               </div>
 
                               <div className="min-w-0 flex-1 space-y-1">
