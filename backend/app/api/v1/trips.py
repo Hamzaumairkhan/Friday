@@ -58,6 +58,35 @@ def _is_renderable_web_image(url: str) -> bool:
     return not any(bd in u_low for bd in BLOCKED_IMAGE_DOMAINS)
 
 
+def normalize_activity_category(act_cat: Any) -> ActivityCategory:
+    """Normalize raw category string into supported ActivityCategory enum, preventing silent fallback to OTHER."""
+    if not act_cat:
+        return ActivityCategory.SIGHTSEEING
+    if isinstance(act_cat, ActivityCategory):
+        return act_cat
+    c = str(act_cat).strip().upper()
+    if c in ("TRANSPORT", "TRANSPORTATION", "TRANSIT", "FLIGHT", "DRIVE", "HIGHWAY"):
+        return ActivityCategory.TRANSPORT
+    if c in ("ACCOMMODATION", "HOTEL", "RESORT", "STAY", "LODGE", "GUESTHOUSE"):
+        return ActivityCategory.ACCOMMODATION
+    if c in ("FOOD", "DINING", "RESTAURANT", "CAFE", "MEAL", "BREAKFAST", "LUNCH", "DINNER", "BRUNCH"):
+        return ActivityCategory.FOOD
+    if c in ("ADVENTURE", "HIKING", "TREKKING", "RAFTING", "SPORTS"):
+        return ActivityCategory.ADVENTURE
+    if c in ("CULTURE", "HERITAGE", "HISTORIC", "MUSEUM", "MONUMENT"):
+        return ActivityCategory.CULTURE
+    if c in ("SHOPPING", "BAZAAR", "MARKET", "SOUVENIR"):
+        return ActivityCategory.SHOPPING
+    if c in ("REST", "LEISURE", "RELAX", "RELAXATION"):
+        return ActivityCategory.REST
+    if c in ("SIGHTSEEING", "NATURE", "SCENIC", "VIEWPOINT", "PARK", "ATTRACTION", "LANDMARK", "LAKE", "VALLEY", "MOUNTAIN"):
+        return ActivityCategory.SIGHTSEEING
+    try:
+        return ActivityCategory[c]
+    except KeyError:
+        return ActivityCategory.SIGHTSEEING
+
+
 async def reconcile_trip_activity_costs(
     db: AsyncSession,
     trip_id: str,
@@ -67,7 +96,32 @@ async def reconcile_trip_activity_costs(
     """Synchronize all Day activities and Budget categories to match new_budget_total with 100% precision."""
     total_b = max(5000.0, float(new_budget_total))
 
-    # 1. Fetch itinerary with days & activities
+    # 1. Fetch trip and duration
+    trip_obj = await db.get(Trip, trip_id)
+    duration_days = trip_obj.duration if trip_obj else 4
+
+    budget_breakdown = DynamicDestinationResearchService.calculate_budget_breakdown(
+        budget_total=total_b,
+        duration_days=duration_days,
+        accommodation_preference=accommodation_preference,
+    )
+
+    # 2. Update Budget category table
+    budget_res = await db.execute(select(Budget).where(Budget.trip_id == trip_id))
+    existing_budgets = budget_res.scalars().all()
+    for b in existing_budgets:
+        if b.category == BudgetCategory.TRANSPORTATION:
+            b.estimated_amount = budget_breakdown["transport"]
+        elif b.category == BudgetCategory.ACCOMMODATION:
+            b.estimated_amount = budget_breakdown["accommodation"]
+        elif b.category == BudgetCategory.FOOD:
+            b.estimated_amount = budget_breakdown["food"]
+        elif b.category == BudgetCategory.ACTIVITIES:
+            b.estimated_amount = budget_breakdown["activities"]
+        elif b.category == BudgetCategory.MISCELLANEOUS:
+            b.estimated_amount = budget_breakdown["other"]
+
+    # 3. Scale itinerary activities category-by-category to match budget breakdown
     itinerary_res = await db.execute(
         select(Itinerary)
         .where(Itinerary.trip_id == trip_id)
@@ -85,55 +139,38 @@ async def reconcile_trip_activity_costs(
     if not all_activities:
         return
 
-    # Proportional scaling
-    old_sum = sum(a.estimated_cost or 0 for a in all_activities)
-    if old_sum > 0:
-        allocated = 0.0
-        for i, act in enumerate(all_activities):
-            if i == len(all_activities) - 1:
-                act.estimated_cost = round(total_b - allocated)
-            else:
-                scaled = round((act.estimated_cost / old_sum) * total_b)
-                act.estimated_cost = scaled
-                allocated += scaled
-    else:
-        per_act = round(total_b / len(all_activities))
-        allocated = 0.0
-        for i, act in enumerate(all_activities):
-            if i == len(all_activities) - 1:
-                act.estimated_cost = round(total_b - allocated)
-            else:
-                act.estimated_cost = per_act
-                allocated += per_act
+    def _scale_category_acts(target_pool: int, acts: List[Activity]):
+        if not acts:
+            return
+        old_sum = sum(a.estimated_cost or 0 for a in acts)
+        if old_sum > 0:
+            alloc = 0
+            for i, act in enumerate(acts):
+                if i == len(acts) - 1:
+                    act.estimated_cost = target_pool - alloc
+                else:
+                    sc = round((act.estimated_cost / old_sum) * target_pool)
+                    act.estimated_cost = sc
+                    alloc += sc
+        else:
+            per = target_pool // len(acts)
+            alloc = 0
+            for i, act in enumerate(acts):
+                if i == len(acts) - 1:
+                    act.estimated_cost = target_pool - alloc
+                else:
+                    act.estimated_cost = per
+                    alloc += per
 
-    # 2. Update Budget category table
-    is_no_stay = (accommodation_preference == "none")
-    if is_no_stay:
-        b_trans = round(total_b * 0.40)
-        b_accom = 0
-        b_food = round(total_b * 0.30)
-        b_acts = round(total_b * 0.20)
-        b_other = max(0, round(total_b) - (b_trans + b_accom + b_food + b_acts))
-    else:
-        b_trans = round(total_b * 0.28)
-        b_accom = round(total_b * 0.35)
-        b_food = round(total_b * 0.20)
-        b_acts = round(total_b * 0.10)
-        b_other = max(0, round(total_b) - (b_trans + b_accom + b_food + b_acts))
+    trans_acts = [a for a in all_activities if a.category == ActivityCategory.TRANSPORT]
+    accom_acts = [a for a in all_activities if a.category == ActivityCategory.ACCOMMODATION]
+    food_acts = [a for a in all_activities if a.category == ActivityCategory.FOOD]
+    other_acts = [a for a in all_activities if a.category not in (ActivityCategory.TRANSPORT, ActivityCategory.ACCOMMODATION, ActivityCategory.FOOD)]
 
-    budget_res = await db.execute(select(Budget).where(Budget.trip_id == trip_id))
-    existing_budgets = budget_res.scalars().all()
-    for b in existing_budgets:
-        if b.category == BudgetCategory.TRANSPORTATION:
-            b.estimated_amount = b_trans
-        elif b.category == BudgetCategory.ACCOMMODATION:
-            b.estimated_amount = b_accom
-        elif b.category == BudgetCategory.FOOD:
-            b.estimated_amount = b_food
-        elif b.category == BudgetCategory.ACTIVITIES:
-            b.estimated_amount = b_acts
-        elif b.category == BudgetCategory.MISCELLANEOUS:
-            b.estimated_amount = b_other
+    _scale_category_acts(budget_breakdown["transport"], trans_acts)
+    _scale_category_acts(budget_breakdown["accommodation"], accom_acts)
+    _scale_category_acts(budget_breakdown["food"], food_acts)
+    _scale_category_acts(budget_breakdown["activities"], other_acts)
 
 
 async def _fetch_web_images_and_research(destination: str, origin: str, variation_seed: Optional[int] = None) -> tuple[Optional[str], list[str]]:
@@ -664,47 +701,11 @@ async def generate_guided_trip_plan(
         img_url = valid_candidates[0] if valid_candidates else None
 
     # 6. Compute Deterministic Budget Breakdown
-    if req.accommodation_preference == "none":
-        accom_pct = 0.0
-        trans_pct = 0.40
-        food_pct = 0.30
-        act_pct = 0.20
-        other_pct = 0.10
-    else:
-        pref = (req.accommodation_preference or "comfortable").lower()
-        if "budget" in pref:
-            accom_pct = 0.28
-            trans_pct = 0.32
-            food_pct = 0.22
-            act_pct = 0.12
-            other_pct = 0.06
-        elif "premium" in pref or "luxury" in pref:
-            accom_pct = 0.45
-            trans_pct = 0.25
-            food_pct = 0.15
-            act_pct = 0.10
-            other_pct = 0.05
-        else: # comfortable / friday_decide
-            accom_pct = 0.35
-            trans_pct = 0.28
-            food_pct = 0.20
-            act_pct = 0.10
-            other_pct = 0.07
-
-    b_trans = round(budget_total * trans_pct)
-    b_accom = round(budget_total * accom_pct)
-    b_food = round(budget_total * food_pct)
-    b_acts = round(budget_total * act_pct)
-    b_other = max(0, round(budget_total) - (b_trans + b_accom + b_food + b_acts))
-
-    budget_breakdown = {
-        "transport": b_trans,
-        "accommodation": b_accom,
-        "food": b_food,
-        "activities": b_acts,
-        "other": b_other,
-        "total": round(budget_total),
-    }
+    budget_breakdown = DynamicDestinationResearchService.calculate_budget_breakdown(
+        budget_total=budget_total,
+        duration_days=duration_days,
+        accommodation_preference=req.accommodation_preference or "comfortable",
+    )
 
     # 7. Create DB Records (Trip, TripMember, Itinerary, Days, Activities, Budget)
     user_obj = await db.get(User, user_id)
@@ -792,12 +793,7 @@ async def generate_guided_trip_plan(
         await db.flush()
 
         for a_data in d_data["activities"]:
-            act_cat = a_data.get("category", "SIGHTSEEING")
-            if isinstance(act_cat, str):
-                try:
-                    act_cat = ActivityCategory[act_cat.upper()]
-                except KeyError:
-                    act_cat = ActivityCategory.OTHER
+            act_cat = normalize_activity_category(a_data.get("category", "SIGHTSEEING"))
 
             act_obj = Activity(
                 day_id=day_obj.id,
@@ -1152,10 +1148,7 @@ async def add_custom_activity(
         raise HTTPException(status_code=403, detail="Only trip owner can add activities.")
 
     cat_str = payload.get("category", "SIGHTSEEING")
-    try:
-        act_cat = ActivityCategory[cat_str.upper()]
-    except KeyError:
-        act_cat = ActivityCategory.OTHER
+    act_cat = normalize_activity_category(cat_str)
 
     location = payload.get("location", trip.destination)
     verified_loc = await DynamicDestinationResearchService.verify_place_location_live(location, trip.destination)
@@ -1238,10 +1231,7 @@ async def update_custom_activity(
     if "estimated_cost" in payload:
         act.estimated_cost = float(payload["estimated_cost"])
     if "category" in payload:
-        try:
-            act.category = ActivityCategory[payload["category"].upper()]
-        except KeyError:
-            pass
+        act.category = normalize_activity_category(payload["category"])
     if "map_url" in payload:
         act.notes = payload["map_url"]
 

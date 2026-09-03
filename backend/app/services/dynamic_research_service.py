@@ -594,8 +594,91 @@ async def fetch_real_web_photos_multi(
     return results
 
 
+def normalize_poi_category(cat: Optional[str]) -> str:
+    """Normalize raw POI/activity category into supported standard taxonomy."""
+    if not cat:
+        return "SIGHTSEEING"
+    c = str(cat).strip().upper()
+    if c in ("TRANSPORT", "TRANSPORTATION", "TRANSIT", "FLIGHT", "DRIVE", "HIGHWAY"):
+        return "TRANSPORT"
+    if c in ("ACCOMMODATION", "HOTEL", "RESORT", "STAY", "LODGE", "GUESTHOUSE"):
+        return "ACCOMMODATION"
+    if c in ("FOOD", "DINING", "RESTAURANT", "CAFE", "MEAL", "BREAKFAST", "LUNCH", "DINNER", "BRUNCH"):
+        return "FOOD"
+    if c in ("ADVENTURE", "HIKING", "TREKKING", "RAFTING", "SPORTS"):
+        return "ADVENTURE"
+    if c in ("CULTURE", "HERITAGE", "HISTORIC", "MUSEUM", "MONUMENT"):
+        return "CULTURE"
+    if c in ("SHOPPING", "BAZAAR", "MARKET", "SOUVENIR"):
+        return "SHOPPING"
+    if c in ("REST", "LEISURE", "RELAX", "RELAXATION"):
+        return "REST"
+    if c in ("SIGHTSEEING", "NATURE", "SCENIC", "VIEWPOINT", "PARK", "ATTRACTION", "LANDMARK", "LAKE", "VALLEY", "MOUNTAIN"):
+        return "SIGHTSEEING"
+    return "SIGHTSEEING"
+
+
 class DynamicDestinationResearchService:
     """Researches real POIs and structures Day-by-Day itineraries with exact budget math."""
+
+    @classmethod
+    def calculate_budget_breakdown(
+        cls,
+        budget_total: float,
+        duration_days: int,
+        accommodation_preference: str = "comfortable",
+    ) -> Dict[str, int]:
+        """
+        Unified single-source budget allocation for Friday.
+        Produces deterministic breakdown where:
+        b_trans + b_accom + b_food + b_acts + b_other == round(budget_total)
+        and b_other is the contingency reserve.
+        """
+        num_days = max(1, duration_days)
+        total_b = max(5000.0, float(budget_total))
+        is_no_stay = (accommodation_preference == "none" or num_days == 1)
+
+        if is_no_stay:
+            trans_ratio = 0.40
+            accom_ratio = 0.00
+            food_ratio = 0.30
+            acts_ratio = 0.20
+            other_ratio = 0.10
+        else:
+            pref = (accommodation_preference or "comfortable").lower()
+            if "budget" in pref:
+                accom_ratio = 0.28
+                trans_ratio = 0.32
+                food_ratio = 0.22
+                acts_ratio = 0.12
+                other_ratio = 0.06
+            elif "premium" in pref or "luxury" in pref:
+                accom_ratio = 0.45
+                trans_ratio = 0.25
+                food_ratio = 0.15
+                acts_ratio = 0.10
+                other_ratio = 0.05
+            else:  # comfortable / friday_decide
+                accom_ratio = 0.35
+                trans_ratio = 0.28
+                food_ratio = 0.20
+                acts_ratio = 0.10
+                other_ratio = 0.07
+
+        pool_trans = round(total_b * trans_ratio)
+        pool_accom = round(total_b * accom_ratio)
+        pool_food = round(total_b * food_ratio)
+        pool_acts = round(total_b * acts_ratio)
+        pool_other = max(0, round(total_b) - (pool_trans + pool_accom + pool_food + pool_acts))
+
+        return {
+            "transport": pool_trans,
+            "accommodation": pool_accom,
+            "food": pool_food,
+            "activities": pool_acts,
+            "other": pool_other,
+            "total": round(total_b),
+        }
 
     @classmethod
     async def fetch_poi_image(
@@ -784,46 +867,23 @@ class DynamicDestinationResearchService:
     ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
         """
         Generate complete Day-by-Day itinerary with 100% STRICT budget reconciliation:
-        SUM(all activity costs across all days) == round(budget_total) EXACTLY.
+        SUM(planned itinerary items) + contingency == round(budget_total) EXACTLY.
+        Contingency remains a reserve and is NEVER an itinerary expense.
         """
         num_days = max(1, duration_days)
         total_b = max(5000.0, float(budget_total))
         is_no_stay = (accommodation_preference == "none" or num_days == 1)
 
-        # 1. Deterministic Category Breakdown Ratios
-        if is_no_stay:
-            trans_ratio = 0.40
-            accom_ratio = 0.00
-            food_ratio = 0.30
-            acts_ratio = 0.20
-            other_ratio = 0.10
-        else:
-            pref = (accommodation_preference or "comfortable").lower()
-            if "budget" in pref:
-                accom_ratio = 0.28
-                trans_ratio = 0.32
-                food_ratio = 0.22
-                acts_ratio = 0.12
-                other_ratio = 0.06
-            elif "premium" in pref or "luxury" in pref:
-                accom_ratio = 0.45
-                trans_ratio = 0.25
-                food_ratio = 0.15
-                acts_ratio = 0.10
-                other_ratio = 0.05
-            else:  # comfortable / friday_decide
-                accom_ratio = 0.35
-                trans_ratio = 0.28
-                food_ratio = 0.20
-                acts_ratio = 0.10
-                other_ratio = 0.07
-
-        # Total pool amounts
-        pool_trans = round(total_b * trans_ratio)
-        pool_accom = round(total_b * accom_ratio)
-        pool_food = round(total_b * food_ratio)
-        pool_acts = round(total_b * acts_ratio)
-        pool_other = max(0, round(total_b) - (pool_trans + pool_accom + pool_food + pool_acts))
+        breakdown = cls.calculate_budget_breakdown(
+            budget_total=total_b,
+            duration_days=num_days,
+            accommodation_preference=accommodation_preference,
+        )
+        pool_trans = breakdown["transport"]
+        pool_accom = breakdown["accommodation"]
+        pool_food = breakdown["food"]
+        pool_acts = breakdown["activities"]
+        pool_other = breakdown["other"]
 
         # 2. Live Research & POIs
         research = await cls.research_destination_pois(destination, origin)
@@ -841,13 +901,28 @@ class DynamicDestinationResearchService:
         hotel_loc = hotel_loc_info["address"] if hotel_loc_info["location_verified"] else hotel_name
         hotel_verified = hotel_loc_info["location_verified"]
 
-        # 3. Distribute budget amounts evenly across days & activities
-        # Per day allocations
-        daily_accom = pool_accom // num_days if not is_no_stay else 0
-        daily_food = pool_food // num_days
-        daily_acts = pool_acts // num_days
-        
-        # Transport is weighted on Day 1 (departure) and Day N (return)
+        # 3. Exact per-day and per-category distributions
+        def get_day_food(d: int) -> int:
+            base = pool_food // num_days
+            if d == num_days:
+                return pool_food - base * (num_days - 1)
+            return base
+
+        def get_day_acts(d: int) -> int:
+            base = pool_acts // num_days
+            if d == num_days:
+                return pool_acts - base * (num_days - 1)
+            return base
+
+        num_nights = max(1, num_days - 1)
+        def get_day_accom(d: int) -> int:
+            if is_no_stay or d >= num_days:
+                return 0
+            base = pool_accom // num_nights
+            if d == num_nights:
+                return pool_accom - base * (num_nights - 1)
+            return base
+
         if num_days == 1:
             day1_trans = pool_trans // 2
             dayN_trans = pool_trans - day1_trans
@@ -857,7 +932,6 @@ class DynamicDestinationResearchService:
         else:
             day1_trans = round(pool_trans * 0.40)
             dayN_trans = round(pool_trans * 0.40)
-            mid_trans = (pool_trans - (day1_trans + dayN_trans)) // max(1, num_days - 2)
 
         days_data = []
         att_idx = 0
@@ -881,6 +955,9 @@ class DynamicDestinationResearchService:
                 att1_img = await cls.fetch_poi_image(att1["title"], destination)
                 att2_img = await cls.fetch_poi_image(att2["title"], destination)
 
+                day_f = get_day_food(1)
+                day_a = get_day_acts(1)
+
                 activities = [
                     {
                         "order": 1,
@@ -902,8 +979,8 @@ class DynamicDestinationResearchService:
                         "start_time": "11:00 AM",
                         "end_time": "01:00 PM",
                         "duration_minutes": 120,
-                        "estimated_cost": pool_acts // 2,
-                        "category": att1.get("category", "SIGHTSEEING"),
+                        "estimated_cost": day_a // 2,
+                        "category": normalize_poi_category(att1.get("category", "SIGHTSEEING")),
                         "image_url": att1_img or hero_img,
                     },
                     {
@@ -914,7 +991,7 @@ class DynamicDestinationResearchService:
                         "start_time": "01:15 PM",
                         "end_time": "02:30 PM",
                         "duration_minutes": 75,
-                        "estimated_cost": pool_food // 2,
+                        "estimated_cost": day_f // 2,
                         "category": "FOOD",
                         "image_url": None,
                     },
@@ -926,8 +1003,8 @@ class DynamicDestinationResearchService:
                         "start_time": "03:00 PM",
                         "end_time": "05:00 PM",
                         "duration_minutes": 120,
-                        "estimated_cost": pool_acts - (pool_acts // 2),
-                        "category": att2.get("category", "CULTURE"),
+                        "estimated_cost": day_a - (day_a // 2),
+                        "category": normalize_poi_category(att2.get("category", "CULTURE")),
                         "image_url": att2_img or hero_img,
                     },
                     {
@@ -938,7 +1015,7 @@ class DynamicDestinationResearchService:
                         "start_time": "05:30 PM",
                         "end_time": "06:30 PM",
                         "duration_minutes": 60,
-                        "estimated_cost": (pool_food - (pool_food // 2)) + pool_other,
+                        "estimated_cost": day_f - (day_f // 2),
                         "category": "FOOD",
                         "image_url": None,
                     },
@@ -972,10 +1049,11 @@ class DynamicDestinationResearchService:
                 food_idx += 1
                 att1_img = await cls.fetch_poi_image(att1["title"], destination)
 
+                day_f = get_day_food(1)
+                day_a = get_day_acts(1)
+                day_acc = get_day_accom(1)
+
                 if is_in_city:
-                    att0 = attractions[att_idx % len(attractions)]
-                    att_idx += 1
-                    att0_img = await cls.fetch_poi_image(att0["title"], destination)
                     activities = [
                         {
                             "order": 1,
@@ -986,20 +1064,20 @@ class DynamicDestinationResearchService:
                             "end_time": "10:30 AM",
                             "duration_minutes": 120,
                             "estimated_cost": day1_trans,
-                            "category": "SIGHTSEEING",
+                            "category": "TRANSPORT",
                             "image_url": hero_img,
                         },
                         {
                             "order": 2,
-                            "title": att0["title"],
-                            "description": att0["description"],
-                            "location": att0["location"],
+                            "title": "Morning Brunch & Karak Chai",
+                            "description": "Authentic regional breakfast with paratha, omelette, and hot Karak chai.",
+                            "location": f"Local Dining in {destination}",
                             "start_time": "11:00 AM",
-                            "end_time": "01:30 PM",
-                            "duration_minutes": 150,
-                            "estimated_cost": daily_food // 2,
-                            "category": att0.get("category", "SIGHTSEEING"),
-                            "image_url": att0_img or hero_img,
+                            "end_time": "12:30 PM",
+                            "duration_minutes": 90,
+                            "estimated_cost": day_f // 2,
+                            "category": "FOOD",
+                            "image_url": None,
                         },
                     ]
                 else:
@@ -1024,13 +1102,13 @@ class DynamicDestinationResearchService:
                             "start_time": "11:30 AM",
                             "end_time": "01:00 PM",
                             "duration_minutes": 90,
-                            "estimated_cost": daily_food // 2,
-                            "category": "TRANSPORT",
+                            "estimated_cost": day_f // 2,
+                            "category": "FOOD",
                             "image_url": None,
                         },
                     ]
 
-                if not is_no_stay:
+                if not is_no_stay and day_acc > 0:
                     activities.append({
                         "order": 3,
                         "title": f"Arrival & Check-in at {hotel_name}",
@@ -1039,7 +1117,7 @@ class DynamicDestinationResearchService:
                         "start_time": "03:00 PM",
                         "end_time": "04:45 PM",
                         "duration_minutes": 105,
-                        "estimated_cost": daily_accom,
+                        "estimated_cost": day_acc,
                         "category": "ACCOMMODATION",
                         "image_url": None,
                     })
@@ -1053,8 +1131,8 @@ class DynamicDestinationResearchService:
                         "start_time": "05:00 PM",
                         "end_time": "07:00 PM",
                         "duration_minutes": 120,
-                        "estimated_cost": daily_acts,
-                        "category": att1.get("category", "SIGHTSEEING"),
+                        "estimated_cost": day_a,
+                        "category": normalize_poi_category(att1.get("category", "SIGHTSEEING")),
                         "image_url": att1_img or hero_img,
                     },
                     {
@@ -1065,7 +1143,7 @@ class DynamicDestinationResearchService:
                         "start_time": "07:30 PM",
                         "end_time": "09:30 PM",
                         "duration_minutes": 120,
-                        "estimated_cost": daily_food - (daily_food // 2),
+                        "estimated_cost": day_f - (day_f // 2),
                         "category": "FOOD",
                         "image_url": None,
                     },
@@ -1087,6 +1165,9 @@ class DynamicDestinationResearchService:
                 food_idx += 1
                 att_f_img = await cls.fetch_poi_image(att_final["title"], destination)
 
+                day_f = get_day_food(num_days)
+                day_a = get_day_acts(num_days)
+
                 # Check if live research found an authentic shopping/market POI
                 shopping_poi = next((a for a in attractions if a.get("category") == "SHOPPING"), None)
                 if shopping_poi:
@@ -1096,13 +1177,12 @@ class DynamicDestinationResearchService:
                     shop_cat = "SHOPPING"
                     shop_img = await cls.fetch_poi_image(shop_title, destination)
                 else:
-                    # Use the next real discovered attraction or scenic landscape point
                     next_att = attractions[att_idx % len(attractions)]
                     att_idx += 1
                     shop_title = next_att["title"]
                     shop_desc = next_att.get("description", f"Explore {shop_title} in {destination}.")
                     shop_loc = next_att["location"]
-                    shop_cat = next_att.get("category", "SIGHTSEEING")
+                    shop_cat = normalize_poi_category(next_att.get("category", "SIGHTSEEING"))
                     shop_img = await cls.fetch_poi_image(shop_title, destination)
 
                 activities = [
@@ -1114,7 +1194,7 @@ class DynamicDestinationResearchService:
                         "start_time": "08:00 AM",
                         "end_time": "09:30 AM",
                         "duration_minutes": 90,
-                        "estimated_cost": daily_food // 2,
+                        "estimated_cost": day_f // 2,
                         "category": "FOOD",
                         "image_url": None,
                     },
@@ -1126,8 +1206,8 @@ class DynamicDestinationResearchService:
                         "start_time": "10:00 AM",
                         "end_time": "12:30 PM",
                         "duration_minutes": 150,
-                        "estimated_cost": daily_acts,
-                        "category": att_final.get("category", "SIGHTSEEING"),
+                        "estimated_cost": day_a // 2,
+                        "category": normalize_poi_category(att_final.get("category", "SIGHTSEEING")),
                         "image_url": att_f_img or hero_img,
                     },
                     {
@@ -1138,7 +1218,7 @@ class DynamicDestinationResearchService:
                         "start_time": "12:45 PM",
                         "end_time": "02:00 PM",
                         "duration_minutes": 75,
-                        "estimated_cost": pool_other,
+                        "estimated_cost": day_a - (day_a // 2),
                         "category": shop_cat,
                         "image_url": shop_img or hero_img,
                     },
@@ -1150,7 +1230,7 @@ class DynamicDestinationResearchService:
                         "start_time": "02:00 PM",
                         "end_time": "03:15 PM",
                         "duration_minutes": 75,
-                        "estimated_cost": daily_food - (daily_food // 2),
+                        "estimated_cost": day_f - (day_f // 2),
                         "category": "FOOD",
                         "image_url": None,
                     },
@@ -1166,7 +1246,7 @@ class DynamicDestinationResearchService:
                         "end_time": "07:00 PM",
                         "duration_minutes": 180,
                         "estimated_cost": dayN_trans,
-                        "category": "LEISURE",
+                        "category": "TRANSPORT",
                         "image_url": hero_img,
                     })
                 else:
@@ -1198,7 +1278,19 @@ class DynamicDestinationResearchService:
                 att_a_img = await cls.fetch_poi_image(att_a["title"], destination)
                 att_b_img = await cls.fetch_poi_image(att_b["title"], destination)
 
-                mid_t = (pool_trans - (day1_trans + dayN_trans)) // max(1, num_days - 2)
+                # Mid-day transport allocation
+                mid_trans_total = pool_trans - (day1_trans + dayN_trans)
+                num_mid_days = max(1, num_days - 2)
+                mid_base = mid_trans_total // num_mid_days
+                mid_idx = day_num - 2
+                if mid_idx == num_mid_days - 1:
+                    mid_t = mid_trans_total - mid_base * (num_mid_days - 1)
+                else:
+                    mid_t = mid_base
+
+                day_f = get_day_food(day_num)
+                day_a = get_day_acts(day_num)
+                day_acc = get_day_accom(day_num)
 
                 activities = [
                     {
@@ -1209,7 +1301,7 @@ class DynamicDestinationResearchService:
                         "start_time": "08:00 AM",
                         "end_time": "09:00 AM",
                         "duration_minutes": 60,
-                        "estimated_cost": daily_food // 3,
+                        "estimated_cost": day_f // 3,
                         "category": "FOOD",
                         "image_url": None,
                     },
@@ -1221,8 +1313,8 @@ class DynamicDestinationResearchService:
                         "start_time": "09:30 AM",
                         "end_time": "12:30 PM",
                         "duration_minutes": 180,
-                        "estimated_cost": daily_acts // 2,
-                        "category": att_a.get("category", "SIGHTSEEING"),
+                        "estimated_cost": day_a // 2,
+                        "category": normalize_poi_category(att_a.get("category", "SIGHTSEEING")),
                         "image_url": att_a_img or hero_img,
                     },
                     {
@@ -1233,7 +1325,7 @@ class DynamicDestinationResearchService:
                         "start_time": "01:00 PM",
                         "end_time": "02:15 PM",
                         "duration_minutes": 75,
-                        "estimated_cost": daily_food // 3,
+                        "estimated_cost": day_f // 3,
                         "category": "FOOD",
                         "image_url": None,
                     },
@@ -1245,23 +1337,52 @@ class DynamicDestinationResearchService:
                         "start_time": "02:30 PM",
                         "end_time": "05:30 PM",
                         "duration_minutes": 180,
-                        "estimated_cost": daily_acts - (daily_acts // 2),
-                        "category": att_b.get("category", "CULTURE"),
+                        "estimated_cost": day_a - (day_a // 2),
+                        "category": normalize_poi_category(att_b.get("category", "CULTURE")),
                         "image_url": att_b_img or hero_img,
                     },
-                    {
-                        "order": 5,
-                        "title": f"Evening Dinner & Night Stay at {hotel_name}",
-                        "description": f"Dinner featuring local barbecue, followed by restful overnight stay.",
-                        "location": hotel_loc,
-                        "start_time": "07:30 PM",
-                        "end_time": "09:30 PM",
-                        "duration_minutes": 120,
-                        "estimated_cost": (daily_food - (2 * (daily_food // 3))) + daily_accom + mid_t,
-                        "category": "ACCOMMODATION" if not is_no_stay else "FOOD",
-                        "image_url": None,
-                    },
                 ]
+
+                if mid_t > 0:
+                    activities.append({
+                        "order": 5,
+                        "title": f"Scenic Valley Transit & Exploration Drive",
+                        "description": f"Local drive and scenic transit connecting exploration viewpoints in {destination}.",
+                        "location": f"{destination} Valley Routes",
+                        "start_time": "05:45 PM",
+                        "end_time": "07:00 PM",
+                        "duration_minutes": 75,
+                        "estimated_cost": mid_t,
+                        "category": "TRANSPORT",
+                        "image_url": hero_img,
+                    })
+
+                activities.append({
+                    "order": 6,
+                    "title": f"Dinner Featuring Local Barbecue in {destination}",
+                    "description": f"Authentic evening dinner featuring regional grilled delicacies and tea.",
+                    "location": food_mid["location"],
+                    "start_time": "07:30 PM",
+                    "end_time": "09:00 PM",
+                    "duration_minutes": 90,
+                    "estimated_cost": day_f - (2 * (day_f // 3)),
+                    "category": "FOOD",
+                    "image_url": None,
+                })
+
+                if not is_no_stay and day_acc > 0:
+                    activities.append({
+                        "order": 7,
+                        "title": f"Night Stay & Alpine Rest at {hotel_name}",
+                        "description": f"Comfortable overnight stay and restful evening at {hotel_name}.",
+                        "location": hotel_loc,
+                        "start_time": "09:30 PM",
+                        "end_time": "11:00 PM",
+                        "duration_minutes": 90,
+                        "estimated_cost": day_acc,
+                        "category": "ACCOMMODATION",
+                        "image_url": None,
+                    })
 
             # ─── Live Place Verification & Structured Geocoding for all activities on this day ───
             async def _verify_single_act(act):
@@ -1307,17 +1428,47 @@ class DynamicDestinationResearchService:
             })
 
         # ─── 4. STRICT 100% RECONCILIATION CHECK ────────────────────────────
-        # Sum of all activity estimated_cost MUST match total_b down to the single rupee!
-        total_calculated = sum(
-            act.get("estimated_cost", 0)
-            for day in days_data
-            for act in day.get("activities", [])
-        )
-        difference = round(total_b) - total_calculated
+        # SUM(planned itinerary item costs) + pool_other == round(total_b) EXACTLY.
+        # Contingency (pool_other) remains a reserve and is NEVER an itinerary expense.
+        # Each category in the itinerary reconciles strictly to its corresponding budget pool:
+        # TRANSPORT -> pool_trans, ACCOMMODATION -> pool_accom, FOOD -> pool_food, ACTIVITIES -> pool_acts
+        
+        calc_trans = sum(a.get("estimated_cost", 0) for d in days_data for a in d.get("activities", []) if a.get("category") == "TRANSPORT")
+        calc_accom = sum(a.get("estimated_cost", 0) for d in days_data for a in d.get("activities", []) if a.get("category") == "ACCOMMODATION")
+        calc_food = sum(a.get("estimated_cost", 0) for d in days_data for a in d.get("activities", []) if a.get("category") == "FOOD")
+        calc_acts = sum(a.get("estimated_cost", 0) for d in days_data for a in d.get("activities", []) if a.get("category") not in ("TRANSPORT", "ACCOMMODATION", "FOOD"))
 
-        if difference != 0 and days_data and days_data[-1].get("activities"):
-            # Adjust the very last activity cleanly
-            days_data[-1]["activities"][-1]["estimated_cost"] += difference
+        if calc_trans != pool_trans:
+            diff = pool_trans - calc_trans
+            for d in reversed(days_data):
+                t_acts = [a for a in d.get("activities", []) if a.get("category") == "TRANSPORT"]
+                if t_acts:
+                    t_acts[-1]["estimated_cost"] += diff
+                    break
+
+        if calc_accom != pool_accom:
+            diff = pool_accom - calc_accom
+            for d in reversed(days_data):
+                ac_acts = [a for a in d.get("activities", []) if a.get("category") == "ACCOMMODATION"]
+                if ac_acts:
+                    ac_acts[-1]["estimated_cost"] += diff
+                    break
+
+        if calc_food != pool_food:
+            diff = pool_food - calc_food
+            for d in reversed(days_data):
+                f_acts = [a for a in d.get("activities", []) if a.get("category") == "FOOD"]
+                if f_acts:
+                    f_acts[-1]["estimated_cost"] += diff
+                    break
+
+        if calc_acts != pool_acts:
+            diff = pool_acts - calc_acts
+            for d in reversed(days_data):
+                a_acts = [a for a in d.get("activities", []) if a.get("category") not in ("TRANSPORT", "ACCOMMODATION", "FOOD")]
+                if a_acts:
+                    a_acts[-1]["estimated_cost"] += diff
+                    break
 
         # ─── 5. COORDINATE REUSE & COLLISION FILTER ─────────────────────────
         # Ensure distinct activities do not accidentally share identical coordinates unless they represent the same hotel/venue.
