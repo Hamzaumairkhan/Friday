@@ -1,5 +1,6 @@
 """Trips API endpoints with complete Guided AI Trip Planner, Security Controls, Dynamic Images, and Public/Private sharing."""
 
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -635,7 +636,6 @@ async def generate_guided_trip_plan(
 
     # 5b. Globally Unique Image Reservation
     from app.services.dynamic_research_service import is_valid_direct_image_url
-    from app.services.image_reservation_service import claim_unique_image
 
     trip_id = str(uuid.uuid4())
     candidates = []
@@ -649,14 +649,19 @@ async def generate_guided_trip_plan(
     # Filter out stitch assets or invalid URLs
     valid_candidates = [c for c in candidates if c and not str(c).startswith("/images/stitch/")]
 
-    claimed_url = await claim_unique_image(
-        candidate_urls=valid_candidates,
-        entity_type="trip",
-        entity_id=trip_id,
-        destination=dest,
-        session=db,
-    )
-    img_url = claimed_url
+    try:
+        from app.services.image_reservation_service import claim_unique_image
+        claimed_url = await claim_unique_image(
+            candidate_urls=valid_candidates,
+            entity_type="trip",
+            entity_id=trip_id,
+            destination=dest,
+            session=db,
+        )
+        img_url = claimed_url
+    except Exception as e:
+        logger.warning(f"Image reservation failed (non-fatal), using first valid candidate: {e}")
+        img_url = valid_candidates[0] if valid_candidates else None
 
     # 6. Compute Deterministic Budget Breakdown
     if req.accommodation_preference == "none":

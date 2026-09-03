@@ -46,6 +46,7 @@ async def claim_unique_image(
     Atomically reserve the first unused valid image URL from the candidate list.
     Guarantees that no two trips or packages share the same image URL.
     Returns the claimed URL, or None if all candidates are exhausted.
+    Uses nested savepoints to avoid rolling back the outer transaction on conflicts.
     """
     if not candidate_urls:
         return None
@@ -64,23 +65,23 @@ async def claim_unique_image(
             continue
 
         try:
-            # Attempt atomic reservation
-            reservation = ImageReservation(
-                image_url=clean_url[:500],
-                entity_type=entity_type,
-                entity_id=entity_id,
-                destination=destination,
-                reserved_at=datetime.utcnow(),
-            )
-            session.add(reservation)
-            await session.flush()
+            # Use a nested savepoint so conflicts don't kill the outer transaction
+            async with session.begin_nested():
+                reservation = ImageReservation(
+                    image_url=clean_url[:500],
+                    entity_type=entity_type,
+                    entity_id=entity_id,
+                    destination=destination,
+                    reserved_at=datetime.utcnow(),
+                )
+                session.add(reservation)
             logger.info(f"Atomically reserved unique image for {entity_type} {entity_id} ({destination}): {clean_url}")
             return clean_url
         except Exception as e:
-            # Duplicate key or conflict, roll back this savepoint and try next
-            await session.rollback()
+            # Duplicate key or conflict — savepoint auto-rolled-back, try next candidate
             used_urls.add(clean_url)
             logger.debug(f"Image URL reservation collision on {clean_url}: {e}")
 
     logger.info(f"All candidate images exhausted for {destination} ({entity_type} {entity_id}). Setting image_url = None.")
     return None
+
