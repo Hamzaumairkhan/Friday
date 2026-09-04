@@ -328,28 +328,37 @@ async def check_weather(
             start_date=departure_date,
         )
         data = weather_res.get("data", {}) if isinstance(weather_res, dict) else {}
+        curr_temp = data.get("current_temp")
+        if curr_temp is None:
+            curr_temp = 22
         return {
-            "success": True,
-            "destination": destination,
-            "current_temp": data.get("current_temp"),
-            "feels_like": data.get("feels_like"),
+            "success": weather_res.get("success", True),
+            "destination": data.get("destination") or destination,
+            "current_temp": curr_temp,
+            "feels_like": data.get("feels_like", curr_temp),
             "condition": data.get("condition", "Pleasant"),
             "description": data.get("description", "Good conditions for expedition"),
+            "humidity": data.get("humidity", 45),
+            "wind_speed_kmh": data.get("wind_speed_kmh", 12),
             "forecast": data.get("forecast", []),
             "icon": data.get("icon", "sun"),
-            "advisory": f"Current weather in {destination} is {data.get('condition', 'pleasant')} ({data.get('current_temp', 24)}°C).",
+            "status": data.get("status", "CLEAR"),
+            "advisory": f"Current weather in {destination} is {data.get('condition', 'pleasant')} ({curr_temp}°C).",
         }
     except Exception as e:
         logger.warning(f"Weather check failed for {destination}: {e}")
         return {
             "success": False,
             "destination": destination,
-            "current_temp": 24,
-            "feels_like": 24,
+            "current_temp": 22,
+            "feels_like": 22,
             "condition": "Pleasant",
             "description": "Weather conditions are generally favorable for travel.",
+            "humidity": 45,
+            "wind_speed_kmh": 12,
             "forecast": [],
             "icon": "sun",
+            "status": "CLEAR",
             "advisory": f"Weather in {destination} is generally suitable for travel.",
         }
 

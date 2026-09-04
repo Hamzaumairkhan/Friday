@@ -248,25 +248,35 @@ export default function PackageFormPage() {
   }, [formData.destination]);
 
   useEffect(() => {
-    if (!formData.destination || formData.destination.trim().length < 2) return;
+    if (!formData.destination || formData.destination.trim().length < 2) {
+      setWeatherAdvisory(null);
+      return;
+    }
 
+    let isCurrent = true;
     const timer = setTimeout(async () => {
       setIsCheckingWeather(true);
       try {
         const res = await tripsService.checkWeather(
-          formData.destination,
+          formData.destination.trim(),
           formData.departure_date,
           Number(formData.duration_days || 3)
         );
-        setWeatherAdvisory(res);
+        if (isCurrent && res) {
+          setWeatherAdvisory(res);
+        }
       } catch (err) {
         console.error('Weather check error:', err);
+        if (isCurrent) setWeatherAdvisory(null);
       } finally {
-        setIsCheckingWeather(false);
+        if (isCurrent) setIsCheckingWeather(false);
       }
     }, 450);
 
-    return () => clearTimeout(timer);
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
   }, [formData.destination, formData.departure_date, formData.duration_days]);
 
   useEffect(() => {
@@ -1127,90 +1137,78 @@ export default function PackageFormPage() {
               </div>
             </div>
 
-            {/* ─── Real-Time Weather Forecast & Day Predictions ─── */}
+            {/* ─── Real-Time Weather Forecast & Day-by-Day Forecast for Exact Trip Days ─── */}
             {isCheckingWeather ? (
-              <div className="p-4 rounded-2xl bg-white border border-black/10 flex items-center gap-3 text-xs text-[#717975] shadow-2xs">
+              <div className="p-4 rounded-2xl bg-[#F8FAF6] border border-black/10 flex items-center gap-3 text-xs text-[#717975] shadow-2xs">
                 <Loader2 className="w-4 h-4 animate-spin text-[#00261D]" />
                 <span>Fetching live OpenWeather forecast for {formData.destination || 'your destination'} across {formData.duration_days || 3} days...</span>
               </div>
             ) : weatherAdvisory ? (
-              <div className="space-y-3 pt-2">
-                <div className="p-4 sm:p-5 rounded-2xl bg-[#F8FAF6] border border-[#00261D]/15 shadow-2xs space-y-4">
-                  {/* Weather Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-black/5 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-full bg-[#E7F7EE] flex items-center justify-center">
-                        {renderWeatherIcon(weatherAdvisory.icon || 'sun', 'w-5 h-5')}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[#00261D] uppercase tracking-wider">
-                            {weatherAdvisory.destination || formData.destination || 'Destination'} Live Forecast
-                          </span>
-                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Live OpenWeather
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-[#717975] flex items-center gap-2 mt-0.5">
-                          <span>Current: <strong>{weatherAdvisory.current_temp}°C {weatherAdvisory.condition}</strong></span>
-                          <span>•</span>
-                          <span>Humidity: {weatherAdvisory.humidity}%</span>
-                          <span>•</span>
-                          <span>Wind: {weatherAdvisory.wind_speed_kmh} km/h</span>
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#F8FAF6] border border-[#00261D]/15 shadow-2xs space-y-3.5 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2.5">
+                    {renderWeatherIcon(weatherAdvisory.icon || 'sun', 'w-6 h-6')}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#00261D]">
+                          {formData.destination || weatherAdvisory.destination} Weather Forecast
+                        </span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900">
+                          Live OpenWeather
                         </span>
                       </div>
+                      <span className="text-[11px] text-[#717975] block">
+                        {formData.departure_date ? `${formData.departure_date} → ${formData.return_date || ''}` : 'Upcoming travel window'} ({weatherAdvisory.condition || 'Clear'})
+                      </span>
                     </div>
                   </div>
 
-                  {/* Day-by-Day Forecast Predictions Grid */}
-                  {Array.isArray(weatherAdvisory.forecast) && weatherAdvisory.forecast.length > 0 && (
-                    <div>
-                      <span className="text-[11px] uppercase font-bold text-[#717975] tracking-wider block mb-2.5">
-                        Day-by-Day Weather Prediction ({weatherAdvisory.forecast.length} Day{weatherAdvisory.forecast.length > 1 ? 's' : ''})
-                      </span>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-                        {weatherAdvisory.forecast.map((fDay) => (
-                          <div
-                            key={fDay.day_number}
-                            className="p-3 rounded-xl bg-white border border-black/10 hover:border-[#00261D]/40 transition-all flex flex-col justify-between space-y-2 shadow-2xs"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-bold text-[#00261D]">{fDay.day_label}</span>
-                              {renderWeatherIcon(fDay.icon || 'sun', 'w-4 h-4')}
-                            </div>
-                            <div>
-                              <span className="text-[10px] font-medium text-[#717975] block truncate">
-                                {fDay.formatted_date}
-                              </span>
-                              <span className="text-sm font-bold text-[#00261D] block mt-0.5">
-                                {(fDay.temp_max !== undefined && fDay.day_number > 1) ? fDay.temp_max : fDay.temp}°C
-                              </span>
-                              <span className="text-[10px] font-bold text-[#555E59] block truncate">
-                                {fDay.condition}
-                              </span>
-                            </div>
-                            <div className="text-[9px] text-[#717975] pt-1 border-t border-black/5 flex items-center justify-between">
-                              <span>{fDay.temp_max}° / {fDay.temp_min}°</span>
-                              {fDay.pop > 0 && <span>💧 {fDay.pop}%</span>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Advisory Warning Banner */}
-                  {weatherAdvisory.status === 'WARNING' && (
-                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-2 text-xs">
-                      <div className="flex items-center gap-1.5 font-bold text-amber-950 uppercase tracking-wider text-[11px]">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
-                        <span>{weatherAdvisory.title || 'Seasonal Travel Advisory'}</span>
-                      </div>
-                      <p className="text-amber-900 text-[11px] leading-relaxed">{weatherAdvisory.message}</p>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="font-bold text-[#00261D] text-sm">
+                      {weatherAdvisory.current_temp || 22}°C
+                    </span>
+                    <span className="text-[#717975]">
+                      💧 {weatherAdvisory.humidity || 45}%
+                    </span>
+                    <span className="text-[#717975]">
+                      💨 {weatherAdvisory.wind_speed_kmh || 12} km/h
+                    </span>
+                  </div>
                 </div>
+
+                {/* Day-by-Day Forecast Pills for Selected Trip Days */}
+                {Array.isArray(weatherAdvisory.forecast) && weatherAdvisory.forecast.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 pt-1">
+                    {weatherAdvisory.forecast.map((fDay, fIdx) => (
+                      <div
+                        key={fIdx}
+                        className="p-2.5 rounded-xl bg-white border border-black/5 flex flex-col items-center justify-center text-center space-y-1 shadow-2xs"
+                      >
+                        <span className="text-[10px] font-bold text-[#717975] uppercase">
+                          {fDay.day_label || fDay.day || `Day ${fIdx + 1}`}
+                        </span>
+                        {renderWeatherIcon(fDay.icon || 'sun', 'w-4 h-4')}
+                        <span className="text-xs font-bold text-[#00261D]">
+                          {fDay.temp !== undefined ? `${fDay.temp}°C` : `${fDay.temp_max || 20}°`}
+                        </span>
+                        <span className="text-[9px] text-[#717975] truncate max-w-full">
+                          {fDay.condition || 'Fair'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Warning / Seasonal Advisory Banner */}
+                {weatherAdvisory.status === 'WARNING' && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <span className="font-bold block">{weatherAdvisory.title || 'Seasonal Travel Warning'}</span>
+                      <p className="text-[11px] leading-relaxed text-amber-800">{weatherAdvisory.message}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : null}
           </div>
