@@ -44,10 +44,12 @@ class BookingService:
         if data:
             trip_id = data.trip_id
             package_id = data.package_id
-            travelers = data.travelers
+            travelers = data.travelers or getattr(data, 'seats_booked', None)
             notes = data.notes
 
-        if not package_id or not travelers or travelers < 1:
+        travelers = travelers or 1
+
+        if not package_id or travelers < 1:
             raise ValidationError("package_id and a valid travelers count (>=1) are required")
 
         # 1. Authoritative Package Resolution with Pessimistic Row Lock

@@ -135,7 +135,8 @@ export default function PackageDetailPage() {
       setPkg(updatedPkg);
     } catch (err) {
       console.error('Failed to submit review:', err);
-      toast.error(err.response?.data?.detail || 'Failed to submit review.');
+      const msg = err.data?.detail || err.response?.data?.detail || err.message;
+      toast.error(typeof msg === 'object' ? (Array.isArray(msg) ? msg.map(m => m.msg || JSON.stringify(m)).join(', ') : JSON.stringify(msg)) : (msg || 'Failed to submit review.'));
     } finally {
       setSubmittingReview(false);
     }
@@ -153,9 +154,11 @@ export default function PackageDetailPage() {
     }
     setIsBooking(true);
     try {
+      const count = Number(travelersCount) || 1;
       const bookingData = {
         package_id: pkg.id,
-        seats_booked: travelersCount,
+        travelers: count,
+        seats_booked: count,
         notes: bookingNotes.trim() || undefined,
       };
       const booking = await bookingsService.createBooking(bookingData);
@@ -164,7 +167,8 @@ export default function PackageDetailPage() {
       navigate(`/bookings/${booking.id}`);
     } catch (err) {
       console.error('Booking failed:', err);
-      toast.error(err.message || 'Failed to create booking.');
+      const msg = err.data?.detail || err.response?.data?.detail || err.message;
+      toast.error(typeof msg === 'object' ? (Array.isArray(msg) ? msg.map(m => m.msg || JSON.stringify(m)).join(', ') : JSON.stringify(msg)) : (msg || 'Failed to create booking.'));
     } finally {
       setIsBooking(false);
     }

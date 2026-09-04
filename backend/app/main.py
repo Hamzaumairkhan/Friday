@@ -99,9 +99,18 @@ app.add_exception_handler(FridayError, friday_error_handler)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     """Fallback exception handler ensuring structured 500 JSON with CORS compliance."""
     logger.exception(f"Unhandled server error on {request.method} {request.url.path}: {exc}")
+    origin = request.headers.get("origin") or "*"
+    headers = {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "*",
+        "Access-Control-Allow-Headers": "*",
+    }
+    error_detail = str(exc) if not settings.is_production else "An internal server error occurred. Please try again or contact Friday support."
     return JSONResponse(
         status_code=500,
-        content={"detail": "An internal server error occurred. Please try again or contact Friday support."},
+        content={"detail": error_detail},
+        headers=headers,
     )
 
 # Tracing & Telemetry Middleware

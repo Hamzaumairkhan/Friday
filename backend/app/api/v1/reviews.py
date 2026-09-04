@@ -4,7 +4,7 @@ import uuid
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 
 from app.database.database import get_db
 from app.models.review import Review
@@ -94,7 +94,9 @@ async def create_package_review(
     pkg_revs = await db.execute(
         select(func.avg(Review.rating), func.count(Review.id)).where(Review.package_id == pkg.id)
     )
-    pkg_avg, pkg_count = pkg_revs.first()
+    p_row = pkg_revs.first()
+    pkg_avg = p_row[0] if p_row else None
+    pkg_count = p_row[1] if p_row else 0
     pkg.rating = round(float(pkg_avg or req.rating), 1)
     pkg.reviews_count = int(pkg_count or 1)
 
@@ -103,7 +105,9 @@ async def create_package_review(
         org_revs = await db.execute(
             select(func.avg(Review.rating), func.count(Review.id)).where(Review.organizer_id == org.id)
         )
-        org_avg, org_count = org_revs.first()
+        o_row = org_revs.first()
+        org_avg = o_row[0] if o_row else None
+        org_count = o_row[1] if o_row else 0
         org.rating = round(float(org_avg or req.rating), 1)
         org.reviews_count = int(org_count or 1)
 
@@ -163,13 +167,41 @@ async def create_trip_review(
         reviewer_name=reviewer_name,
     )
     db.add(new_rev)
-    await db.flush()
+    try:
+        await db.flush()
+    except Exception:
+        await db.rollback()
+        # Ensure reviews columns are nullable if legacy schema had NOT NULL
+        try:
+            await db.execute(text("ALTER TABLE `reviews` MODIFY COLUMN `organizer_id` VARCHAR(255) NULL"))
+            await db.execute(text("ALTER TABLE `reviews` MODIFY COLUMN `package_id` VARCHAR(255) NULL"))
+            await db.commit()
+        except Exception:
+            pass
+
+        # Re-fetch trip after rollback and retry add
+        trip = await db.get(Trip, trip_id)
+        new_rev = Review(
+            id=rev_id,
+            user_id=current_user.id,
+            organizer_id=None,
+            package_id=None,
+            trip_id=trip.id,
+            rating=round(float(req.rating), 1),
+            title=req.title,
+            content=req.content,
+            reviewer_name=reviewer_name,
+        )
+        db.add(new_rev)
+        await db.flush()
 
     # Recalculate trip average rating & count
     trip_revs = await db.execute(
         select(func.avg(Review.rating), func.count(Review.id)).where(Review.trip_id == trip.id)
     )
-    trip_avg, trip_count = trip_revs.first()
+    t_row = trip_revs.first()
+    trip_avg = t_row[0] if t_row else None
+    trip_count = t_row[1] if t_row else 0
     trip.rating = round(float(trip_avg or req.rating), 1)
     trip.reviews_count = int(trip_count or 1)
 

@@ -1,17 +1,29 @@
 """Booking schemas."""
 
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 class BookingCreate(BaseModel):
     trip_id: Optional[str] = None
     package_id: str
-    travelers: int
+    travelers: Optional[int] = None
+    seats_booked: Optional[int] = None
     notes: Optional[str] = None
     traveler_name: Optional[str] = None
     traveler_email: Optional[str] = None
     traveler_phone: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_travelers_or_seats(self):
+        if not self.travelers and not self.seats_booked:
+            self.travelers = 1
+            self.seats_booked = 1
+        elif not self.travelers and self.seats_booked:
+            self.travelers = self.seats_booked
+        elif self.travelers and not self.seats_booked:
+            self.seats_booked = self.travelers
+        return self
 
 
 class BookingResponse(BaseModel):

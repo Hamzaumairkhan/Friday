@@ -144,7 +144,8 @@ export default function TripDetailPage() {
       setTrip(updatedTrip);
     } catch (err) {
       console.error('Failed to submit review:', err);
-      toast.error(err.response?.data?.detail || 'Failed to submit review.');
+      const msg = err.data?.detail || err.response?.data?.detail || err.message;
+      toast.error(typeof msg === 'object' ? (Array.isArray(msg) ? msg.map(m => m.msg || JSON.stringify(m)).join(', ') : JSON.stringify(msg)) : (msg || 'Failed to submit review.'));
     } finally {
       setSubmittingReview(false);
     }

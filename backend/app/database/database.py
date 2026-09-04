@@ -113,6 +113,17 @@ def _auto_migrate_schema(sync_conn):
             except Exception:
                 pass
 
+    # Ensure reviews table columns are nullable for trip & package reviews
+    if inspector.has_table("reviews"):
+        for col_name in ["organizer_id", "package_id"]:
+            try:
+                sync_conn.execute(text(f"ALTER TABLE `reviews` MODIFY COLUMN `{col_name}` VARCHAR(255) NULL"))
+            except Exception:
+                try:
+                    sync_conn.execute(text(f"ALTER TABLE reviews MODIFY COLUMN {col_name} VARCHAR(255) NULL"))
+                except Exception:
+                    pass
+
 
 async def get_db() -> AsyncSession:
     """FastAPI dependency that provides a database session."""

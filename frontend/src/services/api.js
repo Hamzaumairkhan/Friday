@@ -76,7 +76,17 @@ async function request(endpoint, options = {}) {
     } catch {
       errorData = { message: response.statusText };
     }
-    const error = new Error(errorData.message || errorData.detail || 'Request failed');
+    let errorMsg = 'Request failed';
+    if (typeof errorData?.detail === 'string') {
+      errorMsg = errorData.detail;
+    } else if (Array.isArray(errorData?.detail)) {
+      errorMsg = errorData.detail.map(d => (typeof d === 'string' ? d : d.msg || JSON.stringify(d))).join(', ');
+    } else if (errorData?.message) {
+      errorMsg = typeof errorData.message === 'string' ? errorData.message : JSON.stringify(errorData.message);
+    } else if (errorData?.detail) {
+      errorMsg = JSON.stringify(errorData.detail);
+    }
+    const error = new Error(errorMsg);
     error.status = response.status;
     error.data = errorData;
     throw error;

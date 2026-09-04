@@ -86,6 +86,14 @@ async def friday_error_handler(request: Request, exc: FridayError) -> JSONRespon
         if key_pattern in sanitized_msg:
             sanitized_msg = "[Internal API credentials redacted from error message]"
 
+    origin = request.headers.get("origin") or "*"
+    headers = {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "*",
+        "Access-Control-Allow-Headers": "*",
+    }
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -93,4 +101,5 @@ async def friday_error_handler(request: Request, exc: FridayError) -> JSONRespon
             "message": sanitized_msg,
             "status_code": exc.status_code,
         },
+        headers=headers,
     )
