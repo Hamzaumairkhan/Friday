@@ -28,7 +28,9 @@ ENV/
 
 # Environment Variables & Secrets
 .env
+.env.*
 .env.local
+!.env.example
 *.json
 !package.json
 !package-lock.json

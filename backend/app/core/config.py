@@ -63,13 +63,13 @@ class Settings(BaseSettings):
     GOOGLE_MAPS_API_KEY: Optional[str] = None
 
     # EMAIL (Direct Gmail SMTP + Resend Fallback)
-    RESEND_API_KEY: Optional[str] = "re_6XVkdAMu_MHemv9sFHUqiFvpUjM3S7tbT"
-    EMAIL_FROM: str = "todaysfriday555@gmail.com"
-    ADMIN_EMAIL: Optional[str] = "hamzaumairkhan30@gmail.com"
+    RESEND_API_KEY: Optional[str] = None
+    EMAIL_FROM: str = "noreply@fridaytravel.pk"
+    ADMIN_EMAIL: Optional[str] = None
     SMTP_HOST: Optional[str] = "smtp.gmail.com"
     SMTP_PORT: int = 587
-    SMTP_USER: Optional[str] = "todaysfriday555@gmail.com"
-    SMTP_PASSWORD: Optional[str] = "ajif ktyg semf bbqi"
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
 
     # WHATSAPP (Live Railway Baileys microservice / Local microservice)
     WHATSAPP_SERVICE_URL: str = "https://miraculous-analysis-production-eed1.up.railway.app"
