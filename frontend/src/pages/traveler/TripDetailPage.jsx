@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   MapPin,
@@ -72,6 +72,7 @@ export default function TripDetailPage() {
   const [tripWeather, setTripWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isCopying, setIsCopying] = useState(false);
+  const viewRecordedRef = useRef(null);
 
   // Edit Trip Header State
   const [isEditingTrip, setIsEditingTrip] = useState(false);
@@ -190,12 +191,15 @@ export default function TripDetailPage() {
           .catch(() => {});
       }
 
-      // Record impression view
-      tripsService.recordView(tripId).then((res) => {
-        if (res && res.views_count !== undefined) {
-          setTrip((prev) => prev ? { ...prev, views_count: res.views_count } : prev);
-        }
-      }).catch(() => {});
+      // Record strictly 1 impression view per visitor session
+      if (viewRecordedRef.current !== tripId) {
+        viewRecordedRef.current = tripId;
+        tripsService.recordView(tripId).then((res) => {
+          if (res && res.views_count !== undefined) {
+            setTrip((prev) => prev ? { ...prev, views_count: res.views_count } : prev);
+          }
+        }).catch(() => {});
+      }
       fetchTripReviews(tripId);
     } catch (err) {
       console.error('Error fetching trip details:', err);

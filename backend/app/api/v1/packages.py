@@ -185,14 +185,6 @@ async def get_package(
     if not p:
         raise HTTPException(status_code=404, detail="Package not found")
     
-    # Increment views_count every time the tour package is viewed
-    try:
-        p.views_count = int(getattr(p, 'views_count', 0) or 0) + 1
-        await db.commit()
-        await db.refresh(p)
-    except Exception as e:
-        pass
-
     return _format_public_package(p)
 
 

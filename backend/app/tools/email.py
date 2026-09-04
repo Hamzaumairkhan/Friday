@@ -131,12 +131,15 @@ class SmtpEmailProvider(BaseEmailProvider):
             return {"success": False, "source": "smtp", "source_type": "invalid_input", "data": None, "error": "Recipient email cannot be empty."}
 
         target_to = to.strip()
+        sender_email = self.user if ("@" in (self.user or "")) else (self.from_email or self.user)
 
         def _send_sync():
+            clean_subj = subject.replace("—", "-").replace("–", "-")
             msg = MIMEMultipart("alternative")
-            msg["Subject"] = Header(subject, "utf-8")
-            msg["From"] = formataddr((str(Header("Friday AI Travel Marketplace", "utf-8")), self.from_email))
+            msg["Subject"] = Header(clean_subj, "utf-8")
+            msg["From"] = formataddr((str(Header("Friday AI Travel Marketplace", "utf-8")), sender_email))
             msg["To"] = target_to
+            msg["Reply-To"] = sender_email
 
             msg.attach(MIMEText(body, "plain", "utf-8"))
             if html:
@@ -147,30 +150,30 @@ class SmtpEmailProvider(BaseEmailProvider):
             # 1. Primary: Port 587 with STARTTLS (fast, widely supported across cloud & residential ISPs)
             if target_port == 587:
                 try:
-                    with smtplib.SMTP(self.host, 587, timeout=8.0) as server:
+                    with smtplib.SMTP(self.host, 587, timeout=10.0) as server:
                         server.starttls()
                         server.login(self.user, self.password)
-                        server.sendmail(self.from_email, [target_to], msg.as_string())
+                        server.sendmail(sender_email, [target_to], msg.as_string())
                     return True
                 except Exception as e587:
                     logger.warning(f"SMTP port 587 STARTTLS failed ({e587}), trying port 465 SSL...")
-                    with smtplib.SMTP_SSL(self.host, 465, timeout=8.0) as server:
+                    with smtplib.SMTP_SSL(self.host, 465, timeout=10.0) as server:
                         server.login(self.user, self.password)
-                        server.sendmail(self.from_email, [target_to], msg.as_string())
+                        server.sendmail(sender_email, [target_to], msg.as_string())
                     return True
             else:
                 # Direct SSL (port 465)
                 try:
-                    with smtplib.SMTP_SSL(self.host, target_port, timeout=8.0) as server:
+                    with smtplib.SMTP_SSL(self.host, target_port, timeout=10.0) as server:
                         server.login(self.user, self.password)
-                        server.sendmail(self.from_email, [target_to], msg.as_string())
+                        server.sendmail(sender_email, [target_to], msg.as_string())
                     return True
                 except Exception as e465:
                     logger.warning(f"SMTP SSL port {target_port} failed ({e465}), falling back to 587 STARTTLS...")
-                    with smtplib.SMTP(self.host, 587, timeout=8.0) as server:
+                    with smtplib.SMTP(self.host, 587, timeout=10.0) as server:
                         server.starttls()
                         server.login(self.user, self.password)
-                        server.sendmail(self.from_email, [target_to], msg.as_string())
+                        server.sendmail(sender_email, [target_to], msg.as_string())
                     return True
 
         try:
@@ -187,16 +190,16 @@ class EmailTool:
     """Unified email tool using direct Gmail SMTP exclusively as configured by user."""
 
     def __init__(self, api_key: Optional[str] = None, from_email: Optional[str] = None, admin_email: Optional[str] = None):
-        self.from_email = from_email or settings.EMAIL_FROM or settings.SMTP_USER or "noreply@fridaytravel.pk"
-        self.admin_email = admin_email or settings.ADMIN_EMAIL
+        smtp_user = (settings.SMTP_USER or "").strip()
+        smtp_pass = (settings.SMTP_PASSWORD or "").strip()
+        self.from_email = from_email or settings.EMAIL_FROM or smtp_user or "todaysfriday555@gmail.com"
+        self.admin_email = admin_email or settings.ADMIN_EMAIL or "hamzaumairkhan30@gmail.com"
 
         # Authoritative direct Gmail SMTP provider
-        smtp_user = settings.SMTP_USER or ""
-        smtp_pass = settings.SMTP_PASSWORD or ""
         self.smtp_provider: Optional[SmtpEmailProvider] = (
             SmtpEmailProvider(
                 host=settings.SMTP_HOST or "smtp.gmail.com",
-                port=settings.SMTP_PORT or 587,
+                port=int(settings.SMTP_PORT or 587),
                 user=smtp_user,
                 password=smtp_pass,
                 from_email=self.from_email,
@@ -205,8 +208,14 @@ class EmailTool:
 
     async def send_email(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
         """Send an email using direct Gmail SMTP."""
+        target_to = (to or "").strip()
+        if not target_to or any(target_to.endswith(d) for d in ("@friday.local", "@friday.pk", "@example.com")):
+            if self.admin_email:
+                logger.info(f"Redirecting test/dummy recipient '{to}' to configured ADMIN_EMAIL '{self.admin_email}'")
+                target_to = self.admin_email
+
         if self.smtp_provider:
-            return await self.smtp_provider.send(to=to, subject=subject, body=body, html=html)
+            return await self.smtp_provider.send(to=target_to, subject=subject, body=body, html=html)
 
         return {
             "success": False,

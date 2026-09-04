@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   MapPin,
@@ -36,6 +36,7 @@ export default function PackageDetailPage() {
   const [pkg, setPkg] = useState(null);
   const [organizer, setOrganizer] = useState(null);
   const [loading, setLoading] = useState(true);
+  const viewRecordedRef = useRef(null);
 
   // Reviews State
   const [reviews, setReviews] = useState([]);
@@ -92,12 +93,15 @@ export default function PackageDetailPage() {
         }
         fetchPackageReviews(packageId);
 
-        // Record 1 unique view for this visitor
-        packagesService.recordView(packageId).then((res) => {
-          if (res && res.views_count !== undefined) {
-            setPkg((prev) => prev ? { ...prev, views_count: res.views_count } : prev);
-          }
-        }).catch(() => { });
+        // Record strictly 1 unique view for this visitor session
+        if (viewRecordedRef.current !== packageId) {
+          viewRecordedRef.current = packageId;
+          packagesService.recordView(packageId).then((res) => {
+            if (res && res.views_count !== undefined) {
+              setPkg((prev) => prev ? { ...prev, views_count: res.views_count } : prev);
+            }
+          }).catch(() => { });
+        }
       } catch (err) {
         console.error('Error fetching package details:', err);
         toast.error('Failed to load package details.');

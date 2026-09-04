@@ -381,14 +381,6 @@ async def get_trip(
     service = TripService(db)
     trip = await service.get_trip(trip_id=trip_id, user_id=user_id)
     
-    # Increment views count every time the trip is viewed
-    try:
-        trip.views_count = int(getattr(trip, 'views_count', 0) or 0) + 1
-        await db.commit()
-        await db.refresh(trip)
-    except Exception as e:
-        logger.warning(f"Could not increment views_count: {e}")
-
     # Enrich members with Google profile photos and verified names (hide email & phone if public)
     is_public = bool(trip.is_public)
     members = []
@@ -487,21 +479,26 @@ async def _dispatch_trip_notifications_background(
     email_service = EmailService()
     whatsapp_service = WhatsAppService()
 
-    # 1. Lead Traveler Notification
-    if lead_email:
+    # 1. Lead Traveler Notification (Resolve real inbox target)
+    target_email = (lead_email or "").strip()
+    if not target_email or any(target_email.endswith(d) for d in ("@friday.local", "@friday.pk", "@example.com")):
+        if cfg.ADMIN_EMAIL:
+            target_email = cfg.ADMIN_EMAIL
+
+    if target_email:
         try:
             await email_service.send_trip_planned_notification(
                 trip_id=trip_id,
-                traveler_email=lead_email,
+                traveler_email=target_email,
                 traveler_name=lead_name,
                 trip_title=trip_title,
                 destination=destination,
                 travelers_count=travelers,
                 budget_total=budget_total,
             )
-            logger.info(f"Dispatched trip planned email to lead traveler: {lead_email}")
+            logger.info(f"Dispatched trip planned email to lead traveler: {target_email}")
         except Exception as e:
-            logger.warning(f"Failed to send email to lead traveler {lead_email}: {e}")
+            logger.warning(f"Failed to send email to lead traveler {target_email}: {e}")
 
     if lead_phone:
         try:
@@ -570,13 +567,17 @@ async def _dispatch_trip_notifications(trip: Trip, db: AsyncSession):
     if not owner_user:
         u_res = await db.execute(
             select(User).where(
-                (User.id == trip.owner_id) | (User.email == trip.owner_id) | (User.firebase_uid == trip.owner_id)
+                (User.id == trip.owner_id) | (User.email == trip.owner_id)
             )
         )
         owner_user = u_res.scalars().first()
 
     lead_name = lead_c.get("name") or (owner_user.name if owner_user else "Lead Traveler")
-    lead_email = lead_c.get("email") or (owner_user.email if owner_user else None)
+    lead_email = (lead_c.get("email") or "").strip() or (owner_user.email if owner_user else None)
+    cfg = get_settings()
+    if not lead_email or any(lead_email.endswith(d) for d in ("@friday.local", "@friday.pk", "@example.com")):
+        if cfg.ADMIN_EMAIL:
+            lead_email = cfg.ADMIN_EMAIL
     lead_phone = lead_c.get("phone") or (getattr(owner_user, 'phone', None) if owner_user else None)
 
     # Launch background task without blocking the HTTP request
@@ -870,6 +871,12 @@ async def generate_guided_trip_plan(
         db.add(b)
 
     await db.commit()
+
+    # Automated Dispatch to Lead & Companions via WhatsApp and Email upon AI generation
+    try:
+        await _dispatch_trip_notifications(trip, db)
+    except Exception as e:
+        logger.warning(f"Could not dispatch notifications for generated trip: {e}")
 
     return {
         "id": trip.id,

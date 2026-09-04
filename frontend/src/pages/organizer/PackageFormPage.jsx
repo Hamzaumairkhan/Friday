@@ -620,6 +620,7 @@ export default function PackageFormPage() {
         destination: formData.destination.trim(),
         organizer_name: formData.organizer_name.trim(),
         contact_phone: formData.contact_phone.trim(),
+        contact_email: formData.contact_email?.trim() || backendUser?.email || '',
         duration_days: Number(formData.duration_days) || 3,
         start_date: formData.departure_date,
         end_date: formData.return_date,

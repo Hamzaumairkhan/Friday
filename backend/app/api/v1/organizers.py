@@ -315,7 +315,7 @@ async def create_package_for_organizer(
 
     org_name = req.organizer_name or current_organizer.name or (linked_user.name if linked_user else None) or "Verified Tour Host"
     org_phone = req.contact_phone or current_organizer.contact_phone or getattr(current_organizer, 'phone', None) or ""
-    org_email = (linked_user.email if linked_user and linked_user.email else None) or current_organizer.contact_email
+    org_email = getattr(req, 'contact_email', None) or (linked_user.email if linked_user and linked_user.email else None) or current_organizer.contact_email
 
     # Persist updated contact info back to organizer record if missing
     if org_phone and not current_organizer.contact_phone:
@@ -354,12 +354,18 @@ async def create_package_for_organizer(
         cfg = get_settings()
         frontend_base = cfg.FRONTEND_URL or "https://friday-jet-mu.vercel.app"
 
+        # Resolve real inbox target
+        target_org_email = (org_email or "").strip()
+        if not target_org_email or any(target_org_email.endswith(d) for d in ("@friday.local", "@friday.pk", "@example.com")):
+            if cfg.ADMIN_EMAIL:
+                target_org_email = cfg.ADMIN_EMAIL
+
         try:
             from app.services.email_service import EmailService
-            if org_email:
+            if target_org_email:
                 email_svc = EmailService()
                 await email_svc.send_organizer_package_published_email(
-                    organizer_email=org_email,
+                    organizer_email=target_org_email,
                     organizer_name=org_name,
                     package_id=saved_pkg.id,
                     package_title=saved_pkg.title,
@@ -367,6 +373,7 @@ async def create_package_for_organizer(
                     duration_days=saved_pkg.duration_days,
                     price_per_person=saved_pkg.price_per_person,
                 )
+                logger.info(f"Dispatched package published confirmation email to: {target_org_email}")
         except Exception as e:
             logger.warning(f"Failed to dispatch package published email: {e}")
 

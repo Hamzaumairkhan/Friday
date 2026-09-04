@@ -21,6 +21,7 @@ class PackageCreate(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     contact_phone: Optional[str] = None
+    contact_email: Optional[str] = None
     organizer_name: Optional[str] = None
 
 
