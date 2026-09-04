@@ -645,15 +645,14 @@ async def generate_guided_trip_plan(
     dest = (req.destination or req.destination_query or "Islamabad").strip()
     origin = (req.origin or "Islamabad").strip()
 
-    # 0. Geographic Verification & Auto-Correction for Pakistan
-    from app.services.pakistan_geo_service import PakistanGeoService
-    geo_res = await PakistanGeoService.validate_and_correct_destination(dest)
-    if not geo_res.get("is_valid_pakistan"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=geo_res.get("error") or f"Friday is Pakistan's exclusive AI travel architect. We only curate trips within Pakistan. '{dest}' is outside Pakistan."
-        )
-    dest = geo_res.get("corrected_destination") or dest
+    # 0. Geographic Auto-Correction for Pakistan (Non-blocking)
+    try:
+        from app.services.pakistan_geo_service import PakistanGeoService
+        geo_res = await PakistanGeoService.validate_and_correct_destination(dest)
+        if geo_res and geo_res.get("corrected_destination"):
+            dest = geo_res["corrected_destination"]
+    except Exception as e:
+        logger.warning(f"Destination geo check notice: {e}")
     
     # 1. Resolve duration days
     duration_days = 4
