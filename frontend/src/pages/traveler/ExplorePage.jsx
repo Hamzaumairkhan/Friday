@@ -26,13 +26,16 @@ import EmptyState from '../../components/shared/EmptyState';
 import { Skeleton } from '../../components/ui/skeleton';
 import toast from 'react-hot-toast';
 
+let cachedFeedPackages = null;
+let cachedFeedOrganizers = null;
+
 export default function ExplorePage() {
   const navigate = useNavigate();
   const { backendUser, role } = useAuth();
   const isOrganizer = (role || backendUser?.role) === 'ORGANIZER';
-  const [packages, setPackages] = useState([]);
-  const [organizers, setOrganizers] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [packages, setPackages] = useState(() => cachedFeedPackages || []);
+  const [organizers, setOrganizers] = useState(() => cachedFeedOrganizers || {});
+  const [loading, setLoading] = useState(() => !cachedFeedPackages);
   const [searchDestination, setSearchDestination] = useState('');
   const [selectedDuration, setSelectedDuration] = useState('ALL');
   const [selectedBudget, setSelectedBudget] = useState('ALL');
@@ -56,8 +59,10 @@ export default function ExplorePage() {
 
   const hasActiveFilters = selectedDuration !== 'ALL' || selectedBudget !== 'ALL';
 
-  const fetchMarketplaceData = async () => {
-    setLoading(true);
+  const fetchMarketplaceData = async (isBackground = false) => {
+    if (!isBackground && !cachedFeedPackages) {
+      setLoading(true);
+    }
     try {
       const [pkgs, orgs, communityTrips] = await Promise.all([
         packagesService.listPackages().catch(() => []),
@@ -85,6 +90,8 @@ export default function ExplorePage() {
           max_group_size: travelersCount,
           difficulty: 'Flexible',
           organizer_id: null,
+          rating: Number(ct.rating || 0),
+          reviews_count: Number(ct.reviews_count || 0),
           views_count: ct.views_count || 0,
           likes_count: ct.likes_count || 0,
           created_at: ct.created_at || ct.updated_at || null,
@@ -98,6 +105,8 @@ export default function ExplorePage() {
         ...p,
         start_date: p.departure_date || p.start_date || null,
         end_date: p.return_date || p.end_date || null,
+        rating: Number(p.rating || 0),
+        reviews_count: Number(p.reviews_count || 0),
         views_count: p.views_count || 0,
         likes_count: p.likes_count || 0,
       }));
@@ -125,12 +134,14 @@ export default function ExplorePage() {
         return String(b.id || '').localeCompare(String(a.id || ''));
       });
 
+      cachedFeedPackages = allItems;
       setPackages(allItems);
 
       const orgMap = {};
       (orgs || []).forEach((o) => {
         orgMap[o.id] = o;
       });
+      cachedFeedOrganizers = orgMap;
       setOrganizers(orgMap);
 
       // Load saved state and save counts from localStorage
@@ -174,8 +185,35 @@ export default function ExplorePage() {
   };
 
   useEffect(() => {
-    fetchMarketplaceData();
+    fetchMarketplaceData(Boolean(cachedFeedPackages));
   }, []);
+
+  // Track and save scroll position continuously
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem('friday_explore_scroll', window.scrollY.toString());
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Restore scroll position when data has rendered
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem('friday_explore_scroll');
+    if (savedScroll && !loading && packages.length > 0) {
+      const scrollPos = parseInt(savedScroll, 10);
+      if (!isNaN(scrollPos) && scrollPos > 0) {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: scrollPos, behavior: 'instant' });
+        });
+      }
+    }
+  }, [loading, packages.length]);
+
+  const handleCardClick = (targetLink) => {
+    sessionStorage.setItem('friday_explore_scroll', window.scrollY.toString());
+    navigate(targetLink, { state: { from: 'explore' } });
+  };
 
   const toggleSave = (pkgId, e) => {
     e.preventDefault();
@@ -253,6 +291,22 @@ export default function ExplorePage() {
     } catch (err) {
       console.error('Error cloning trip:', err);
       toast.error(err.response?.data?.detail || err.message || 'Failed to clone trip.', { id: 'clone-explore-toast' });
+    }
+  };
+
+  const handleClonePackage = async (e, packageId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!packageId) return;
+    try {
+      toast.loading('Copying tour package into workspace...', { id: 'clone-pkg' });
+      const res = await organizersService.clonePackage(packageId);
+      const cloned = res?.data || res;
+      toast.success('Tour package copied! Opening editor...', { id: 'clone-pkg' });
+      navigate(`/organizer/trips/${cloned.id}/edit`);
+    } catch (err) {
+      console.error('Clone error:', err);
+      toast.error(err.response?.data?.detail || 'Failed to clone package.', { id: 'clone-pkg' });
     }
   };
 
@@ -485,7 +539,7 @@ export default function ExplorePage() {
                 return (
                   <article
                     key={pkg.id}
-                    onClick={() => navigate(targetLink, { state: { from: 'explore' } })}
+                    onClick={() => handleCardClick(targetLink)}
                     className="group bg-white rounded-3xl border border-black/10 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col justify-between cursor-pointer"
                   >
                     {/* 400px Image Container with Film Matte Overlay */}
@@ -711,27 +765,47 @@ export default function ExplorePage() {
                         </div>
 
                         <div className="flex items-center gap-2 w-full sm:w-auto">
-                          {isCommunity && !isOrganizer && pkg.allow_cloning !== false && (
-                            <button
-                              type="button"
-                              onClick={(e) => handleCloneCommunityTrip(e, pkg.id)}
-                              className="flex-1 sm:flex-none bg-[#E7F7EE] hover:bg-[#D4F0E2] text-[#00261D] rounded-full px-4 py-3 text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98 whitespace-nowrap"
-                              title="Copy this itinerary"
-                            >
-                              <Copy className="w-3.5 h-3.5 text-emerald-800" />
-                              <span>Copy Trip</span>
-                            </button>
+                          {isCommunity ? (
+                            !isOrganizer && pkg.allow_cloning !== false && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleCloneCommunityTrip(e, pkg.id)}
+                                className="flex-1 sm:flex-none bg-[#E7F7EE] hover:bg-[#D4F0E2] text-[#00261D] rounded-full px-4 py-3 text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98 whitespace-nowrap"
+                                title="Copy this itinerary"
+                              >
+                                <Copy className="w-3.5 h-3.5 text-emerald-800" />
+                                <span>Copy Trip</span>
+                              </button>
+                            )
+                          ) : (
+                            isOrganizer && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleClonePackage(e, pkg.id)}
+                                className="flex-1 sm:flex-none bg-[#E7F7EE] hover:bg-[#D4F0E2] text-[#00261D] rounded-full px-4 py-3 text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98 whitespace-nowrap"
+                                title="Copy this tour package into your organizer workshop"
+                              >
+                                <Copy className="w-3.5 h-3.5 text-emerald-800" />
+                                <span>Copy Trip</span>
+                              </button>
+                            )
                           )}
 
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(targetLink, { state: { from: 'explore' } });
+                              handleCardClick(targetLink);
                             }}
                             className="flex-1 sm:flex-none bg-[#00261D] hover:bg-[#00261D]/90 text-white rounded-full px-5 sm:px-6 py-3 text-xs uppercase font-bold tracking-wider sm:tracking-widest flex items-center justify-center gap-2 group-hover:gap-3 transition-all cursor-pointer shadow-sm whitespace-nowrap"
                           >
-                            <span>{isCommunity ? 'View Itinerary' : 'Book Expedition'}</span>
+                            <span>
+                              {isCommunity
+                                ? 'View Itinerary'
+                                : isOrganizer
+                                ? 'View Expedition'
+                                : 'Book Expedition'}
+                            </span>
                             <ArrowRight className="w-3.5 h-3.5" />
                           </button>
                         </div>

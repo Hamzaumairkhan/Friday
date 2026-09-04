@@ -62,6 +62,8 @@ class TripResponse(BaseModel):
     advisories: list = Field(default_factory=list)
     views_count: int = 0
     likes_count: int = 0
+    rating: float = 0.0
+    reviews_count: int = 0
     weather: Optional[dict] = None
     owner_role: Optional[str] = "TRAVELER"
     members: list[dict] = Field(default_factory=list)

@@ -34,6 +34,8 @@ import {
   ShieldCheck,
   Phone,
   Award,
+  Star,
+  Eye,
 } from 'lucide-react';
 import { tripsService } from '../../services/trips';
 import { useAuth } from '../../context/AuthContext';
@@ -101,8 +103,51 @@ export default function TripDetailPage() {
     end_time: '11:30 AM',
     duration_minutes: 150,
     estimated_cost: 0,
-    map_url: '',
   });
+
+  // Dynamic Reviews & Ratings State
+  const [reviews, setReviews] = useState([]);
+  const [newRating, setNewRating] = useState(5);
+  const [newReviewTitle, setNewReviewTitle] = useState('');
+  const [newReviewContent, setNewReviewContent] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const fetchTripReviews = async (tid) => {
+    try {
+      const revs = await tripsService.getReviews(tid || tripId);
+      setReviews(revs || []);
+    } catch {
+      setReviews([]);
+    }
+  };
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!newReviewContent.trim()) {
+      toast.error('Please enter review comments.');
+      return;
+    }
+    setSubmittingReview(true);
+    try {
+      await tripsService.createReview(tripId, {
+        rating: Number(newRating),
+        title: newReviewTitle.trim() || undefined,
+        content: newReviewContent.trim(),
+      });
+      toast.success('Thank you! Your review has been posted.');
+      setNewReviewTitle('');
+      setNewReviewContent('');
+      setNewRating(5);
+      fetchTripReviews(tripId);
+      const updatedTrip = await tripsService.getTrip(tripId);
+      setTrip(updatedTrip);
+    } catch (err) {
+      console.error('Failed to submit review:', err);
+      toast.error(err.response?.data?.detail || 'Failed to submit review.');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   const fetchTripData = async () => {
     setLoading(true);
@@ -144,6 +189,14 @@ export default function TripDetailPage() {
           })
           .catch(() => {});
       }
+
+      // Record impression view
+      tripsService.recordView(tripId).then((res) => {
+        if (res && res.views_count !== undefined) {
+          setTrip((prev) => prev ? { ...prev, views_count: res.views_count } : prev);
+        }
+      }).catch(() => {});
+      fetchTripReviews(tripId);
     } catch (err) {
       console.error('Error fetching trip details:', err);
       toast.error('Failed to load trip details or access denied.');
@@ -900,7 +953,7 @@ export default function TripDetailPage() {
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
           <div className="absolute bottom-6 left-6 right-6 text-white space-y-1.5">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold uppercase tracking-wider text-[#BBEAD5] flex items-center gap-1.5">
                 {trip.is_public ? <Globe className="w-3 h-3 text-[#BBEAD5]" /> : <Lock className="w-3 h-3 text-[#BBEAD5]" />}
                 <span>{trip.is_public ? 'Public Community Expedition' : 'Private Expedition'}</span>
@@ -910,6 +963,14 @@ export default function TripDetailPage() {
                   {trip.status}
                 </span>
               )}
+              <span className="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-[10px] font-bold uppercase tracking-wider text-white flex items-center gap-1.5 border border-white/10">
+                <Eye className="w-3 h-3 text-emerald-300" />
+                <span>{trip.views_count || 0} Views</span>
+              </span>
+              <span className="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-[10px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5 border border-white/10">
+                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                <span>{(Number(trip.rating) || 0) > 0 ? Number(trip.rating).toFixed(1) : 'New'} ({trip.reviews_count || (reviews?.length) || 0})</span>
+              </span>
             </div>
             <h1
               className="text-3xl sm:text-5xl font-normal text-white leading-tight"
@@ -1385,6 +1446,99 @@ export default function TripDetailPage() {
             </p>
           </div>
         )}
+      </section>
+
+      {/* ─── Reviews & Ratings Section ────────────────────────────────── */}
+      <section className="bg-white rounded-3xl p-6 sm:p-8 border border-black/10 shadow-xs space-y-6">
+        <div className="flex items-center justify-between border-b border-black/5 pb-4">
+          <div>
+            <span className="text-[10px] uppercase font-bold tracking-widest text-[#717975] block">
+              Traveler Feedback &amp; Ratings
+            </span>
+            <h3 className="text-2xl font-normal text-[#00261D]" style={{ fontFamily: "'Instrument Serif', serif" }}>
+              Community Reviews ({reviews.length})
+            </h3>
+          </div>
+          <div className="flex items-center gap-1.5 font-bold text-amber-600">
+            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+            <span className="text-sm">{Number(trip.rating || 0) > 0 ? Number(trip.rating).toFixed(1) : '5.0'}</span>
+          </div>
+        </div>
+
+        {reviews.length > 0 ? (
+          <div className="space-y-3">
+            {reviews.map((rev) => (
+              <div key={rev.id} className="p-4 rounded-2xl bg-[#F8FAF6] border border-black/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-[#00261D]">{rev.reviewer_name || rev.user_name || 'Verified Explorer'}</span>
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        className={`w-3 h-3 ${s <= (rev.rating || 5) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                {rev.title && <h5 className="font-bold text-xs text-[#00261D]">{rev.title}</h5>}
+                <p className="text-xs text-[#555E59] leading-relaxed">{rev.content}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-[#717975] italic">Be the first explorer to review this trip itinerary!</p>
+        )}
+
+        {/* Leave Review & Rating Form */}
+        <form onSubmit={handleSubmitReview} className="pt-4 border-t border-black/5 space-y-3">
+          <span className="text-xs font-bold text-[#00261D] block">Leave a Review &amp; Rating</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#717975]">Your Rating:</span>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setNewRating(s)}
+                  className="p-1 cursor-pointer transition-transform hover:scale-110"
+                  title={`${s} Star${s > 1 ? 's' : ''}`}
+                >
+                  <Star
+                    className={`w-4 h-4 ${s <= newRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                  />
+                </button>
+              ))}
+            </div>
+            <span className="text-xs font-bold text-amber-600">{newRating}.0 / 5.0</span>
+          </div>
+
+          <input
+            type="text"
+            placeholder="Review title (e.g. Incredible 5-day mountain route)"
+            value={newReviewTitle}
+            onChange={(e) => setNewReviewTitle(e.target.value)}
+            className="w-full p-3 text-xs bg-[#F8FAF6] border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D]"
+          />
+
+          <textarea
+            rows={3}
+            placeholder="Share your experience on this itinerary stops, timing, and roads..."
+            value={newReviewContent}
+            onChange={(e) => setNewReviewContent(e.target.value)}
+            className="w-full p-3 text-xs bg-[#F8FAF6] border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D] resize-none"
+          />
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={submittingReview}
+              className="px-5 py-2 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+            >
+              {submittingReview ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3 fill-amber-400 text-amber-400" />}
+              <span>Post Review</span>
+            </button>
+          </div>
+        </form>
       </section>
 
       {/* ─── MODAL: Edit Day Title & Summary ───────────────────────── */}

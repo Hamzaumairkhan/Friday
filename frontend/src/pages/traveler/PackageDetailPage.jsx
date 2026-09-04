@@ -678,7 +678,7 @@ export default function PackageDetailPage() {
             {reviews.map((rev) => (
               <div key={rev.id} className="p-4 rounded-2xl bg-[#F8FAF6] border border-black/5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-[#00261D]">{rev.user_name || 'Verified Explorer'}</span>
+                  <span className="font-bold text-xs text-[#00261D]">{rev.reviewer_name || rev.user_name || 'Verified Explorer'}</span>
                   <div className="flex items-center gap-0.5">
                     {[1, 2, 3, 4, 5].map((s) => (
                       <Star
@@ -697,56 +697,56 @@ export default function PackageDetailPage() {
           <p className="text-xs text-[#717975] italic">Be the first explorer to review this tour package!</p>
         )}
 
-        {/* Leave Review Form */}
-        {!isOrganizer && (
-          <form onSubmit={handleSubmitReview} className="pt-3 border-t border-black/5 space-y-3">
-            <span className="text-xs font-bold text-[#00261D] block">Leave a Review</span>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[#717975]">Your Rating:</span>
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setNewRating(s)}
-                    className="p-1 cursor-pointer"
-                  >
-                    <Star
-                      className={`w-4 h-4 ${s <= newRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
-                    />
-                  </button>
-                ))}
-              </div>
+        {/* Leave Review & Rating Form - Open to Everyone */}
+        <form onSubmit={handleSubmitReview} className="pt-3 border-t border-black/5 space-y-3">
+          <span className="text-xs font-bold text-[#00261D] block">Leave a Review &amp; Rating</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#717975]">Your Rating:</span>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setNewRating(s)}
+                  className="p-1 cursor-pointer transition-transform hover:scale-110"
+                  title={`${s} Star${s > 1 ? 's' : ''}`}
+                >
+                  <Star
+                    className={`w-4 h-4 ${s <= newRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                  />
+                </button>
+              ))}
             </div>
+            <span className="text-xs font-bold text-amber-600">{newRating}.0 / 5.0</span>
+          </div>
 
-            <input
-              type="text"
-              placeholder="Review title (e.g. Unforgettable Karakoram Adventure)"
-              value={newReviewTitle}
-              onChange={(e) => setNewReviewTitle(e.target.value)}
-              className="w-full p-3 text-xs bg-[#F8FAF6] border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D]"
-            />
+          <input
+            type="text"
+            placeholder="Review title (e.g. Unforgettable Karakoram Adventure)"
+            value={newReviewTitle}
+            onChange={(e) => setNewReviewTitle(e.target.value)}
+            className="w-full p-3 text-xs bg-[#F8FAF6] border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D]"
+          />
 
-            <textarea
-              rows={3}
-              placeholder="Share your experience on this trip..."
-              value={newReviewContent}
-              onChange={(e) => setNewReviewContent(e.target.value)}
-              className="w-full p-3 text-xs bg-[#F8FAF6] border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D] resize-none"
-            />
+          <textarea
+            rows={3}
+            placeholder="Share your experience on this trip..."
+            value={newReviewContent}
+            onChange={(e) => setNewReviewContent(e.target.value)}
+            className="w-full p-3 text-xs bg-[#F8FAF6] border border-black/10 rounded-xl focus:outline-none focus:border-[#00261D] resize-none"
+          />
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={submittingReview}
-                className="px-5 py-2 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
-              >
-                {submittingReview ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3" />}
-                <span>Post Review</span>
-              </button>
-            </div>
-          </form>
-        )}
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={submittingReview}
+              className="px-5 py-2 rounded-full bg-[#00261D] hover:bg-[#00261D]/90 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+            >
+              {submittingReview ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3 fill-amber-400 text-amber-400" />}
+              <span>Post Review</span>
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* ─── Booking Modal ─────────────────────────────────────────── */}

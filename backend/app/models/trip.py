@@ -50,6 +50,8 @@ class Trip(Base, IDMixin, TimestampMixin):
     advisories = Column(JSON, default=list)
     views_count = Column(Integer, default=0, nullable=False)
     likes_count = Column(Integer, default=0, nullable=False)
+    rating = Column(Float, default=0.0)
+    reviews_count = Column(Integer, default=0)
 
     # Relationships
     members = relationship("TripMember", back_populates="trip", cascade="all, delete-orphan")

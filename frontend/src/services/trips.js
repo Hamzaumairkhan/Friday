@@ -52,6 +52,17 @@ export const tripsService = {
     return await api.post(`/trips/${tripId}/view`).catch(() => null);
   },
 
+  // Dynamic Reviews & Ratings for Community Trips
+  async getReviews(tripId) {
+    const res = await api.get(`/trips/${tripId}/reviews`);
+    return res.data;
+  },
+
+  async createReview(tripId, data) {
+    const res = await api.post(`/trips/${tripId}/reviews`, data);
+    return res.data;
+  },
+
   // Toggle/Record Trip Like (+1)
   async toggleLike(tripId) {
     return await api.post(`/trips/${tripId}/like`).catch(() => null);

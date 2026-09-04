@@ -10,6 +10,7 @@ from app.database.database import get_db
 from app.models.review import Review
 from app.models.package import Package
 from app.models.organizer import Organizer
+from app.models.trip import Trip
 from app.models.user import User
 from app.schemas.review import ReviewCreate, ReviewResponse
 from app.core.security import get_current_user
@@ -23,10 +24,11 @@ def _format_review(r: Review) -> ReviewResponse:
         user_id=r.user_id,
         organizer_id=r.organizer_id,
         package_id=r.package_id,
+        trip_id=r.trip_id,
         rating=r.rating,
         title=r.title,
         content=r.content,
-        reviewer_name=r.reviewer_name or "Traveler",
+        reviewer_name=r.reviewer_name or "Verified Explorer",
         created_at=r.created_at.isoformat() if r.created_at else "",
     )
 
@@ -36,7 +38,7 @@ async def list_package_reviews(
     package_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """List all authentic traveler reviews for a specific tour package."""
+    """List all reviews for a specific tour package."""
     result = await db.execute(
         select(Review).where(Review.package_id == package_id).order_by(Review.created_at.desc())
     )
@@ -51,11 +53,27 @@ async def create_package_review(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Submit an authentic traveler review for a tour package. Recalculates live ratings dynamically."""
+    """Submit a review for a tour package. Any authenticated user (traveler, organizer, or author) can review."""
     pkg_res = await db.execute(select(Package).where(Package.id == package_id))
     pkg = pkg_res.scalar_one_or_none()
     if not pkg:
         raise HTTPException(status_code=404, detail="Tour package not found")
+
+    user_label = (current_user.name or "").strip()
+    if not user_label and current_user.email:
+        user_label = current_user.email.split("@")[0].title()
+    if not user_label:
+        user_label = "Explorer"
+
+    # Check if this user is the organizer/host of the package
+    org_res = await db.execute(select(Organizer).where(Organizer.id == pkg.organizer_id))
+    org = org_res.scalar_one_or_none()
+    if org and org.user_id == current_user.id:
+        reviewer_name = f"{user_label} (Host Organizer)"
+    elif str(getattr(current_user, 'role', '')).upper() == "ORGANIZER":
+        reviewer_name = f"{user_label} (Organizer)"
+    else:
+        reviewer_name = user_label
 
     rev_id = f"rev-{uuid.uuid4().hex[:12]}"
     new_rev = Review(
@@ -63,10 +81,11 @@ async def create_package_review(
         user_id=current_user.id,
         organizer_id=pkg.organizer_id,
         package_id=pkg.id,
+        trip_id=None,
         rating=round(float(req.rating), 1),
         title=req.title,
         content=req.content,
-        reviewer_name=current_user.name or "Traveler",
+        reviewer_name=reviewer_name,
     )
     db.add(new_rev)
     await db.flush()
@@ -80,8 +99,6 @@ async def create_package_review(
     pkg.reviews_count = int(pkg_count or 1)
 
     # Recalculate organizer average rating & count
-    org_res = await db.execute(select(Organizer).where(Organizer.id == pkg.organizer_id))
-    org = org_res.scalar_one_or_none()
     if org:
         org_revs = await db.execute(
             select(func.avg(Review.rating), func.count(Review.id)).where(Review.organizer_id == org.id)
@@ -89,6 +106,72 @@ async def create_package_review(
         org_avg, org_count = org_revs.first()
         org.rating = round(float(org_avg or req.rating), 1)
         org.reviews_count = int(org_count or 1)
+
+    await db.commit()
+    await db.refresh(new_rev)
+    return _format_review(new_rev)
+
+
+@router.get("/trips/{trip_id}/reviews", response_model=List[ReviewResponse])
+async def list_trip_reviews(
+    trip_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """List all reviews for a community trip itinerary."""
+    result = await db.execute(
+        select(Review).where(Review.trip_id == trip_id).order_by(Review.created_at.desc())
+    )
+    reviews = result.scalars().all()
+    return [_format_review(r) for r in reviews]
+
+
+@router.post("/trips/{trip_id}/reviews", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
+async def create_trip_review(
+    trip_id: str,
+    req: ReviewCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit a review for a community trip. Any user (traveler, organizer, author) can review."""
+    trip = await db.get(Trip, trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    user_label = (current_user.name or "").strip()
+    if not user_label and current_user.email:
+        user_label = current_user.email.split("@")[0].title()
+    if not user_label:
+        user_label = "Explorer"
+
+    if trip.owner_id == current_user.id:
+        reviewer_name = f"{user_label} (Trip Creator)"
+    elif str(getattr(current_user, 'role', '')).upper() == "ORGANIZER":
+        reviewer_name = f"{user_label} (Organizer)"
+    else:
+        reviewer_name = user_label
+
+    rev_id = f"rev-{uuid.uuid4().hex[:12]}"
+    new_rev = Review(
+        id=rev_id,
+        user_id=current_user.id,
+        organizer_id=None,
+        package_id=None,
+        trip_id=trip.id,
+        rating=round(float(req.rating), 1),
+        title=req.title,
+        content=req.content,
+        reviewer_name=reviewer_name,
+    )
+    db.add(new_rev)
+    await db.flush()
+
+    # Recalculate trip average rating & count
+    trip_revs = await db.execute(
+        select(func.avg(Review.rating), func.count(Review.id)).where(Review.trip_id == trip.id)
+    )
+    trip_avg, trip_count = trip_revs.first()
+    trip.rating = round(float(trip_avg or req.rating), 1)
+    trip.reviews_count = int(trip_count or 1)
 
     await db.commit()
     await db.refresh(new_rev)

@@ -339,7 +339,7 @@ class EmailService:
     ) -> Dict[str, Any]:
         """Notify traveler that organizer approved their booking and invite to Group Chat."""
         group_chat_url = f"http://localhost:5173/trips/{package_id}/group"
-        subject = f"Booking Verified & Confirmed — {package_title}"
+        subject = f"Booking Verified & Confirmed: {package_title}"
         plain_body = (
             f"Dear {traveler_name},\n\n"
             f"Your booking for '{package_title}' in {destination} has been verified and confirmed by {organizer_name}!\n"

@@ -664,17 +664,17 @@ async def verify_or_reject_payment(
             logger.warning(f"Group enrollment error: {e}")
 
         # Send confirmed booking & Group Chat invitation email & WhatsApp to Traveler in background
+        from app.repositories.user_repository import UserRepository
+        user_repo = UserRepository(db)
+
         traveler_email = booking.traveler_email
         if not traveler_email and booking.user_id:
-            user_repo = UserRepository(db)
             u = await user_repo.get_by_id(booking.user_id)
             if u:
                 traveler_email = u.email
 
         traveler_phone = getattr(booking, 'traveler_phone', None)
         if not traveler_phone and booking.user_id:
-            from app.repositories.user_repository import UserRepository
-            user_repo = UserRepository(db)
             u = await user_repo.get_by_id(booking.user_id)
             if u and hasattr(u, 'phone'):
                 traveler_phone = u.phone
@@ -695,9 +695,10 @@ async def verify_or_reject_payment(
 
             if traveler_email:
                 try:
+                    logger.info(f"Dispatching booking approval email to {traveler_email} for booking {appr_b_id}...")
                     from app.services.email_service import EmailService
                     email_svc = EmailService()
-                    await email_svc.send_traveler_booking_approved_email(
+                    email_res = await email_svc.send_traveler_booking_approved_email(
                         traveler_email=traveler_email,
                         traveler_name=appr_trav_name,
                         booking_id=appr_b_id,
@@ -708,8 +709,11 @@ async def verify_or_reject_payment(
                         total_price=appr_total,
                         organizer_name=appr_org_name,
                     )
+                    logger.info(f"Booking approved email dispatch result: {email_res}")
                 except Exception as e:
-                    logger.warning(f"Failed to dispatch booking approved email to traveler: {e}")
+                    logger.error(f"Failed to dispatch booking approved email to traveler {traveler_email}: {e}")
+            else:
+                logger.warning(f"Cannot send booking approved email: No traveler_email found for booking {appr_b_id}")
 
             if traveler_phone:
                 try:

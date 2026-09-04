@@ -340,6 +340,26 @@ async def submit_payment_proof(
         except Exception as e:
             logger.warning(f"Failed to dispatch payment proof email to organizer: {e}")
 
+        # Dispatch email confirmation to traveler
+        traveler_email = booking.traveler_email or current_user.email
+        if traveler_email:
+            try:
+                from app.tools.email import EmailTool
+                email_tool = EmailTool()
+                subject = f"Payment Receipt Received: {booking.package_title or 'Tour Expedition'}"
+                body = (
+                    f"Dear {booking.traveler_name or current_user.name or 'Traveler'},\n\n"
+                    f"We have received your payment proof for '{booking.package_title or 'Tour Expedition'}' (Booking #{booking.id[:8].upper()}).\n\n"
+                    f"Your host ({organizer.name if organizer else 'Verified Host'}) has been notified and will verify your transaction shortly.\n"
+                    f"Once verified, you will receive full access to your private trip group chat.\n\n"
+                    f"Track your booking: http://localhost:5173/my-trips\n\n"
+                    f"Safe travels,\nFriday AI Travel Marketplace"
+                )
+                await email_tool.send_email(to=traveler_email, subject=subject, body=body)
+                logger.info(f"Dispatched payment proof confirmation email to traveler: {traveler_email}")
+            except Exception as te:
+                logger.warning(f"Failed to dispatch payment confirmation email to traveler: {te}")
+
         # Dispatch WhatsApp notification directly to Organizer
         try:
             from app.tools.whatsapp import WhatsAppTool

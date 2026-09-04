@@ -184,6 +184,15 @@ async def get_package(
     p = await service.get_package(package_id)
     if not p:
         raise HTTPException(status_code=404, detail="Package not found")
+    
+    # Increment views_count every time the tour package is viewed
+    try:
+        p.views_count = int(getattr(p, 'views_count', 0) or 0) + 1
+        await db.commit()
+        await db.refresh(p)
+    except Exception as e:
+        pass
+
     return _format_public_package(p)
 
 
@@ -193,12 +202,9 @@ async def track_package_view(
     payload: Optional[dict] = Body(default={}),
     db: AsyncSession = Depends(get_db),
 ):
-    """Record a single unique view per visitor/user. Repeated requests by the same visitor will NOT increment views."""
+    """Record an impression view (+1) for a tour package."""
     visitor_id = ((payload or {}).get("visitor_id") or "").strip()
     user_id = (payload or {}).get("user_id")
-
-    if not visitor_id:
-        return {"recorded": False, "message": "visitor_id required"}
 
     # Check package exists
     pkg_res = await db.execute(select(Package).where(Package.id == package_id))
@@ -206,20 +212,16 @@ async def track_package_view(
     if not pkg:
         raise HTTPException(status_code=404, detail="Package not found")
 
-    # Check if already recorded for this visitor or user
-    stmt = select(PackageView).where(
-        PackageView.package_id == package_id,
-        PackageView.visitor_id == visitor_id,
-    )
-    existing_res = await db.execute(stmt)
-    existing = existing_res.scalars().first()
-
-    if not existing:
-        new_view = PackageView(package_id=package_id, visitor_id=visitor_id, user_id=user_id)
-        db.add(new_view)
+    try:
+        if visitor_id:
+            new_view = PackageView(package_id=package_id, visitor_id=visitor_id, user_id=user_id)
+            db.add(new_view)
+        
         pkg.views_count = int(getattr(pkg, 'views_count', 0) or 0) + 1
         await db.commit()
         await db.refresh(pkg)
         return {"views_count": pkg.views_count, "recorded": True}
-
-    return {"views_count": int(getattr(pkg, 'views_count', 0) or 0), "recorded": False}
+    except Exception as e:
+        pkg.views_count = int(getattr(pkg, 'views_count', 0) or 0) + 1
+        await db.commit()
+        return {"views_count": pkg.views_count, "recorded": True}

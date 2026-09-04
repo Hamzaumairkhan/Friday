@@ -124,6 +124,8 @@ class SmtpEmailProvider(BaseEmailProvider):
         import asyncio
         from email.mime.multipart import MIMEMultipart
         from email.mime.text import MIMEText
+        from email.header import Header
+        from email.utils import formataddr
 
         if not to or not to.strip():
             return {"success": False, "source": "smtp", "source_type": "invalid_input", "data": None, "error": "Recipient email cannot be empty."}
@@ -132,29 +134,44 @@ class SmtpEmailProvider(BaseEmailProvider):
 
         def _send_sync():
             msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = f"Friday Travel Marketplace <{self.from_email}>"
+            msg["Subject"] = Header(subject, "utf-8")
+            msg["From"] = formataddr((str(Header("Friday AI Travel Marketplace", "utf-8")), self.from_email))
             msg["To"] = target_to
 
             msg.attach(MIMEText(body, "plain", "utf-8"))
             if html:
                 msg.attach(MIMEText(html, "html", "utf-8"))
 
-            # 1. Primary: Port 465 with SSL (Instant encrypted connection, avoids cloud port 587 throttle)
-            try:
-                with smtplib.SMTP_SSL(self.host, 465, timeout=5.0) as server:
-                    server.login(self.user, self.password)
-                    server.sendmail(self.from_email, [target_to], msg.as_string())
-                return True
-            except Exception as e465:
-                logger.warning(f"SMTP port 465 SSL dispatch failed ({e465}), trying port 587 STARTTLS...")
-
-            # 2. Fallback: Port 587 with STARTTLS
-            with smtplib.SMTP(self.host, self.port or 587, timeout=5.0) as server:
-                server.starttls()
-                server.login(self.user, self.password)
-                server.sendmail(self.from_email, [target_to], msg.as_string())
-            return True
+            target_port = int(self.port or 587)
+            
+            # 1. Primary: Port 587 with STARTTLS (fast, widely supported across cloud & residential ISPs)
+            if target_port == 587:
+                try:
+                    with smtplib.SMTP(self.host, 587, timeout=8.0) as server:
+                        server.starttls()
+                        server.login(self.user, self.password)
+                        server.sendmail(self.from_email, [target_to], msg.as_string())
+                    return True
+                except Exception as e587:
+                    logger.warning(f"SMTP port 587 STARTTLS failed ({e587}), trying port 465 SSL...")
+                    with smtplib.SMTP_SSL(self.host, 465, timeout=8.0) as server:
+                        server.login(self.user, self.password)
+                        server.sendmail(self.from_email, [target_to], msg.as_string())
+                    return True
+            else:
+                # Direct SSL (port 465)
+                try:
+                    with smtplib.SMTP_SSL(self.host, target_port, timeout=8.0) as server:
+                        server.login(self.user, self.password)
+                        server.sendmail(self.from_email, [target_to], msg.as_string())
+                    return True
+                except Exception as e465:
+                    logger.warning(f"SMTP SSL port {target_port} failed ({e465}), falling back to 587 STARTTLS...")
+                    with smtplib.SMTP(self.host, 587, timeout=8.0) as server:
+                        server.starttls()
+                        server.login(self.user, self.password)
+                        server.sendmail(self.from_email, [target_to], msg.as_string())
+                    return True
 
         try:
             loop = asyncio.get_running_loop()
@@ -162,7 +179,7 @@ class SmtpEmailProvider(BaseEmailProvider):
             logger.info(f"Direct Gmail SMTP email delivered successfully to {target_to}")
             return {"success": True, "source": "smtp", "source_type": "live", "data": {"to": target_to, "subject": subject}, "error": None}
         except Exception as e:
-            logger.error(f"Gmail SMTP delivery failed: {e}")
+            logger.error(f"Gmail SMTP delivery failed to {target_to}: {e}")
             return {"success": False, "source": "smtp", "source_type": "live", "data": None, "error": f"SMTP error: {e}"}
 
 

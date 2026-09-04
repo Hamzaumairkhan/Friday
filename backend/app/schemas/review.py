@@ -13,8 +13,9 @@ class ReviewCreate(BaseModel):
 class ReviewResponse(BaseModel):
     id: str
     user_id: str
-    organizer_id: str
+    organizer_id: Optional[str] = None
     package_id: Optional[str] = None
+    trip_id: Optional[str] = None
     rating: float
     title: Optional[str] = None
     content: Optional[str] = None

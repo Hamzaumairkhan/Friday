@@ -106,6 +106,7 @@ export default function BookingDetailPage() {
   const isVerified = booking.payment_status === 'VERIFIED';
   const isProofUploaded = booking.payment_status === 'PROOF_UPLOADED';
   const isRejected = booking.payment_status === 'REJECTED';
+  const isAlreadySubmitted = (isProofUploaded || !!booking.payment_proof_url) && screenshotUrl === booking.payment_proof_url && !isRejected;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -287,13 +288,43 @@ export default function BookingDetailPage() {
                 label="Payment Receipt / Screenshot"
               />
 
-              <button
-                onClick={handleSubmitProof}
-                disabled={isSubmittingProof || !screenshotUrl}
-                className="w-full py-4 rounded-full bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all hover:scale-[1.02] disabled:opacity-50 cursor-pointer shadow-lg flex items-center justify-center gap-2"
-              >
-                {isSubmittingProof ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit Payment Proof for Verification'}
-              </button>
+              {isAlreadySubmitted ? (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/80 text-xs text-amber-900 space-y-1">
+                    <div className="flex items-center gap-2 font-bold text-amber-900">
+                      <CheckCircle className="w-4 h-4 text-emerald-600" />
+                      <span>Receipt Submitted (Pending Verification)</span>
+                    </div>
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      You have already submitted this receipt for verification. Your host is currently reviewing it. 
+                      You cannot re-submit the same receipt. If you need to replace it, click the <strong>✕</strong> button on the image above to remove it, then upload a new slip.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={true}
+                    className="w-full py-4 rounded-full bg-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider cursor-not-allowed border border-slate-300 flex items-center justify-center gap-2 shadow-none"
+                  >
+                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                    <span>Receipt Already Submitted (Under Verification)</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleSubmitProof}
+                  disabled={isSubmittingProof || !screenshotUrl}
+                  className="w-full py-4 rounded-full bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all hover:scale-[1.02] disabled:opacity-50 cursor-pointer shadow-lg flex items-center justify-center gap-2"
+                >
+                  {isSubmittingProof ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : booking.payment_proof_url && screenshotUrl !== booking.payment_proof_url ? (
+                    'Update & Resubmit Payment Proof'
+                  ) : (
+                    'Submit Payment Proof for Verification'
+                  )}
+                </button>
+              )}
 
               <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 p-4 rounded-2xl text-xs text-emerald-950">
                 <ShieldCheck className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
