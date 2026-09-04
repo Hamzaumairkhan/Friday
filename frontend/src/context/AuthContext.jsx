@@ -166,7 +166,7 @@ export const AuthProvider = ({ children }) => {
             organizer_name: intendedRole === 'ORGANIZER' ? `${name}'s Expeditions` : undefined,
           });
         } else if (loginErr.status === 403) {
-          const detailMsg = loginErr.data?.detail || loginErr.message || 'Aapka pehle se Traveler account bana hua hai. Please Traveler select kar ke login karein.';
+          const detailMsg = loginErr.data?.detail || loginErr.message || 'You already have a Traveler account. Please select "Traveler" to log in first, then switch to Organizer from your profile settings.';
           try {
             await fbSignOut(auth);
           } catch (_) {}
@@ -203,7 +203,7 @@ export const AuthProvider = ({ children }) => {
       return { user: authRes.user, role: authRes.user.role, organizerProfile: authRes.organizer_profile };
     } catch (error) {
       console.error('Sign-in error:', error);
-      if (error.message && !error.message.includes('Aapka pehle se')) {
+      if (error.message && !error.message.includes('Traveler account')) {
         toast.error(error.message || 'Authentication failed. Please try again.');
       }
       throw error;

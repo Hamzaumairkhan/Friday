@@ -81,7 +81,7 @@ async def _dispatch_booking_alerts_background(
     wa_tool = WhatsAppTool()
 
     # 1. Organizer Email Alert
-    if org_email:
+    if org_email and "example" not in org_email:
         try:
             await email_svc.send_booking_alert_to_organizer(
                 booking_id=booking_id,
@@ -97,8 +97,26 @@ async def _dispatch_booking_alerts_background(
         except Exception as e:
             logger.warning(f"Failed to dispatch booking alert email to organizer {org_email}: {e}")
 
+    # Admin Email Copy (if admin email is configured and distinct)
+    admin_email = getattr(cfg, 'ADMIN_EMAIL', None)
+    if admin_email and admin_email != org_email:
+        try:
+            await email_svc.send_booking_alert_to_organizer(
+                booking_id=booking_id,
+                organizer_email=admin_email,
+                organizer_name=f"{org_name} (Admin Copy)",
+                traveler_name=traveler_name,
+                package_title=package_title,
+                destination=destination,
+                total_price=total_price,
+                travelers=travelers,
+            )
+            logger.info(f"Dispatched admin booking notification email: {admin_email}")
+        except Exception as e:
+            logger.warning(f"Failed to dispatch admin notification email: {e}")
+
     # 2. Organizer WhatsApp Alert
-    if org_phone:
+    if org_phone and "1234567" not in org_phone:
         try:
             wa_msg = (
                 f"🎉 *New Tour Booking Request Received!* 🏔️\n\n"
@@ -117,8 +135,25 @@ async def _dispatch_booking_alerts_background(
         except Exception as e:
             logger.warning(f"Failed to dispatch booking WhatsApp alert to organizer {org_phone}: {e}")
 
+    # Admin WhatsApp Alert (if configured)
+    admin_phone = getattr(cfg, 'ADMIN_PHONE', None)
+    if admin_phone and admin_phone != org_phone:
+        try:
+            admin_wa_msg = (
+                f"🔔 *Admin Alert: New Booking Request* 🏔️\n\n"
+                f"• *Package:* {package_title}\n"
+                f"• *Traveler:* {traveler_name} ({traveler_phone or 'No phone'})\n"
+                f"• *Host:* {org_name}\n"
+                f"• *Amount:* PKR {total_price:,.0f} ({travelers} seats)\n"
+                f"• *Booking ID:* #{booking_id[:8]}"
+            )
+            await wa_tool.send_whatsapp(to_number=admin_phone, message=admin_wa_msg)
+            logger.info(f"Dispatched admin booking WhatsApp alert: {admin_phone}")
+        except Exception as e:
+            logger.warning(f"Failed to dispatch admin WhatsApp alert: {e}")
+
     # 3. Traveler Confirmation Email
-    if traveler_email:
+    if traveler_email and "example" not in traveler_email:
         try:
             await email_svc.send_booking_confirmation(
                 booking_id=booking_id,
@@ -137,7 +172,7 @@ async def _dispatch_booking_alerts_background(
             logger.warning(f"Failed to dispatch booking confirmation email to traveler {traveler_email}: {e}")
 
     # 4. Traveler WhatsApp Confirmation
-    if traveler_phone:
+    if traveler_phone and "1234567" not in traveler_phone:
         try:
             traveler_msg = (
                 f"✅ *Booking Request Initiated!* 🎒\n\n"

@@ -73,6 +73,7 @@ class Settings(BaseSettings):
 
     # WHATSAPP (Live Railway Baileys microservice / Local microservice)
     WHATSAPP_SERVICE_URL: str = "https://miraculous-analysis-production-eed1.up.railway.app"
+    ADMIN_PHONE: Optional[str] = None
 
     # CLOUDINARY (Optional Image Storage for Production)
     CLOUDINARY_CLOUD_NAME: Optional[str] = None

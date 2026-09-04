@@ -187,15 +187,19 @@ class SmtpEmailProvider(BaseEmailProvider):
 
 
 class EmailTool:
-    """Unified email tool using direct Gmail SMTP exclusively as configured by user."""
+    """Unified email tool supporting Resend Live API and Direct Gmail SMTP with automatic resilience."""
 
     def __init__(self, api_key: Optional[str] = None, from_email: Optional[str] = None, admin_email: Optional[str] = None):
+        resend_key = api_key or settings.RESEND_API_KEY
         smtp_user = (settings.SMTP_USER or "").strip()
         smtp_pass = (settings.SMTP_PASSWORD or "").strip()
-        self.from_email = from_email or settings.EMAIL_FROM or smtp_user or "todaysfriday555@gmail.com"
+        self.from_email = from_email or settings.EMAIL_FROM or "noreply@fridaytravel.pk"
         self.admin_email = admin_email or settings.ADMIN_EMAIL or "hamzaumairkhan30@gmail.com"
 
-        # Authoritative direct Gmail SMTP provider
+        self.resend_provider: Optional[ResendEmailProvider] = (
+            ResendEmailProvider(api_key=resend_key, from_email=self.from_email, admin_email=self.admin_email)
+            if resend_key else None
+        )
         self.smtp_provider: Optional[SmtpEmailProvider] = (
             SmtpEmailProvider(
                 host=settings.SMTP_HOST or "smtp.gmail.com",
@@ -207,22 +211,33 @@ class EmailTool:
         )
 
     async def send_email(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
-        """Send an email using direct Gmail SMTP."""
+        """Send an email using Resend (priority cloud deliverability) or direct Gmail SMTP fallback."""
         target_to = (to or "").strip()
         if not target_to or any(target_to.endswith(d) for d in ("@friday.local", "@friday.pk", "@example.com")):
             if self.admin_email:
                 logger.info(f"Redirecting test/dummy recipient '{to}' to configured ADMIN_EMAIL '{self.admin_email}'")
                 target_to = self.admin_email
 
+        # 1. Try Resend if configured
+        if self.resend_provider:
+            res = await self.resend_provider.send(to=target_to, subject=subject, body=body, html=html)
+            if res.get("success"):
+                return res
+            logger.warning(f"Resend dispatch failed ({res.get('error')}), trying SMTP fallback...")
+
+        # 2. Try SMTP if configured
         if self.smtp_provider:
-            return await self.smtp_provider.send(to=target_to, subject=subject, body=body, html=html)
+            res = await self.smtp_provider.send(to=target_to, subject=subject, body=body, html=html)
+            if res.get("success"):
+                return res
+            logger.warning(f"SMTP dispatch failed: {res.get('error')}")
 
         return {
             "success": False,
             "source": "unconfigured",
             "source_type": "unavailable",
             "data": None,
-            "error": "No SMTP credentials configured.",
+            "error": "Neither Resend nor SMTP credentials delivered the email.",
         }
 
 

@@ -48,8 +48,19 @@ export default function PackageDetailPage() {
   // Booking Dialog State
   const [bookDialogOpen, setBookDialogOpen] = useState(false);
   const [travelersCount, setTravelersCount] = useState(2);
+  const [travelerName, setTravelerName] = useState('');
+  const [travelerEmail, setTravelerEmail] = useState('');
+  const [travelerPhone, setTravelerPhone] = useState('');
   const [bookingNotes, setBookingNotes] = useState('');
   const [isBooking, setIsBooking] = useState(false);
+
+  useEffect(() => {
+    if (backendUser) {
+      if (!travelerName && backendUser.name) setTravelerName(backendUser.name);
+      if (!travelerEmail && backendUser.email) setTravelerEmail(backendUser.email);
+      if (!travelerPhone && backendUser.phone) setTravelerPhone(backendUser.phone);
+    }
+  }, [backendUser]);
 
   // Clone State for Organizers
   const [isCloning, setIsCloning] = useState(false);
@@ -159,6 +170,9 @@ export default function PackageDetailPage() {
         package_id: pkg.id,
         travelers: count,
         seats_booked: count,
+        traveler_name: travelerName.trim() || backendUser?.name || 'Explorer',
+        traveler_email: travelerEmail.trim() || backendUser?.email || undefined,
+        traveler_phone: travelerPhone.trim() || backendUser?.phone || undefined,
         notes: bookingNotes.trim() || undefined,
       };
       const booking = await bookingsService.createBooking(bookingData);
@@ -809,6 +823,51 @@ export default function PackageDetailPage() {
               <span className="text-xl font-normal text-[#420E00]" style={{ fontFamily: "'Instrument Serif', serif" }}>
                 PKR {Number(totalCalculated).toLocaleString()}
               </span>
+            </div>
+
+            {/* Traveler Contact Details (For Instant WhatsApp & Email Receipts) */}
+            <div className="space-y-2.5 pt-2 border-t border-black/10">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[#717975] block">
+                  Lead Traveler Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Ali Khan"
+                  value={travelerName}
+                  onChange={(e) => setTravelerName(e.target.value)}
+                  className="w-full p-2 bg-[#F8FAF6] border border-black/10 rounded-xl text-xs focus:outline-none focus:border-[#00261D]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-[#717975] flex items-center justify-between">
+                    <span>WhatsApp Number</span>
+                    <span className="text-emerald-700 font-bold lowercase text-[9px]">live alerts</span>
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="e.g. 0300 1234567"
+                    value={travelerPhone}
+                    onChange={(e) => setTravelerPhone(e.target.value)}
+                    className="w-full p-2 bg-[#F8FAF6] border border-black/10 rounded-xl text-xs focus:outline-none focus:border-[#00261D]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-[#717975] flex items-center justify-between">
+                    <span>Email Address</span>
+                    <span className="text-emerald-700 font-bold lowercase text-[9px]">receipt</span>
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="e.g. name@gmail.com"
+                    value={travelerEmail}
+                    onChange={(e) => setTravelerEmail(e.target.value)}
+                    className="w-full p-2 bg-[#F8FAF6] border border-black/10 rounded-xl text-xs focus:outline-none focus:border-[#00261D]"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-1">

@@ -91,12 +91,17 @@ class BookingService:
         candidate_email = getattr(data, 'traveler_email', None) if data else None
         if not candidate_email and traveler_user and traveler_user.email:
             candidate_email = traveler_user.email
-        traveler_email = candidate_email or "traveler@friday.pk"
+        traveler_email = candidate_email or (traveler_user.email if traveler_user else None)
 
         candidate_phone = getattr(data, 'traveler_phone', None) if data else None
         if not candidate_phone and traveler_user and getattr(traveler_user, 'phone', None):
             candidate_phone = traveler_user.phone
-        traveler_phone = candidate_phone or "+92 300 1234567"
+        traveler_phone = candidate_phone
+
+        # Persist phone on user entity if previously missing
+        if candidate_phone and traveler_user and not getattr(traveler_user, 'phone', None):
+            traveler_user.phone = candidate_phone
+            await self.db.flush()
 
         # 3. Validate or auto-provision trip & membership
         if trip_id:

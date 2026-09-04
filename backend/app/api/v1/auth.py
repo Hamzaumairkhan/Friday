@@ -175,7 +175,7 @@ async def login(
         if not org:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Aapka pehle se Traveler account bana hua hai. Pehle 'Traveler' select kar ke login karein, phir aap settings se Organizer par switch kar sakte hain.",
+                detail="You already have a Traveler account. Please select 'Traveler' to log in first, and then you can switch to Organizer from your profile settings.",
             )
 
     organizer_profile = None
