@@ -29,8 +29,6 @@ import {
   ShieldCheck,
   ArrowRight,
   MessageSquare,
-  Image as ImageIcon,
-  RefreshCw,
 } from 'lucide-react';
 import { organizersService } from '../../services/organizers';
 import { packagesService } from '../../services/packages';
@@ -107,16 +105,7 @@ export default function PackageFormPage() {
   const [weatherAdvisory, setWeatherAdvisory] = useState(null);
   const [isCheckingWeather, setIsCheckingWeather] = useState(false);
 
-  // Geo Validation & Auto-Correction State
-  const [geoValidation, setGeoValidation] = useState({
-    isValid: true,
-    wasCorrected: false,
-    correctedName: '',
-    error: '',
-    checking: false,
-    region: '',
-    suggestions: [],
-  });
+
 
   // Default dates: departure = today + 14 days
   const getInitialDepartureDate = () => {
@@ -241,50 +230,20 @@ export default function PackageFormPage() {
   }, [formData.departure_date, formData.duration_days]);
 
   // Live OpenWeather forecast for the organizer's expedition dates & destination
-  // Real-time Pakistan Geo Validation & Auto-Correction
+  // Background photo resolver for destination (silently sets image_url without displaying preview on form)
   useEffect(() => {
-    if (!formData.destination || formData.destination.trim().length < 2) {
-      setGeoValidation({ isValid: true, wasCorrected: false, correctedName: '', error: '', checking: false, region: '', suggestions: [] });
-      return;
-    }
-
+    if (!formData.destination || formData.destination.trim().length < 2) return;
     const timer = setTimeout(async () => {
       try {
-        setGeoValidation((prev) => ({ ...prev, checking: true }));
-        const res = await tripsService.validateDestination(formData.destination.trim());
-        if (res) {
-          if (res.is_valid_pakistan) {
-            setGeoValidation({
-              isValid: true,
-              wasCorrected: Boolean(res.was_corrected),
-              correctedName: res.corrected_destination,
-              error: '',
-              checking: false,
-              region: res.region,
-              suggestions: [],
-            });
-            if (res.was_corrected && res.corrected_destination && res.corrected_destination.toLowerCase() !== formData.destination.trim().toLowerCase()) {
-              updateField('destination', res.corrected_destination);
-              toast.success(`✨ Auto-corrected to ${res.corrected_destination} (${res.region || 'Pakistan'})`, { id: 'pkg-geo-correct' });
-            }
-          } else {
-            setGeoValidation({
-              isValid: false,
-              wasCorrected: false,
-              correctedName: '',
-              error: res.error || `Friday exclusively curates expeditions within Pakistan. '${formData.destination}' is outside Pakistan.`,
-              suggestions: res.suggestions || ['Hunza', 'Skardu', 'Swat', 'Naran', 'Islamabad', 'Lahore'],
-              checking: false,
-              region: '',
-            });
-          }
+        const dest = formData.destination.trim();
+        const photos = await searchDestinationImages(dest, dest);
+        if (photos && photos.length > 0) {
+          updateField('image_url', photos[0]);
         }
       } catch (err) {
-        console.error('Geo validation error:', err);
-        setGeoValidation((prev) => ({ ...prev, checking: false }));
+        console.warn('Background photo fetch failed:', err);
       }
     }, 600);
-
     return () => clearTimeout(timer);
   }, [formData.destination]);
 
@@ -558,11 +517,6 @@ export default function PackageFormPage() {
       toast.error('Please enter Primary Destination.');
       return;
     }
-    if (!geoValidation.isValid) {
-      toast.error(geoValidation.error || `Friday exclusively curates expeditions within Pakistan. '${formData.destination}' is outside Pakistan.`);
-      setActiveTab('BASICS');
-      return;
-    }
     if (!formData.organizer_name?.trim()) {
       toast.error('Please enter Host / Company Name.');
       return;
@@ -613,7 +567,17 @@ export default function PackageFormPage() {
         }
       }
 
-      const resolvedCoverImg = formData.image_url || null;
+      let resolvedCoverImg = formData.image_url || null;
+      if (!resolvedCoverImg && formData.destination) {
+        try {
+          const photos = await searchDestinationImages(formData.destination.trim(), formData.destination.trim());
+          if (photos && photos.length > 0) {
+            resolvedCoverImg = photos[0];
+          }
+        } catch {
+          // fallback silent
+        }
+      }
 
       const payload = {
         title: formData.title.trim(),
@@ -715,10 +679,7 @@ export default function PackageFormPage() {
         toast.error('Primary Destination is required before moving to next step.');
         return false;
       }
-      if (!geoValidation.isValid) {
-        toast.error(geoValidation.error || `Friday exclusively curates expeditions within Pakistan. '${formData.destination}' is outside Pakistan.`);
-        return false;
-      }
+
       if (!formData.organizer_name?.trim()) {
         toast.error('Host / Company Name is required.');
         return false;
@@ -912,131 +873,14 @@ export default function PackageFormPage() {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs uppercase font-bold text-[#717975]">Primary Destination (in Pakistan) *</label>
-                  {geoValidation.checking && (
-                    <span className="text-[11px] text-emerald-800 font-semibold flex items-center gap-1">
-                      <Loader2 className="w-3 h-3 animate-spin" /> Verifying location in Pakistan...
-                    </span>
-                  )}
-                </div>
+                <label className="block text-xs uppercase font-bold text-[#717975] mb-1.5">Primary Destination *</label>
                 <input
                   value={formData.destination}
                   onChange={(e) => updateField('destination', e.target.value)}
                   placeholder="e.g. Hunza Valley, Gilgit-Baltistan"
                   required
-                  className={`w-full bg-[#F8FAF6] border rounded-2xl px-4 py-3 text-sm text-[#00261D] focus:outline-none ${!geoValidation.isValid
-                      ? 'border-amber-500 focus:border-amber-600 bg-amber-50/20'
-                      : 'border-black/10 focus:border-[#00261D]'
-                    }`}
+                  className="w-full bg-[#F8FAF6] border border-black/10 rounded-2xl px-4 py-3 text-sm text-[#00261D] font-semibold focus:outline-none focus:border-[#00261D]"
                 />
-
-                {/* Verified Location Badge */}
-                {formData.destination && geoValidation.isValid && geoValidation.correctedName && !geoValidation.checking && (
-                  <div className="flex items-center gap-2 text-xs text-emerald-900 bg-emerald-50 border border-emerald-200/80 px-3.5 py-2 rounded-xl mt-2 animate-in fade-in">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                    <span>
-                      Verified in Pakistan: <strong>{geoValidation.correctedName}</strong>
-                      {geoValidation.region ? ` • ${geoValidation.region}` : ''}
-                    </span>
-                    {geoValidation.wasCorrected && (
-                      <span className="ml-auto text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
-                        ✨ Auto-Corrected
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Non-Pakistan or Invalid Location Alert */}
-                {!geoValidation.isValid && !geoValidation.checking && (
-                  <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 space-y-2 mt-2 animate-in fade-in">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-bold leading-tight text-amber-900">
-                          {geoValidation.error || `Friday exclusively curates expeditions within Pakistan. '${formData.destination}' is outside Pakistan.`}
-                        </p>
-                        <p className="text-[11px] text-amber-800">
-                          Please choose a destination across Pakistan:
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 pt-1 border-t border-amber-200/60">
-                      {(geoValidation.suggestions || ['Hunza', 'Skardu', 'Swat', 'Naran', 'Islamabad', 'Lahore']).map((sug, sIdx) => (
-                        <button
-                          key={sIdx}
-                          type="button"
-                          onClick={() => updateField('destination', sug)}
-                          className="px-2.5 py-0.5 bg-white hover:bg-emerald-900 hover:text-white border border-amber-300 rounded-full text-[11px] font-bold text-[#00261D] cursor-pointer transition-all shadow-2xs"
-                        >
-                          {sug}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Genuine Destination Web Photography Preview (Feed & Group Chat) */}
-                {formData.destination && geoValidation.isValid && (
-                  <div className="mt-3 p-3.5 rounded-2xl bg-[#F8FAF6] border border-black/10 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#00261D] flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-emerald-800" />
-                        <span>Expedition Web Cover Photo (Feed & Group Chat)</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            const photos = await searchDestinationImages(formData.destination, formData.destination);
-                            if (photos && photos.length > 0) {
-                              const remaining = photos.filter((p) => p !== formData.image_url);
-                              const nextPhoto = remaining.length > 0
-                                ? remaining[Math.floor(Math.random() * remaining.length)]
-                                : photos[0];
-                              updateField('image_url', nextPhoto);
-                              toast.success('Updated cover photo from live web research!');
-                            } else {
-                              toast('Active photography is already assigned for this destination.', { icon: '📸' });
-                            }
-                          } catch {
-                            toast('Using verified regional cover photo.', { icon: '📸' });
-                          }
-                        }}
-                        className="text-[11px] font-bold text-emerald-900 hover:text-emerald-700 flex items-center gap-1 cursor-pointer bg-white px-2.5 py-1 rounded-full border border-black/10 shadow-2xs transition-all active:scale-95"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                        <span>Shuffle Photo</span>
-                      </button>
-                    </div>
-                    <div className="relative h-44 sm:h-52 rounded-xl overflow-hidden bg-gradient-to-br from-[#001E17] via-[#00261D] to-[#011410] border border-black/10 flex items-center justify-center">
-                      {formData.image_url ? (
-                        <img
-                          src={formData.image_url}
-                          alt={formData.destination}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            const el = e.currentTarget.nextElementSibling;
-                            if (el) el.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        className="w-full h-full flex flex-col items-center justify-center text-center p-4 text-emerald-200"
-                        style={{ display: formData.image_url ? 'none' : 'flex' }}
-                      >
-                        <span className="text-5xl mb-1 select-none">{getContextualEmoji(formData.destination, formData.title)}</span>
-                        <span className="text-[10px] uppercase tracking-widest font-semibold opacity-70">
-                          {formData.destination || 'Expedition'}
-                        </span>
-                      </div>
-                      <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[10px] font-medium px-2.5 py-1 rounded-lg pointer-events-none">
-                        📍 Live Photography for {formData.destination}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Host Organizer Transparency Fields (Read Only Verified from Profile) */}

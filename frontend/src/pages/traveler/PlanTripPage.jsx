@@ -146,16 +146,7 @@ export default function PlanTripPage() {
   const [showMobileSummary, setShowMobileSummary] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
 
-  // ─── Pakistan Geo Validation & Auto-Correction State ───────────────────
-  const [geoValidation, setGeoValidation] = useState({
-    isValid: true,
-    wasCorrected: false,
-    correctedName: '',
-    error: '',
-    checking: false,
-    region: '',
-    suggestions: [],
-  });
+
 
   const handleSaveDraftAndExit = () => {
     const draftState = {
@@ -287,53 +278,7 @@ export default function PlanTripPage() {
     loadTripFromParam();
   }, [tripIdParam]);
 
-  // ─── Real-time Pakistan Geo-Detection & Spelling Auto-Correction ─────
-  useEffect(() => {
-    if (!destination || destination.trim().length < 2) {
-      setGeoValidation({ isValid: true, wasCorrected: false, correctedName: '', error: '', checking: false, region: '', suggestions: [] });
-      return;
-    }
 
-    const timer = setTimeout(async () => {
-      try {
-        setGeoValidation((prev) => ({ ...prev, checking: true }));
-        const res = await tripsService.validateDestination(destination.trim());
-        if (res) {
-          if (res.is_valid_pakistan) {
-            setGeoValidation({
-              isValid: true,
-              wasCorrected: Boolean(res.was_corrected),
-              correctedName: res.corrected_destination,
-              error: '',
-              checking: false,
-              region: res.region,
-              suggestions: [],
-            });
-            // If it was a typo, auto-update the destination state
-            if (res.was_corrected && res.corrected_destination && res.corrected_destination.toLowerCase() !== destination.trim().toLowerCase()) {
-              setDestination(res.corrected_destination);
-              toast.success(`✨ Auto-corrected to ${res.corrected_destination} (${res.region || 'Pakistan'})`, { id: 'geo-autocorrect' });
-            }
-          } else {
-            setGeoValidation({
-              isValid: false,
-              wasCorrected: false,
-              correctedName: '',
-              error: res.error || `Friday exclusively curates expeditions within Pakistan. '${destination}' is outside Pakistan.`,
-              suggestions: res.suggestions || ['Hunza', 'Skardu', 'Swat', 'Naran', 'Islamabad', 'Lahore'],
-              checking: false,
-              region: '',
-            });
-          }
-        }
-      } catch (err) {
-        console.error('Geo validation error:', err);
-        setGeoValidation((prev) => ({ ...prev, checking: false }));
-      }
-    }, 600);
-
-    return () => clearTimeout(timer);
-  }, [destination]);
 
   // ─── Day-by-Day Structured Itinerary Customizer (Step 7) ───────────────
   const [daysSchedule, setDaysSchedule] = useState(() => createCleanTravelerDaysSchedule(3));
@@ -1139,12 +1084,6 @@ export default function PlanTripPage() {
       return;
     }
 
-    if (!geoValidation.isValid) {
-      toast.error(geoValidation.error || `Friday exclusively curates expeditions within Pakistan. '${destination}' is outside Pakistan.`);
-      setCurrentStep(1);
-      return;
-    }
-
     if (!origin.trim()) {
       toast.error('Please enter your starting/departure city.');
       setCurrentStep(1);
@@ -1254,8 +1193,14 @@ export default function PlanTripPage() {
       toast.success('Your bespoke Friday itinerary has been generated!');
     } catch (err) {
       console.error('Error generating guided plan:', err);
-      toast.error('Friday could not complete planning. Please try again.');
+      const errorMsg =
+        err.response?.data?.detail ||
+        err.data?.detail ||
+        err.message ||
+        'Friday could not complete planning. Please verify your destination and try again.';
+      toast.error(typeof errorMsg === 'string' ? errorMsg : (Array.isArray(errorMsg) ? errorMsg.map(e => e.msg || JSON.stringify(e)).join(', ') : JSON.stringify(errorMsg)), { duration: 6000 });
       setStage('QUESTIONS');
+      setCurrentStep(1);
     }
   };
 
@@ -3294,17 +3239,10 @@ export default function PlanTripPage() {
 
             {/* Destination Input */}
             <div className="space-y-2 pt-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-[#00261D] uppercase tracking-wider flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#00261D]" />
-                  <span>Destination (Where to go in Pakistan) *</span>
-                </label>
-                {geoValidation.checking && (
-                  <span className="text-[11px] text-emerald-800 font-semibold flex items-center gap-1">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Verifying location in Pakistan...
-                  </span>
-                )}
-              </div>
+              <label className="text-xs font-bold text-[#00261D] uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-[#00261D]" />
+                <span>Destination (Where to go in Pakistan) *</span>
+              </label>
               <div className="relative">
                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717975]" />
                 <input
@@ -3312,58 +3250,10 @@ export default function PlanTripPage() {
                   placeholder="Enter any valley, lake, or city (e.g. Hunza, Skardu, Swat, Naran, Murree, Neelum...)"
                   value={destination}
                   onChange={(e) => setDestination(e.target.value)}
-                  className={`w-full bg-white border rounded-2xl py-4 pl-12 pr-6 text-base text-[#191C1A] placeholder-[#717975] focus:outline-none shadow-xs transition-all font-semibold ${
-                    !geoValidation.isValid
-                      ? 'border-amber-500 focus:border-amber-600 bg-amber-50/20'
-                      : 'border-black/10 focus:border-[#00261D]'
-                  }`}
+                  className="w-full bg-white border border-black/10 rounded-2xl py-4 pl-12 pr-6 text-base text-[#191C1A] placeholder-[#717975] focus:outline-none focus:border-[#00261D] shadow-xs transition-all font-semibold"
                 />
               </div>
-
-              {/* Verified Location Badge */}
-              {destination && geoValidation.isValid && geoValidation.correctedName && !geoValidation.checking && (
-                <div className="flex items-center gap-2 text-xs text-emerald-900 bg-emerald-50 border border-emerald-200/80 px-4 py-2.5 rounded-2xl animate-in fade-in">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-                  <span>
-                    Verified in Pakistan: <strong>{geoValidation.correctedName}</strong>
-                    {geoValidation.region ? ` • ${geoValidation.region}` : ''}
-                  </span>
-                  {geoValidation.wasCorrected && (
-                    <span className="ml-auto text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
-                      ✨ Auto-Corrected
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Non-Pakistan or Invalid Location Alert */}
-              {!geoValidation.isValid && !geoValidation.checking && (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 space-y-2.5 animate-in fade-in">
-                  <div className="flex items-start gap-2.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <p className="text-xs font-bold leading-tight text-amber-900">
-                        {geoValidation.error || `Friday exclusively curates expeditions within Pakistan. '${destination}' is outside Pakistan.`}
-                      </p>
-                      <p className="text-[11px] text-amber-800">
-                        Please choose a destination across Pakistan:
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 pt-1 border-t border-amber-200/60">
-                    {(geoValidation.suggestions || ['Hunza', 'Skardu', 'Swat', 'Naran', 'Islamabad', 'Neelum Valley', 'Murree', 'Lahore']).map((sug, sIdx) => (
-                      <button
-                        key={sIdx}
-                        type="button"
-                        onClick={() => setDestination(sug)}
-                        className="px-3 py-1 bg-white hover:bg-emerald-900 hover:text-white border border-amber-300 rounded-full text-xs font-bold text-[#00261D] cursor-pointer transition-all shadow-2xs"
-                      >
-                        {sug}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+            </div>
 
               {/* Famous Tourism Cities */}
               <div className="space-y-2 pt-2">
@@ -3388,7 +3278,6 @@ export default function PlanTripPage() {
                   ))}
                 </div>
               </div>
-            </div>
           </section>
 
           {/* ─── SECTION 2: DATES, DURATION & TRAVELERS (WITH CO-TRAVELER SKIP) ─ */}
