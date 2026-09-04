@@ -34,7 +34,6 @@ import {
   ShieldCheck,
   Phone,
   Award,
-  Star,
   Eye,
 } from 'lucide-react';
 import { tripsService } from '../../services/trips';
@@ -928,10 +927,7 @@ export default function TripDetailPage() {
                 <Eye className="w-3 h-3 text-emerald-300" />
                 <span>{trip.views_count || 0} Views</span>
               </span>
-              <span className="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-[10px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5 border border-white/10">
-                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                <span>{(Number(trip.rating) || 0) > 0 ? Number(trip.rating).toFixed(1) : 'New'} ({trip.reviews_count || (reviews?.length) || 0})</span>
-              </span>
+
             </div>
             <h1
               className="text-3xl sm:text-5xl font-normal text-white leading-tight"
