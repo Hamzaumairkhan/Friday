@@ -193,8 +193,8 @@ class EmailTool:
         resend_key = api_key or settings.RESEND_API_KEY
         smtp_user = (settings.SMTP_USER or "").strip()
         smtp_pass = (settings.SMTP_PASSWORD or "").strip()
-        self.from_email = from_email or settings.EMAIL_FROM or "noreply@fridaytravel.pk"
-        self.admin_email = admin_email or settings.ADMIN_EMAIL or "hamzaumairkhan30@gmail.com"
+        self.from_email = from_email or settings.EMAIL_FROM or "noreply@friday.pk"
+        self.admin_email = admin_email or settings.ADMIN_EMAIL or "admin@friday.pk"
 
         self.resend_provider: Optional[ResendEmailProvider] = (
             ResendEmailProvider(api_key=resend_key, from_email=self.from_email, admin_email=self.admin_email)
