@@ -880,12 +880,6 @@ async def generate_guided_trip_plan(
 
     await db.commit()
 
-    # Automated Dispatch to Lead & Companions via WhatsApp and Email upon AI generation
-    try:
-        await _dispatch_trip_notifications(trip, db)
-    except Exception as e:
-        logger.warning(f"Could not dispatch notifications for generated trip: {e}")
-
     return {
         "id": trip.id,
         "trip": _format_trip_response(trip),

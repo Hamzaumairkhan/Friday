@@ -152,10 +152,10 @@ async def _dispatch_booking_alerts_background(
         except Exception as e:
             logger.warning(f"Failed to dispatch admin WhatsApp alert: {e}")
 
-    # 3. Traveler Confirmation Email
+    # 3. Traveler Booking Request Received Email (Pending Verification)
     if traveler_email and "example" not in traveler_email:
         try:
-            await email_svc.send_booking_confirmation(
+            await email_svc.send_booking_request_received(
                 booking_id=booking_id,
                 traveler_email=traveler_email,
                 traveler_name=traveler_name,
@@ -167,9 +167,9 @@ async def _dispatch_booking_alerts_background(
                 start_date=start_date,
                 end_date=end_date,
             )
-            logger.info(f"Dispatched booking confirmation email to traveler: {traveler_email}")
+            logger.info(f"Dispatched booking request received email to traveler: {traveler_email}")
         except Exception as e:
-            logger.warning(f"Failed to dispatch booking confirmation email to traveler {traveler_email}: {e}")
+            logger.warning(f"Failed to dispatch booking request received email to traveler {traveler_email}: {e}")
 
     # 4. Traveler WhatsApp Confirmation
     if traveler_phone and "1234567" not in traveler_phone:
@@ -182,6 +182,7 @@ async def _dispatch_booking_alerts_background(
                 f"👥 *Travelers:* {travelers} Seat(s)\n"
                 f"💰 *Total Due:* PKR {total_price:,.0f}\n\n"
                 f"Please transfer the amount to the organizer's account and upload your payment proof slip to confirm your reservation.\n\n"
+                f"🔗 *Track & Upload Slip:* {frontend_base}/my-trips\n\n"
                 f"— *Friday AI Travel Marketplace*"
             )
             await wa_tool.send_whatsapp(to_number=traveler_phone, message=traveler_msg)
@@ -377,6 +378,10 @@ async def submit_payment_proof(
 
         # Dispatch email confirmation to traveler
         traveler_email = booking.traveler_email or current_user.email
+        from app.core.config import get_settings
+        cfg = get_settings()
+        frontend_base = (cfg.FRONTEND_URL or "https://friday-jet-mu.vercel.app").rstrip("/")
+
         if traveler_email:
             try:
                 from app.tools.email import EmailTool
@@ -387,7 +392,7 @@ async def submit_payment_proof(
                     f"We have received your payment proof for '{booking.package_title or 'Tour Expedition'}' (Booking #{booking.id[:8].upper()}).\n\n"
                     f"Your host ({organizer.name if organizer else 'Verified Host'}) has been notified and will verify your transaction shortly.\n"
                     f"Once verified, you will receive full access to your private trip group chat.\n\n"
-                    f"Track your booking: http://localhost:5173/my-trips\n\n"
+                    f"Track your booking: {frontend_base}/my-trips\n\n"
                     f"Safe travels,\nFriday AI Travel Marketplace"
                 )
                 await email_tool.send_email(to=traveler_email, subject=subject, body=body)
@@ -408,7 +413,7 @@ async def submit_payment_proof(
 
             if org_wa_phone:
                 wa_tool = WhatsAppTool()
-                organizer_portal_url = "http://localhost:5173/organizer/bookings"
+                organizer_portal_url = f"{frontend_base}/organizer/bookings"
                 wa_message = (
                     f"💳 *New Payment Proof Received!* 🚀\n\n"
                     f"Hello *{organizer.name}*,\n"

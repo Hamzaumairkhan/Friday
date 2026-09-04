@@ -19,11 +19,65 @@ logger = get_logger("services.email")
 settings = get_settings()
 
 
+def _frontend_base() -> str:
+    """Return production deployed frontend domain or configured environment URL."""
+    return (settings.FRONTEND_URL or "https://friday-jet-mu.vercel.app").rstrip("/")
+
+
 class EmailService:
     """High-level transactional email service for Friday platform."""
 
     def __init__(self, email_tool: Optional[EmailTool] = None):
         self.email_tool = email_tool or EmailTool()
+
+    async def send_booking_request_received(
+        self,
+        booking_id: str,
+        traveler_email: str,
+        traveler_name: str,
+        package_title: str,
+        destination: str,
+        total_price: float,
+        travelers: int,
+        organizer_name: str = "Verified Tour Organizer",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Send booking request received email (Pending payment/verification) to traveler."""
+        from app.services.email_template_service import render_booking_requested_email
+        dashboard_url = f"{_frontend_base()}/my-trips"
+        subject = f"Booking Request Received #{booking_id[:8].upper()} — {package_title}"
+        plain_body = (
+            f"Dear {traveler_name},\n\n"
+            f"Your booking request #{booking_id[:8]} for '{package_title}' in {destination} has been submitted.\n"
+            f"• Number of Travelers: {travelers}\n"
+            f"• Total Due: Rs. {total_price:,.0f}\n"
+            f"• Host Organizer: {organizer_name}\n\n"
+            f"Please complete your payment and upload your transfer slip in your dashboard so your host can verify your reservation.\n\n"
+            f"Track your booking: {dashboard_url}\n\n"
+            f"Warm regards,\n"
+            f"Friday Travel Marketplace"
+        )
+
+        html_body = render_booking_requested_email(
+            booking_id=booking_id,
+            traveler_name=traveler_name,
+            package_title=package_title,
+            destination=destination,
+            total_price=total_price,
+            travelers=travelers,
+            organizer_name=organizer_name,
+            start_date=start_date,
+            end_date=end_date,
+            dashboard_url=dashboard_url,
+        )
+
+        return await self.email_tool.send_email(
+            to=traveler_email,
+            subject=subject,
+            body=plain_body,
+            html=html_body,
+        )
 
     async def send_booking_confirmation(
         self,
@@ -38,7 +92,8 @@ class EmailService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Send professional branded booking confirmation and receipt to traveler."""
+        """Send professional branded booking confirmation and receipt to traveler (Only upon approval/verification)."""
+        dashboard_url = f"{_frontend_base()}/my-trips"
         subject = f"Booking Confirmation #{booking_id[:8].upper()} — {package_title}"
         plain_body = (
             f"Dear {traveler_name},\n\n"
@@ -46,7 +101,7 @@ class EmailService:
             f"• Number of Travelers: {travelers}\n"
             f"• Total Amount: Rs. {total_price:,.0f}\n"
             f"• Host Organizer: {organizer_name}\n\n"
-            f"Log in to your Friday dashboard to enter your private trip group: http://localhost:5173/my-trips\n\n"
+            f"Log in to your Friday dashboard to enter your private trip group: {dashboard_url}\n\n"
             f"Warm regards,\n"
             f"Friday Travel Marketplace"
         )
@@ -61,6 +116,7 @@ class EmailService:
             organizer_name=organizer_name,
             start_date=start_date,
             end_date=end_date,
+            dashboard_url=dashboard_url,
         )
 
         return await self.email_tool.send_email(
@@ -83,12 +139,13 @@ class EmailService:
         notes: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Notify organizer of a new traveler booking reservation."""
+        dashboard_url = f"{_frontend_base()}/organizer/bookings"
         subject = f"New Booking Request #{booking_id[:8].upper()} — {package_title}"
         plain_body = (
             f"Hello {organizer_name},\n\n"
             f"You received a new booking from {traveler_name} for '{package_title}' ({travelers} travelers).\n"
             f"Expected total: Rs. {total_price:,.0f}\n\n"
-            f"Review in your workspace: http://localhost:5173/organizer/bookings\n\n"
+            f"Review in your workspace: {dashboard_url}\n\n"
             f"Best,\nFriday Platform"
         )
 
@@ -101,6 +158,7 @@ class EmailService:
             total_price=total_price,
             travelers=travelers,
             notes=notes,
+            dashboard_url=dashboard_url,
         )
 
         return await self.email_tool.send_email(
@@ -119,12 +177,13 @@ class EmailService:
         notes: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Notify traveler regarding status change (e.g. CONFIRMED, PAYMENT_VERIFIED, REJECTED)."""
+        dashboard_url = f"{_frontend_base()}/my-trips"
         subject = f"Booking #{booking_id[:8].upper()} Status Update: {new_status.upper()}"
         plain_body = (
             f"Dear {traveler_name},\n\n"
             f"The status of your Friday booking #{booking_id[:8]} has been updated to: {new_status.upper()}.\n\n"
             f"Organizer Notes: {notes or 'No additional notes provided.'}\n\n"
-            f"Log in to your Friday dashboard anytime: http://localhost:5173/my-trips\n\n"
+            f"Log in to your Friday dashboard anytime: {dashboard_url}\n\n"
             f"Best regards,\n"
             f"Friday Travel Marketplace"
         )
@@ -150,7 +209,7 @@ class EmailService:
             title=subject,
             preheader=f"Booking #{booking_id[:8]} updated to {new_status}",
             content_html=content_html,
-            action_url="http://localhost:5173/my-trips",
+            action_url=dashboard_url,
             action_text="View Booking Status →",
         )
 
@@ -173,6 +232,7 @@ class EmailService:
     ) -> Dict[str, Any]:
         """Send complete structured day-by-day travel plan and budget breakdown with HTML formatting."""
         subject = f"Your {duration}-Day {destination} Travel Plan — Friday AI Copilot"
+        trip_url = f"{_frontend_base()}/trips/{trip_id}"
         
         days_text = ""
         for day in itinerary_days:
@@ -185,7 +245,7 @@ class EmailService:
             f"Dear {traveler_name},\n\n"
             f"Here is your AI-crafted {duration}-day trip itinerary for {destination}:\n\n"
             f"{days_text}\n\n"
-            f"View your interactive itinerary: http://localhost:5173/trips/{trip_id}\n\n"
+            f"View your interactive itinerary: {trip_url}\n\n"
             f"Safe travels,\n"
             f"Friday AI Travel Copilot"
         )
@@ -197,7 +257,7 @@ class EmailService:
             duration=duration,
             itinerary_days=itinerary_days,
             budget_summary=budget_summary,
-            dashboard_url=f"http://localhost:5173/trips/{trip_id}",
+            dashboard_url=trip_url,
         )
 
         return await self.email_tool.send_email(
@@ -218,7 +278,7 @@ class EmailService:
         budget_total: float,
     ) -> Dict[str, Any]:
         """Send clean minimal trip planned notification with title, travelers count, budget, and direct link."""
-        trip_url = f"http://localhost:5173/trips/{trip_id}"
+        trip_url = f"{_frontend_base()}/my-trips"
         subject = f"Your Trip Has Been Planned — {trip_title}"
         plain_body = (
             f"Dear {traveler_name},\n\n"
@@ -256,7 +316,7 @@ class EmailService:
         price_per_person: float,
     ) -> Dict[str, Any]:
         """Send confirmation email to Organizer when they publish a tour package."""
-        package_url = f"http://localhost:5173/packages/{package_id}"
+        package_url = f"{_frontend_base()}/packages/{package_id}"
         subject = f"Your Tour Package Has Been Published — {package_title}"
         plain_body = (
             f"Dear {organizer_name},\n\n"
@@ -296,7 +356,7 @@ class EmailService:
         total_price: float,
     ) -> Dict[str, Any]:
         """Alert organizer that a traveler uploaded bank payment proof."""
-        review_url = "http://localhost:5173/organizer/bookings"
+        review_url = f"{_frontend_base()}/organizer/bookings"
         subject = f"Payment Proof Uploaded — #{booking_id[:8].upper()} ({package_title})"
         plain_body = (
             f"Hello {organizer_name},\n\n"
@@ -338,7 +398,7 @@ class EmailService:
         organizer_name: str,
     ) -> Dict[str, Any]:
         """Notify traveler that organizer approved their booking and invite to Group Chat."""
-        group_chat_url = f"http://localhost:5173/trips/{package_id}/group"
+        group_chat_url = f"{_frontend_base()}/my-trips"
         subject = f"Booking Verified & Confirmed: {package_title}"
         plain_body = (
             f"Dear {traveler_name},\n\n"
@@ -375,7 +435,7 @@ class EmailService:
         """Notify user via email when their account mode is switched between Traveler and Organizer."""
         is_org = (new_role or "").upper() == "ORGANIZER"
         role_label = "Verified Tour Operator / Organizer" if is_org else "Traveler & Explorer"
-        portal_url = "http://localhost:5173/organizer/dashboard" if is_org else "http://localhost:5173/explore"
+        portal_url = f"{_frontend_base()}/organizer/dashboard" if is_org else f"{_frontend_base()}/explore"
         portal_name = "Organizer Workshop" if is_org else "Traveler Exploration Portal"
 
         subject = f"Account Switched to {role_label} — Friday"

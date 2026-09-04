@@ -212,11 +212,16 @@ class EmailTool:
 
     async def send_email(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
         """Send an email using Resend (priority cloud deliverability) or direct Gmail SMTP fallback."""
+        # 0. Check if a mock or injected provider is set (for testing suites)
+        if getattr(self, "provider", None) is not None:
+            return await self.provider.send(to=to, subject=subject, body=body, html=html)
+
         target_to = (to or "").strip()
+        admin_addr = getattr(self, "admin_email", None) or getattr(settings, "ADMIN_EMAIL", None)
         if not target_to or any(target_to.endswith(d) for d in ("@friday.local", "@friday.pk", "@example.com")):
-            if self.admin_email:
-                logger.info(f"Redirecting test/dummy recipient '{to}' to configured ADMIN_EMAIL '{self.admin_email}'")
-                target_to = self.admin_email
+            if admin_addr:
+                logger.info(f"Redirecting test/dummy recipient '{to}' to configured ADMIN_EMAIL '{admin_addr}'")
+                target_to = admin_addr
 
         # 1. Try Resend if configured
         if self.resend_provider:
