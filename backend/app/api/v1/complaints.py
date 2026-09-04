@@ -27,7 +27,10 @@ class ComplaintCreate(BaseModel):
 
 async def _send_complaint_email(report_id: str, payload: ComplaintCreate, reported_at: str):
     """Background task sending formatted issue alert to support/admin via direct Gmail SMTP."""
-    admin_to = settings.ADMIN_EMAIL or "hamzaumairkhan30@gmail.com"
+    admin_to = settings.ADMIN_EMAIL
+    if not admin_to:
+        logger.info(f"ADMIN_EMAIL not configured; complaint notification #{report_id} skipped.")
+        return
     subject = f"🚨 [Friday Issue Report] {payload.issue_type} - {payload.page_feature}"
     
     plain_body = f"""FRIDAY ISSUE REPORT #{report_id}

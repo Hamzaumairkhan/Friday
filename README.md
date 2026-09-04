@@ -86,7 +86,7 @@ cp backend/.env.example backend/.env
 Key variables to configure in `backend/.env`:
 * `GROQ_API_KEY`: API key for Qwen LLM routing.
 * `GOOGLE_API_KEY`: API key for Gemini 2.5 Flash reasoning.
-* `DATABASE_URL`: MySQL connection URL (e.g. `mysql+asyncmy://user:pass@localhost:3306/friday_db`).
+* `DATABASE_URL`: MySQL connection URL (e.g. `mysql+asyncmy://user:password@localhost:3306/friday_db`).
 * `OPENWEATHER_API_KEY`: Real-time weather forecasting.
 * `TAVILY_API_KEY`: Live web research for attractions & routes.
 * `SMTP_USER` & `SMTP_PASSWORD`: SMTP credentials for automated dispatch.

@@ -39,7 +39,7 @@ class ResendEmailProvider(BaseEmailProvider):
 
             target_to = to.strip()
             from_addr = self.from_email
-            if not from_addr or "@gmail.com" in from_addr or "todaysfriday" in from_addr:
+            if not from_addr or "@gmail.com" in from_addr:
                 from_addr = "Friday Travel Copilot <onboarding@resend.dev>"
 
             params = {
@@ -187,18 +187,20 @@ class EmailTool:
     """Unified email tool using direct Gmail SMTP exclusively as configured by user."""
 
     def __init__(self, api_key: Optional[str] = None, from_email: Optional[str] = None, admin_email: Optional[str] = None):
-        self.from_email = from_email or settings.EMAIL_FROM or settings.SMTP_USER or "todaysfriday555@gmail.com"
+        self.from_email = from_email or settings.EMAIL_FROM or settings.SMTP_USER or "noreply@fridaytravel.pk"
         self.admin_email = admin_email or settings.ADMIN_EMAIL
 
         # Authoritative direct Gmail SMTP provider
+        smtp_user = settings.SMTP_USER or ""
+        smtp_pass = settings.SMTP_PASSWORD or ""
         self.smtp_provider: Optional[SmtpEmailProvider] = (
             SmtpEmailProvider(
                 host=settings.SMTP_HOST or "smtp.gmail.com",
                 port=settings.SMTP_PORT or 587,
-                user=settings.SMTP_USER or "todaysfriday555@gmail.com",
-                password=settings.SMTP_PASSWORD or "ajif ktyg semf bbqi",
+                user=smtp_user,
+                password=smtp_pass,
                 from_email=self.from_email,
-            )
+            ) if (smtp_user and smtp_pass) else None
         )
 
     async def send_email(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
