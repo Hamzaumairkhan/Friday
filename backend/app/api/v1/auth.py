@@ -62,6 +62,7 @@ def _format_organizer(o: Organizer) -> OrganizerResponse:
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register/", response_model=AuthResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 async def register(
     req: RegisterRequest,
     db: AsyncSession = Depends(get_db),
@@ -144,6 +145,7 @@ async def register(
 
 
 @router.post("/login", response_model=AuthResponse)
+@router.post("/login/", response_model=AuthResponse, include_in_schema=False)
 async def login(
     req: LoginRequest,
     db: AsyncSession = Depends(get_db),

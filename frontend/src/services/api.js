@@ -5,6 +5,9 @@
 import { auth } from './firebase';
 
 let rawBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+if (rawBase.startsWith('http://') && !rawBase.includes('localhost') && !rawBase.includes('127.0.0.1')) {
+  rawBase = rawBase.replace('http://', 'https://');
+}
 if (rawBase.endsWith('/')) rawBase = rawBase.slice(0, -1);
 const API_BASE = rawBase.endsWith('/api/v1') ? rawBase : `${rawBase}/api/v1`;
 
