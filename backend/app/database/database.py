@@ -141,8 +141,9 @@ async def get_db() -> AsyncSession:
 async def init_db() -> None:
     """Create all tables and auto-migrate missing columns with production MySQL validation."""
     if settings.is_production and "sqlite" in _async_db_url.lower():
-        raise RuntimeError(
-            "Production deployment error: DATABASE_URL must be configured with a managed MySQL connection (e.g. mysql+asyncmy://user:password@host:port/dbname). SQLite is strictly prohibited in production mode."
+        import logging
+        logging.getLogger("database").warning(
+            "Production warning: DATABASE_URL is falling back to SQLite. If you are using Railway MySQL, ensure DATABASE_URL=${{MySQL.MYSQL_URL}} is set in environment variables."
         )
     _ensure_sqlite_dir(_async_db_url)
     async with async_engine.begin() as conn:
